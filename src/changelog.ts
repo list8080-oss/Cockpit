@@ -9,6 +9,46 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.13",
+    date: "2026-08-08",
+    notes: {
+      en: "Fixed a bug where a fast double-click on Reply could lose that reply entirely, and each column now auto-scrolls to the newest message.",
+      ru: "Исправлен баг, из-за которого быстрый двойной клик по «Ответить» мог полностью потерять ответ; каждая колонка теперь автоматически прокручивается к новому сообщению.",
+      uk: "Виправлено баг, через який швидкий подвійний клік по «Відповісти» міг повністю загубити відповідь; кожна колонка тепер автоматично прокручується до нового повідомлення.",
+      cs: "Opravena chyba, kdy rychlé dvojité kliknutí na Odpovědět mohlo odpověď zcela ztratit; každý sloupec se nyní automaticky posouvá na nejnovější zprávu.",
+    },
+  },
+  {
+    version: "0.3.12",
+    date: "2026-08-08",
+    notes: {
+      en: "Agent conversations no longer disappear when you close the app. A new History panel in the sidebar lists past comparisons by name — open one to keep replying in the same context, not from scratch.",
+      ru: "Переписка с агентами больше не пропадает при закрытии приложения. Новая панель «История» в сайдбаре показывает прошлые обсуждения по названию — открой и продолжай отвечать в том же контексте, а не с нуля.",
+      uk: "Листування з агентами більше не зникає при закритті застосунку. Нова панель «Історія» в бічній панелі показує минулі обговорення за назвою — відкрий і продовжуй відповідати в тому самому контексті, а не з нуля.",
+      cs: "Konverzace s agenty už při zavření aplikace nezmizí. Nový panel Historie v postranním panelu zobrazuje předchozí porovnání podle názvu — otevřete a pokračujte ve stejném kontextu, ne od nuly.",
+    },
+  },
+  {
+    version: "0.3.11",
+    date: "2026-08-08",
+    notes: {
+      en: "Fixed: continuing a conversation used to replace the earlier reply. Each column now keeps the full back-and-forth (agent reply, your follow-up, next reply) instead of losing it.",
+      ru: "Исправлено: при продолжении диалога предыдущий ответ пропадал. Теперь в колонке видна вся переписка (ответ агента, твоя реплика, следующий ответ), а не только последняя.",
+      uk: "Виправлено: під час продовження діалогу попередня відповідь зникала. Тепер у колонці видно всю переписку (відповідь агента, твоя репліка, наступна відповідь), а не лише останню.",
+      cs: "Opraveno: při pokračování konverzace předchozí odpověď zmizela. Sloupec nyní ukazuje celou výměnu (odpověď agenta, vaši repliku, další odpověď) místo jen té poslední.",
+    },
+  },
+  {
+    version: "0.3.10",
+    date: "2026-08-08",
+    notes: {
+      en: "Each engine column now has its own reply box — when an agent asks a follow-up question, you can answer it directly and it continues that same conversation instead of starting cold.",
+      ru: "У каждой колонки теперь своё поле для ответа — если агент задал уточняющий вопрос, можно ответить прямо там, и разговор продолжится в контексте, а не с чистого листа.",
+      uk: "У кожної колонки тепер є своє поле для відповіді — якщо агент поставив уточнювальне питання, можна відповісти прямо там, і розмова продовжиться в контексті, а не з чистого аркуша.",
+      cs: "Každý sloupec má nyní vlastní pole pro odpověď — když agent položí doplňující otázku, můžete odpovědět přímo tam a konverzace pokračuje v kontextu místo od nuly.",
+    },
+  },
+  {
     version: "0.3.9",
     date: "2026-08-08",
     notes: {

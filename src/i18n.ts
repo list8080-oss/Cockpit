@@ -94,6 +94,11 @@ type Dict = {
   clearPrompt: string;
   waitingAgents: string;
   loadChapterFailed: string;
+  replyPlaceholder: string;
+  replySend: string;
+  agentHistory: string;
+  agentHistoryHint: string;
+  agentHistoryEmpty: string;
 };
 
 const en: Dict = {
@@ -186,6 +191,12 @@ const en: Dict = {
   clearPrompt: "Clear text",
   waitingAgents: "Waiting for agents…",
   loadChapterFailed: "[failed to load chapter: {error}]",
+  replyPlaceholder: "Reply to this agent (continues this conversation)…",
+  replySend: "Reply",
+  agentHistory: "History",
+  agentHistoryHint:
+    "Past agent comparisons. Open one to keep going — replies use the same session, not a cold start.",
+  agentHistoryEmpty: "No saved conversations yet.",
 };
 
 const ru: Dict = {
@@ -279,6 +290,12 @@ const ru: Dict = {
   clearPrompt: "Очистить текст",
   waitingAgents: "Ждём агентов…",
   loadChapterFailed: "[не удалось загрузить главу: {error}]",
+  replyPlaceholder: "Ответь этому агенту (продолжит этот же диалог)…",
+  replySend: "Ответить",
+  agentHistory: "История",
+  agentHistoryHint:
+    "Прошлые обсуждения с агентами. Открой любое — ответ продолжит ту же сессию, а не начнёт с нуля.",
+  agentHistoryEmpty: "Пока нет сохранённых обсуждений.",
 };
 
 const uk: Dict = {
@@ -372,6 +389,12 @@ const uk: Dict = {
   clearPrompt: "Очистити текст",
   waitingAgents: "Чекаємо агентів…",
   loadChapterFailed: "[не вдалося завантажити розділ: {error}]",
+  replyPlaceholder: "Відповідай цьому агенту (продовжить цю ж розмову)…",
+  replySend: "Відповісти",
+  agentHistory: "Історія",
+  agentHistoryHint:
+    "Минулі обговорення з агентами. Відкрий будь-яке — відповідь продовжить ту саму сесію, а не почне з нуля.",
+  agentHistoryEmpty: "Поки немає збережених обговорень.",
 };
 
 const cs: Dict = {
@@ -465,6 +488,12 @@ const cs: Dict = {
   clearPrompt: "Vymazat text",
   waitingAgents: "Čekám na agenty…",
   loadChapterFailed: "[kapitolu se nepodařilo načíst: {error}]",
+  replyPlaceholder: "Odpověz tomuto agentovi (naváže na tuto konverzaci)…",
+  replySend: "Odpovědět",
+  agentHistory: "Historie",
+  agentHistoryHint:
+    "Předchozí porovnání s agenty. Otevřete některé — odpověď naváže na stejnou relaci, ne od nuly.",
+  agentHistoryEmpty: "Zatím žádné uložené konverzace.",
 };
 
 const dictionaries: Record<Locale, Dict> = { en, ru, uk, cs };

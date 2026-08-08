@@ -26,18 +26,96 @@ import "./App.css";
 
 type View = "workspace" | "settings";
 type WorkspaceMode = "agents" | "editor";
-type SidebarPanelId = "notes" | "appleNotes" | null;
+type SidebarPanelId = "notes" | "appleNotes" | "history" | null;
 
 const EDITOR_STORAGE_KEY = "yar-cockpit.editor";
 const LEGACY_EDITOR_STORAGE_KEY = "yar-cockpit.notes";
 const SIDEBAR_PANEL_STORAGE_KEY = "yar-cockpit.sidebarPanel";
+const CONVERSATIONS_STORAGE_KEY = "yar-cockpit.agentConversations";
+const ACTIVE_CONVERSATION_STORAGE_KEY = "yar-cockpit.activeConversationId";
+const MAX_STORED_CONVERSATIONS = 100;
+
+const SIDEBAR_PANEL_IDS: SidebarPanelId[] = ["notes", "appleNotes", "history"];
 
 function loadSidebarPanel(): SidebarPanelId {
   try {
-    return localStorage.getItem(SIDEBAR_PANEL_STORAGE_KEY) === "notes" ? "notes" : null;
+    const raw = localStorage.getItem(SIDEBAR_PANEL_STORAGE_KEY);
+    return (SIDEBAR_PANEL_IDS as string[]).includes(raw ?? "") ? (raw as SidebarPanelId) : null;
   } catch {
     return null;
   }
+}
+
+interface ConversationTurn {
+  role: "user" | "assistant";
+  text: string;
+}
+
+interface EngineThread {
+  history: ConversationTurn[];
+  sessionId: string | null;
+}
+
+interface AgentConversation {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  prompt: string;
+  claude: EngineThread;
+  codex: EngineThread;
+  cursor: EngineThread;
+}
+
+function loadConversations(): AgentConversation[] {
+  try {
+    const raw = localStorage.getItem(CONVERSATIONS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistConversations(list: AgentConversation[]) {
+  try {
+    localStorage.setItem(
+      CONVERSATIONS_STORAGE_KEY,
+      JSON.stringify(list.slice(0, MAX_STORED_CONVERSATIONS)),
+    );
+  } catch {
+    /* ignore (e.g. storage quota) */
+  }
+}
+
+function loadActiveConversationId(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_CONVERSATION_STORAGE_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+function persistActiveConversationId(id: string | null) {
+  try {
+    localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, id ?? "");
+  } catch {
+    /* ignore */
+  }
+}
+
+function conversationTitle(text: string): string {
+  const firstLine = text
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
+  if (!firstLine) return "…";
+  return firstLine.length > 60 ? `${firstLine.slice(0, 60)}…` : firstLine;
+}
+
+function emptyEngineThread(): EngineThread {
+  return { history: [], sessionId: null };
 }
 
 type CodexLimitWindow = {
@@ -405,34 +483,56 @@ interface AppleNotesItem {
   title: string;
 }
 
+interface EngineReply {
+  text: string;
+  sessionId: string | null;
+}
+
 type VariantState =
   | { status: "idle" }
   | { status: "running" }
-  | { status: "done"; text: string }
+  | { status: "done" }
   | { status: "error"; message: string };
 
 function Variant({
   label,
   state,
+  history,
   locale,
   auth,
   authLoading,
   limits,
   limitsLoading,
   onRefreshLimits,
+  sessionId,
+  replyValue,
+  onReplyChange,
+  onReplySend,
 }: {
   label: string;
   state: VariantState;
+  history: ConversationTurn[];
   locale: Locale;
   auth: AuthStatus | undefined;
   authLoading: boolean;
   limits?: CodexLimits | null;
   limitsLoading?: boolean;
   onRefreshLimits?: () => void;
+  sessionId?: string | null;
+  replyValue?: string;
+  onReplyChange?: (value: string) => void;
+  onReplySend?: () => void;
 }) {
   const copy = () => {
-    if (state.status === "done") navigator.clipboard.writeText(state.text);
+    const lastAssistant = [...history].reverse().find((turn) => turn.role === "assistant");
+    if (lastAssistant) navigator.clipboard.writeText(lastAssistant.text);
   };
+  const canReply = state.status !== "running" && !!sessionId && !!onReplySend;
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [history, state.status]);
   return (
     <div className="variant-column">
       <EngineLamp
@@ -452,7 +552,7 @@ function Variant({
           {state.status === "error" && (
             <span className="badge badge-error">{t(locale, "error")}</span>
           )}
-          {state.status === "done" && (
+          {history.length > 0 && state.status !== "running" && (
             <button
               className="copy-btn"
               onClick={copy}
@@ -462,16 +562,45 @@ function Variant({
             </button>
           )}
         </div>
-        <div className="variant-body">
-          {state.status === "idle" && <span className="muted">—</span>}
+        <div className="variant-body" ref={bodyRef}>
+          {history.length === 0 && state.status === "idle" && (
+            <span className="muted">—</span>
+          )}
+          {history.map((turn, i) => (
+            <div
+              key={i}
+              className={
+                turn.role === "user" ? "variant-turn variant-turn-user" : "variant-turn"
+              }
+            >
+              <pre>{turn.text}</pre>
+            </div>
+          ))}
           {state.status === "running" && (
             <span className="muted">{t(locale, "waiting")}</span>
           )}
           {state.status === "error" && (
             <span className="error-text">{state.message}</span>
           )}
-          {state.status === "done" && <pre>{state.text}</pre>}
         </div>
+        {canReply && (
+          <div className="variant-reply">
+            <textarea
+              className="variant-reply-box"
+              value={replyValue}
+              onChange={(e) => onReplyChange?.(e.target.value)}
+              placeholder={t(locale, "replyPlaceholder")}
+            />
+            <button
+              type="button"
+              className="variant-reply-btn"
+              onClick={onReplySend}
+              disabled={!replyValue?.trim()}
+            >
+              {t(locale, "replySend")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -844,10 +973,46 @@ export default function App() {
   const [appleConnected, setAppleConnected] = useState(false);
   const [manuscriptPath, setManuscriptPath] = useState<string | null>(null);
   const [manuscriptMessage, setManuscriptMessage] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState("");
-  const [claude, setClaude] = useState<VariantState>({ status: "idle" });
-  const [codex, setCodex] = useState<VariantState>({ status: "idle" });
-  const [cursor, setCursor] = useState<VariantState>({ status: "idle" });
+  const [conversations, setConversations] = useState<AgentConversation[]>(() =>
+    loadConversations(),
+  );
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(() => {
+    const id = loadActiveConversationId();
+    return id && loadConversations().some((c) => c.id === id) ? id : null;
+  });
+  const restoredConversation = conversations.find((c) => c.id === activeConversationId) ?? null;
+
+  const [prompt, setPrompt] = useState(() => restoredConversation?.prompt ?? "");
+  const [claude, setClaude] = useState<VariantState>(() =>
+    (restoredConversation?.claude.history.length ?? 0) > 0 ? { status: "done" } : { status: "idle" },
+  );
+  const [codex, setCodex] = useState<VariantState>(() =>
+    (restoredConversation?.codex.history.length ?? 0) > 0 ? { status: "done" } : { status: "idle" },
+  );
+  const [cursor, setCursor] = useState<VariantState>(() =>
+    (restoredConversation?.cursor.history.length ?? 0) > 0 ? { status: "done" } : { status: "idle" },
+  );
+  const [claudeSessionId, setClaudeSessionId] = useState<string | null>(
+    () => restoredConversation?.claude.sessionId ?? null,
+  );
+  const [codexThreadId, setCodexThreadId] = useState<string | null>(
+    () => restoredConversation?.codex.sessionId ?? null,
+  );
+  const [cursorSessionId, setCursorSessionId] = useState<string | null>(
+    () => restoredConversation?.cursor.sessionId ?? null,
+  );
+  const [claudeReply, setClaudeReply] = useState("");
+  const [codexReply, setCodexReply] = useState("");
+  const [cursorReply, setCursorReply] = useState("");
+  const [claudeHistory, setClaudeHistory] = useState<ConversationTurn[]>(
+    () => restoredConversation?.claude.history ?? [],
+  );
+  const [codexHistory, setCodexHistory] = useState<ConversationTurn[]>(
+    () => restoredConversation?.codex.history ?? [],
+  );
+  const [cursorHistory, setCursorHistory] = useState<ConversationTurn[]>(
+    () => restoredConversation?.cursor.history ?? [],
+  );
   const [auths, setAuths] = useState<AuthStatus[]>([]);
   const [authLoading, setAuthLoading] = useState(true);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
@@ -1068,26 +1233,256 @@ export default function App() {
     }
   };
 
+  const activeConversationIdRef = useRef(activeConversationId);
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
+  const isStillActive = (id: string) => activeConversationIdRef.current === id;
+
+  // A fast double-click/double-Enter can fire the handler twice before React
+  // re-renders to hide the reply box (state updates aren't applied until the
+  // next render) — two concurrent `-r <session_id>` resume calls to the same
+  // CLI session can then race, and one of the two replies gets lost. These
+  // refs make each send/reply a no-op while its own request is in flight.
+  const sendBusyRef = useRef(false);
+  const claudeBusyRef = useRef(false);
+  const codexBusyRef = useRef(false);
+  const cursorBusyRef = useRef(false);
+
+  const upsertConversation = (id: string, updater: (c: AgentConversation) => AgentConversation) => {
+    setConversations((prev) => {
+      const idx = prev.findIndex((c) => c.id === id);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      next[idx] = updater(prev[idx]);
+      persistConversations(next);
+      return next;
+    });
+  };
+
   const send = () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || sendBusyRef.current) return;
+    sendBusyRef.current = true;
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    const conversation: AgentConversation = {
+      id,
+      title: conversationTitle(prompt),
+      createdAt: now,
+      updatedAt: now,
+      prompt,
+      claude: emptyEngineThread(),
+      codex: emptyEngineThread(),
+      cursor: emptyEngineThread(),
+    };
+    setConversations((prev) => {
+      const next = [conversation, ...prev];
+      persistConversations(next);
+      return next;
+    });
+    setActiveConversationId(id);
+    persistActiveConversationId(id);
+
     setClaude({ status: "running" });
     setCodex({ status: "running" });
     setCursor({ status: "running" });
-    invoke<string>("run_claude", { prompt })
-      .then((text) => setClaude({ status: "done", text }))
-      .catch((e) => setClaude({ status: "error", message: String(e) }));
-    invoke<string>("run_codex", { prompt })
-      .then((text) => {
-        setCodex({ status: "done", text });
+    setClaudeSessionId(null);
+    setCodexThreadId(null);
+    setCursorSessionId(null);
+    setClaudeReply("");
+    setCodexReply("");
+    setCursorReply("");
+    setClaudeHistory([]);
+    setCodexHistory([]);
+    setCursorHistory([]);
+    const claudeCall = invoke<EngineReply>("run_claude", { prompt })
+      .then((reply) => {
+        const history: ConversationTurn[] = [{ role: "assistant", text: reply.text }];
+        upsertConversation(id, (c) => ({
+          ...c,
+          updatedAt: Date.now(),
+          claude: { history, sessionId: reply.sessionId },
+        }));
+        if (!isStillActive(id)) return;
+        setClaudeSessionId(reply.sessionId);
+        setClaudeHistory(history);
+        setClaude({ status: "done" });
+      })
+      .catch((e) => {
+        if (isStillActive(id)) setClaude({ status: "error", message: String(e) });
+      });
+    const codexCall = invoke<EngineReply>("run_codex", { prompt })
+      .then((reply) => {
+        const history: ConversationTurn[] = [{ role: "assistant", text: reply.text }];
+        upsertConversation(id, (c) => ({
+          ...c,
+          updatedAt: Date.now(),
+          codex: { history, sessionId: reply.sessionId },
+        }));
+        if (isStillActive(id)) {
+          setCodexThreadId(reply.sessionId);
+          setCodexHistory(history);
+          setCodex({ status: "done" });
+        }
         void refreshCodexLimits();
       })
       .catch((e) => {
-        setCodex({ status: "error", message: String(e) });
+        if (isStillActive(id)) setCodex({ status: "error", message: String(e) });
         void refreshCodexLimits();
       });
-    invoke<string>("run_cursor", { prompt })
-      .then((text) => setCursor({ status: "done", text }))
-      .catch((e) => setCursor({ status: "error", message: String(e) }));
+    const cursorCall = invoke<EngineReply>("run_cursor", { prompt })
+      .then((reply) => {
+        const history: ConversationTurn[] = [{ role: "assistant", text: reply.text }];
+        upsertConversation(id, (c) => ({
+          ...c,
+          updatedAt: Date.now(),
+          cursor: { history, sessionId: reply.sessionId },
+        }));
+        if (!isStillActive(id)) return;
+        setCursorSessionId(reply.sessionId);
+        setCursorHistory(history);
+        setCursor({ status: "done" });
+      })
+      .catch((e) => {
+        if (isStillActive(id)) setCursor({ status: "error", message: String(e) });
+      });
+    void Promise.allSettled([claudeCall, codexCall, cursorCall]).finally(() => {
+      sendBusyRef.current = false;
+    });
+  };
+
+  const continueClaude = () => {
+    const text = claudeReply.trim();
+    if (!text || !claudeSessionId || !activeConversationId || claudeBusyRef.current) return;
+    claudeBusyRef.current = true;
+    const conversationId = activeConversationId;
+    setClaude({ status: "running" });
+    setClaudeReply("");
+    const withUserTurn: ConversationTurn[] = [...claudeHistory, { role: "user", text }];
+    setClaudeHistory(withUserTurn);
+    upsertConversation(conversationId, (c) => ({
+      ...c,
+      updatedAt: Date.now(),
+      claude: { ...c.claude, history: withUserTurn },
+    }));
+    invoke<EngineReply>("run_claude", { prompt: text, sessionId: claudeSessionId })
+      .then((reply) => {
+        upsertConversation(conversationId, (c) => ({
+          ...c,
+          updatedAt: Date.now(),
+          claude: {
+            history: [...c.claude.history, { role: "assistant", text: reply.text }],
+            sessionId: reply.sessionId,
+          },
+        }));
+        if (!isStillActive(conversationId)) return;
+        setClaudeSessionId(reply.sessionId);
+        setClaudeHistory((h) => [...h, { role: "assistant", text: reply.text }]);
+        setClaude({ status: "done" });
+      })
+      .catch((e) => {
+        if (isStillActive(conversationId)) setClaude({ status: "error", message: String(e) });
+      })
+      .finally(() => {
+        claudeBusyRef.current = false;
+      });
+  };
+
+  const continueCodex = () => {
+    const text = codexReply.trim();
+    if (!text || !codexThreadId || !activeConversationId || codexBusyRef.current) return;
+    codexBusyRef.current = true;
+    const conversationId = activeConversationId;
+    setCodex({ status: "running" });
+    setCodexReply("");
+    const withUserTurn: ConversationTurn[] = [...codexHistory, { role: "user", text }];
+    setCodexHistory(withUserTurn);
+    upsertConversation(conversationId, (c) => ({
+      ...c,
+      updatedAt: Date.now(),
+      codex: { ...c.codex, history: withUserTurn },
+    }));
+    invoke<EngineReply>("run_codex", { prompt: text, sessionId: codexThreadId })
+      .then((reply) => {
+        upsertConversation(conversationId, (c) => ({
+          ...c,
+          updatedAt: Date.now(),
+          codex: {
+            history: [...c.codex.history, { role: "assistant", text: reply.text }],
+            sessionId: reply.sessionId,
+          },
+        }));
+        if (isStillActive(conversationId)) {
+          setCodexThreadId(reply.sessionId);
+          setCodexHistory((h) => [...h, { role: "assistant", text: reply.text }]);
+          setCodex({ status: "done" });
+        }
+        void refreshCodexLimits();
+      })
+      .catch((e) => {
+        if (isStillActive(conversationId)) setCodex({ status: "error", message: String(e) });
+        void refreshCodexLimits();
+      })
+      .finally(() => {
+        codexBusyRef.current = false;
+      });
+  };
+
+  const continueCursor = () => {
+    const text = cursorReply.trim();
+    if (!text || !cursorSessionId || !activeConversationId || cursorBusyRef.current) return;
+    cursorBusyRef.current = true;
+    const conversationId = activeConversationId;
+    setCursor({ status: "running" });
+    setCursorReply("");
+    const withUserTurn: ConversationTurn[] = [...cursorHistory, { role: "user", text }];
+    setCursorHistory(withUserTurn);
+    upsertConversation(conversationId, (c) => ({
+      ...c,
+      updatedAt: Date.now(),
+      cursor: { ...c.cursor, history: withUserTurn },
+    }));
+    invoke<EngineReply>("run_cursor", { prompt: text, sessionId: cursorSessionId })
+      .then((reply) => {
+        upsertConversation(conversationId, (c) => ({
+          ...c,
+          updatedAt: Date.now(),
+          cursor: {
+            history: [...c.cursor.history, { role: "assistant", text: reply.text }],
+            sessionId: reply.sessionId,
+          },
+        }));
+        if (!isStillActive(conversationId)) return;
+        setCursorSessionId(reply.sessionId);
+        setCursorHistory((h) => [...h, { role: "assistant", text: reply.text }]);
+        setCursor({ status: "done" });
+      })
+      .catch((e) => {
+        if (isStillActive(conversationId)) setCursor({ status: "error", message: String(e) });
+      })
+      .finally(() => {
+        cursorBusyRef.current = false;
+      });
+  };
+
+  const openConversation = (conversation: AgentConversation) => {
+    setActiveConversationId(conversation.id);
+    persistActiveConversationId(conversation.id);
+    setPrompt(conversation.prompt);
+    setClaudeHistory(conversation.claude.history);
+    setClaudeSessionId(conversation.claude.sessionId);
+    setClaude({ status: conversation.claude.history.length > 0 ? "done" : "idle" });
+    setCodexHistory(conversation.codex.history);
+    setCodexThreadId(conversation.codex.sessionId);
+    setCodex({ status: conversation.codex.history.length > 0 ? "done" : "idle" });
+    setCursorHistory(conversation.cursor.history);
+    setCursorSessionId(conversation.cursor.sessionId);
+    setCursor({ status: conversation.cursor.history.length > 0 ? "done" : "idle" });
+    setClaudeReply("");
+    setCodexReply("");
+    setCursorReply("");
+    setWorkspaceMode("agents");
+    setView("workspace");
   };
 
   const busy =
@@ -1123,6 +1518,10 @@ export default function App() {
       }
       return opening ? "appleNotes" : null;
     });
+  };
+
+  const toggleHistoryPanel = () => {
+    setOpenPanel((current) => (current === "history" ? null : "history"));
   };
 
   const openEditorMode = () => {
@@ -1332,6 +1731,57 @@ export default function App() {
 
           <section
             className={
+              openPanel === "history"
+                ? "sidebar-panel sidebar-panel-open"
+                : "sidebar-panel"
+            }
+          >
+            <button
+              type="button"
+              className="sidebar-panel-toggle"
+              aria-expanded={openPanel === "history"}
+              onClick={toggleHistoryPanel}
+            >
+              <span className="sidebar-panel-chevron" aria-hidden="true">
+                {openPanel === "history" ? "▾" : "▸"}
+              </span>
+              <span>{t(locale, "agentHistory")}</span>
+            </button>
+            {openPanel === "history" && (
+              <div className="sidebar-panel-body">
+                <p className="panel-hint">{t(locale, "agentHistoryHint")}</p>
+                {conversations.length === 0 ? (
+                  <p className="panel-hint">{t(locale, "agentHistoryEmpty")}</p>
+                ) : (
+                  <ul className="chapter-list" aria-label={t(locale, "agentHistory")}>
+                    {[...conversations]
+                      .sort((a, b) => b.updatedAt - a.updatedAt)
+                      .map((c) => (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            className={
+                              c.id === activeConversationId
+                                ? "history-item history-item-active"
+                                : "history-item"
+                            }
+                            onClick={() => openConversation(c)}
+                          >
+                            <span className="history-item-title">{c.title}</span>
+                            <span className="history-item-date">
+                              {new Date(c.updatedAt).toLocaleString()}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section
+            className={
               workspaceMode === "editor"
                 ? "sidebar-panel sidebar-panel-mode-active"
                 : "sidebar-panel"
@@ -1416,13 +1866,19 @@ export default function App() {
                 <Variant
                   label="Claude"
                   state={claude}
+                  history={claudeHistory}
                   locale={locale}
                   auth={authById("claude")}
                   authLoading={authLoading}
+                  sessionId={claudeSessionId}
+                  replyValue={claudeReply}
+                  onReplyChange={setClaudeReply}
+                  onReplySend={continueClaude}
                 />
                 <Variant
                   label="Codex (Sol)"
                   state={codex}
+                  history={codexHistory}
                   locale={locale}
                   auth={authById("codex")}
                   authLoading={authLoading}
@@ -1431,13 +1887,22 @@ export default function App() {
                   onRefreshLimits={() => {
                     void refreshCodexLimits();
                   }}
+                  sessionId={codexThreadId}
+                  replyValue={codexReply}
+                  onReplyChange={setCodexReply}
+                  onReplySend={continueCodex}
                 />
                 <Variant
                   label="Cursor (plan)"
                   state={cursor}
+                  history={cursorHistory}
                   locale={locale}
                   auth={authById("cursor")}
                   authLoading={authLoading}
+                  sessionId={cursorSessionId}
+                  replyValue={cursorReply}
+                  onReplyChange={setCursorReply}
+                  onReplySend={continueCursor}
                 />
               </div>
             </>

@@ -1,13 +1,24 @@
-//! One-shot calls to the `claude` and `codex` CLIs, run with cwd = the
-//! manuscript repo so both pick up its `AGENTS.md`/`CLAUDE.md`/skill
-//! automatically — same as the shared-shelf setup already used from a
-//! terminal. Each call is a single non-interactive turn: no session, no
-//! resume, no tool loop — just "here's a prompt, give me text back".
+//! One-shot calls to the `claude`, `codex`, and `cursor-agent` CLIs, run with
+//! cwd = the manuscript repo so all three pick up its `AGENTS.md`/`CLAUDE.md`/
+//! skill automatically — same as the shared-shelf setup already used from a
+//! terminal. Each call is a single non-interactive turn; optionally it can
+//! resume a prior turn's session/thread id (returned alongside the reply) so
+//! a follow-up stays in that engine's own context instead of starting cold.
 
 use crate::manuscript::manuscript_root;
+use serde::Serialize;
 use serde_json::Value;
 use std::process::Stdio;
 use tokio::process::Command;
+
+/// A completed engine reply plus the session/thread id (if any) that a
+/// follow-up call can pass back in to continue the same conversation.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EngineReply {
+    pub text: String,
+    pub session_id: Option<String>,
+}
 
 /// GUI-launched apps on macOS don't inherit a login shell's PATH, so Homebrew
 /// binaries can be invisible even though a Terminal `which` finds them. Try
@@ -36,18 +47,6 @@ fn codex_bin() -> String {
     )
 }
 
-/// Both `claude -p` and `cursor-agent` occasionally report `is_error: false`
-/// with an empty `result` and zero output tokens — a silent failure on the
-/// CLI's end, not a real (if terse) answer. Surface it as an error so the UI
-/// shows "try again" instead of a copy button with nothing to copy.
-fn require_nonempty(result: String, engine: &str) -> Result<String, String> {
-    if result.trim().is_empty() {
-        Err(format!("{engine} returned an empty response — try again"))
-    } else {
-        Ok(result)
-    }
-}
-
 fn cursor_bin() -> String {
     if let Some(home) = dirs::home_dir() {
         let p = home.join(".local/bin/cursor-agent");
@@ -61,13 +60,27 @@ fn cursor_bin() -> String {
     )
 }
 
+/// Both `claude -p` and `cursor-agent` occasionally report `is_error: false`
+/// with an empty `result` and zero output tokens — a silent failure on the
+/// CLI's end, not a real (if terse) answer. Surface it as an error so the UI
+/// shows "try again" instead of a copy button with nothing to copy.
+fn require_nonempty(result: String, engine: &str) -> Result<String, String> {
+    if result.trim().is_empty() {
+        Err(format!("{engine} returned an empty response — try again"))
+    } else {
+        Ok(result)
+    }
+}
+
 #[tauri::command]
-pub async fn run_claude(prompt: String) -> Result<String, String> {
+pub async fn run_claude(prompt: String, session_id: Option<String>) -> Result<EngineReply, String> {
     let cwd = manuscript_root()?;
-    let output = Command::new(claude_bin())
-        .current_dir(&cwd)
-        .stdin(Stdio::null())
-        .arg("-p")
+    let mut cmd = Command::new(claude_bin());
+    cmd.current_dir(&cwd).stdin(Stdio::null()).arg("-p");
+    if let Some(sid) = &session_id {
+        cmd.arg("-r").arg(sid);
+    }
+    let output = cmd
         .arg(&prompt)
         .arg("--output-format")
         .arg("json")
@@ -91,26 +104,30 @@ pub async fn run_claude(prompt: String) -> Result<String, String> {
         .ok_or_else(|| format!("no `result` field in claude output: {}", stdout.trim()))?;
 
     if is_error {
-        Err(result.to_string())
-    } else {
-        require_nonempty(result.to_string(), "claude")
+        return Err(result.to_string());
     }
+    let text = require_nonempty(result.to_string(), "claude")?;
+    let new_session_id = json.get("session_id").and_then(Value::as_str).map(str::to_string);
+    Ok(EngineReply { text, session_id: new_session_id })
 }
 
 /// `--mode plan` is Cursor's read-only planning mode (analyze, propose a
 /// plan, no edits, no shell) — same safety posture as `ask` but with more
 /// room to reason before answering, matching the other two engines here,
 /// which are only ever asked to transform pasted text, not to touch the
-/// manuscript files.
+/// manuscript files. A follow-up (`session_id` set) uses `--resume` instead —
+/// the mode is fixed by the session it's resuming, so `--mode` is dropped.
 #[tauri::command]
-pub async fn run_cursor(prompt: String) -> Result<String, String> {
+pub async fn run_cursor(prompt: String, session_id: Option<String>) -> Result<EngineReply, String> {
     let cwd = manuscript_root()?;
-    let output = Command::new(cursor_bin())
-        .current_dir(&cwd)
-        .stdin(Stdio::null())
-        .arg("--print")
-        .arg("--mode")
-        .arg("plan")
+    let mut cmd = Command::new(cursor_bin());
+    cmd.current_dir(&cwd).stdin(Stdio::null()).arg("--print");
+    if let Some(sid) = &session_id {
+        cmd.arg("--resume").arg(sid);
+    } else {
+        cmd.arg("--mode").arg("plan");
+    }
+    let output = cmd
         .arg("--trust")
         .arg("--output-format")
         .arg("json")
@@ -135,34 +152,50 @@ pub async fn run_cursor(prompt: String) -> Result<String, String> {
         .ok_or_else(|| format!("no `result` field in cursor-agent output: {}", stdout.trim()))?;
 
     if is_error {
-        Err(result.to_string())
-    } else {
-        require_nonempty(result.to_string(), "cursor-agent")
+        return Err(result.to_string());
     }
+    let text = require_nonempty(result.to_string(), "cursor-agent")?;
+    let new_session_id = json.get("session_id").and_then(Value::as_str).map(str::to_string);
+    Ok(EngineReply { text, session_id: new_session_id })
 }
 
+/// A follow-up (`session_id` set) uses the `exec resume` subcommand, which
+/// only takes a `-c sandbox_mode=read-only` config override — it has no
+/// `-s`/`--sandbox` flag of its own — to keep the same read-only guarantee
+/// as a fresh `exec -s read-only` call.
 #[tauri::command]
-pub async fn run_codex(prompt: String) -> Result<String, String> {
+pub async fn run_codex(prompt: String, session_id: Option<String>) -> Result<EngineReply, String> {
     let cwd = manuscript_root()?;
-    let output = Command::new(codex_bin())
-        .current_dir(&cwd)
-        .stdin(Stdio::null())
-        .arg("exec")
-        .arg("--json")
-        .arg("-s")
-        .arg("read-only")
-        .arg("--skip-git-repo-check")
-        // Skips `~/.codex/config.toml` (marketplaces/plugins/MCP servers) —
-        // those expect a local app-server that isn't running in headless
-        // one-shot calls and otherwise crash the turn with a transport error.
-        // Auth still comes from CODEX_HOME, so login is unaffected.
-        .arg("--ignore-user-config")
-        .arg("-m")
-        .arg("gpt-5.6-sol")
-        .arg(&prompt)
-        .output()
-        .await
-        .map_err(|e| format!("failed to run codex: {e}"))?;
+    let mut cmd = Command::new(codex_bin());
+    cmd.current_dir(&cwd).stdin(Stdio::null());
+    if let Some(sid) = &session_id {
+        cmd.arg("exec")
+            .arg("resume")
+            .arg("--json")
+            .arg("-c")
+            .arg("sandbox_mode=read-only")
+            .arg("--skip-git-repo-check")
+            .arg("--ignore-user-config")
+            .arg("-m")
+            .arg("gpt-5.6-sol")
+            .arg(sid)
+            .arg(&prompt);
+    } else {
+        cmd.arg("exec")
+            .arg("--json")
+            .arg("-s")
+            .arg("read-only")
+            .arg("--skip-git-repo-check")
+            // Skips `~/.codex/config.toml` (marketplaces/plugins/MCP servers) —
+            // those expect a local app-server that isn't running in headless
+            // one-shot calls and otherwise crash the turn with a transport error.
+            // Auth still comes from CODEX_HOME, so login is unaffected.
+            .arg("--ignore-user-config")
+            .arg("-m")
+            .arg("gpt-5.6-sol")
+            .arg(&prompt);
+    }
+    let output = cmd.output().await.map_err(|e| format!("failed to run codex: {e}"))?;
 
     // `codex exec` exits with status 1 for ordinary turn failures (rate
     // limits, refusals, etc.), not just crashes — the real explanation is a
@@ -171,9 +204,13 @@ pub async fn run_codex(prompt: String) -> Result<String, String> {
     // nothing recognizable at all (an actual crash, e.g. binary not found).
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut messages = Vec::new();
+    let mut thread_id: Option<String> = None;
     for line in stdout.lines() {
         let Ok(event) = serde_json::from_str::<Value>(line) else { continue };
         match event.get("type").and_then(Value::as_str) {
+            Some("thread.started") => {
+                thread_id = event.get("thread_id").and_then(Value::as_str).map(str::to_string);
+            }
             Some("item.completed") => {
                 let item = event.get("item");
                 if item.and_then(|i| i.get("type")).and_then(Value::as_str) == Some("agent_message") {
@@ -195,7 +232,7 @@ pub async fn run_codex(prompt: String) -> Result<String, String> {
     }
 
     if !messages.is_empty() {
-        return Ok(messages.join("\n\n"));
+        return Ok(EngineReply { text: messages.join("\n\n"), session_id: thread_id });
     }
 
     if !output.status.success() {
