@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.1",
+    date: "2026-08-08",
+    notes: {
+      en: "Fixed GitHub sign-in/out getting stuck: the Terminal window now comes to the front, and a retry clears any earlier stuck attempt instead of piling up.",
+      ru: "Починен вход/выход из GitHub: окно Terminal теперь выходит на передний план, а повторная попытка убирает зависшую предыдущую вместо накопления.",
+      uk: "Виправлено вхід/вихід з GitHub: вікно Terminal тепер виходить на передній план, а повторна спроба прибирає завислу попередню замість накопичення.",
+      cs: "Opravena zaseknutá přihlášení/odhlášení GitHub: okno Terminalu se nyní dostane do popředí a opakovaný pokus zruší předchozí zaseknutý proces.",
+    },
+  },
+  {
     version: "0.3.0",
     date: "2026-08-08",
     notes: {

@@ -396,7 +396,27 @@ async fn start_auth_flow(provider: String, logout: bool) -> Result<(), String> {
         return Err(format!("{} CLI not found", provider.as_str()));
     }
 
-    // On macOS, open Terminal for a visible interactive session.
+    // A previous click can leave a stuck process waiting in a Terminal window
+    // the user lost track of (this is especially easy to hit with GitHub's
+    // device-code flow, which sits there until a code is typed into the
+    // browser). Clear any earlier attempt for this exact provider+action
+    // before starting a fresh one, so retrying always works instead of
+    // silently piling up zombies with different one-time codes.
+    let bin_name = std::path::Path::new(&bin)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| bin.clone());
+    if let Some(first_arg) = args.first() {
+        let pattern = format!("{bin_name} {first_arg}");
+        let _ = std::process::Command::new("pkill")
+            .arg("-f")
+            .arg(&pattern)
+            .status();
+    }
+
+    // On macOS, open Terminal for a visible interactive session and bring it
+    // to the front — otherwise a device-code prompt waiting for input looks
+    // like nothing happened.
     if cfg!(target_os = "macos") {
         let cmdline = format!(
             "{} {} ; echo; echo '[{}] {} finished — you can close this window.'; exec bash",
@@ -405,12 +425,13 @@ async fn start_auth_flow(provider: String, logout: bool) -> Result<(), String> {
             provider.as_str(),
             action
         );
+        let script = format!(
+            "tell application \"Terminal\"\n  activate\n  do script \"{}\"\nend tell",
+            cmdline.replace('\\', "\\\\").replace('"', "\\\"")
+        );
         let status = std::process::Command::new("osascript")
             .arg("-e")
-            .arg(format!(
-                "tell application \"Terminal\" to do script \"{}\"",
-                cmdline.replace('\\', "\\\\").replace('"', "\\\"")
-            ))
+            .arg(script)
             .status()
             .map_err(|e| format!("failed to open Terminal: {e}"))?;
         if status.success() {
