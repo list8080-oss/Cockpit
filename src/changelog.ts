@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.15",
+    date: "2026-08-08",
+    notes: {
+      en: "The History delete button now looks like a macOS close dot in the corner instead of a text ×.",
+      ru: "Кнопка удаления в «Истории» теперь выглядит как красная точка-крестик macOS в углу, а не текстовый «×».",
+      uk: "Кнопка видалення в «Історії» тепер виглядає як червона крапка-хрестик macOS у кутку, а не текстовий «×».",
+      cs: "Tlačítko smazání v Historii nyní vypadá jako červená tečka macOS v rohu místo textového „×“.",
+    },
+  },
+  {
     version: "0.3.14",
     date: "2026-08-08",
     notes: {

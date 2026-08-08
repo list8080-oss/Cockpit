@@ -420,35 +420,64 @@ body,
 }
 
 .history-row {
-  display: flex;
-  align-items: stretch;
-  gap: 2px;
+  position: relative;
+  display: block;
 }
 
 .history-item {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding-right: 28px;
+  box-sizing: border-box;
 }
 
-.history-delete-btn {
-  flex-shrink: 0;
-  border: none;
-  background: none;
-  box-shadow: none;
-  padding: 0 8px;
-  font-size: 16px;
+.chapter-list .history-delete-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  min-width: 12px;
+  padding: 0;
+  margin: 0;
+  border: 0.5px solid rgba(0, 0, 0, 0.18);
+  border-radius: 50%;
+  background: #ff5f57;
+  box-shadow: inset 0 0.5px 0.5px rgba(255, 255, 255, 0.35);
+  color: transparent;
+  font-size: 8px;
+  font-weight: 700;
   line-height: 1;
-  color: #999;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  border-radius: 6px;
 }
 
-.history-delete-btn:hover {
-  background: rgba(192, 57, 43, 0.12);
-  color: #c0392b;
+.chapter-list .history-delete-btn:hover,
+.history-row:hover .history-delete-btn {
+  color: rgba(80, 0, 0, 0.9);
+  background: #ff5f57;
+  border-color: rgba(0, 0, 0, 0.22);
+}
+
+.chapter-list .history-delete-btn:active {
+  background: #e0443e;
+}
+
+[data-theme="night"] .chapter-list .history-delete-btn {
+  border-color: rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0.5px 0.5px rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="night"] .chapter-list .history-delete-btn:hover,
+[data-theme="night"] .history-row:hover .history-delete-btn {
+  color: rgba(40, 0, 0, 0.95);
 }
 
 .history-item-title {

@@ -1802,7 +1802,11 @@ export default function App() {
                             type="button"
                             className="history-delete-btn"
                             title={t(locale, "agentHistoryDelete")}
-                            onClick={() => deleteConversation(c.id)}
+                            aria-label={t(locale, "agentHistoryDelete")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteConversation(c.id);
+                            }}
                           >
                             ×
                           </button>
