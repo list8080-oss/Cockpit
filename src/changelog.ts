@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.3",
+    date: "2026-08-08",
+    notes: {
+      en: "Sidebar split into collapsible Notes and Editor panels (Editor is a local scratch pad for now).",
+      ru: "Сайдбар разделён на сворачиваемые панели Заметки и Редактор (Редактор пока — локальный черновик).",
+      uk: "Бічну панель розділено на Нотатки й Редактор, що згортаються (Редактор поки — локальна чернетка).",
+      cs: "Postranní panel rozdělen na sbalitelné panely Poznámky a Editor (Editor je zatím místní koncept).",
+    },
+  },
+  {
     version: "0.3.2",
     date: "2026-08-08",
     notes: {

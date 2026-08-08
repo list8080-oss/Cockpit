@@ -15,6 +15,10 @@ import { CHANGELOG, noteFor } from "./changelog";
 import "./App.css";
 
 type View = "workspace" | "settings";
+type SidebarPanelId = "notes" | "editor" | null;
+
+const EDITOR_STORAGE_KEY = "yar-cockpit.editor";
+const LEGACY_EDITOR_STORAGE_KEY = "yar-cockpit.notes";
 
 type UpdateState =
   | { status: "idle" }
@@ -135,7 +139,6 @@ function GithubChip({
   onSignOut,
   onRefreshAuth,
   onOpenSettings,
-  settingsOpen,
 }: {
   locale: Locale;
   github: AuthStatus | undefined;
@@ -145,7 +148,6 @@ function GithubChip({
   onSignOut: () => void;
   onRefreshAuth: () => void;
   onOpenSettings: () => void;
-  settingsOpen: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -235,7 +237,7 @@ function GithubChip({
           )}
         </div>
       )}
-      <div className={open || settingsOpen ? "gh-chip gh-chip-active" : "gh-chip"}>
+      <div className={open ? "gh-chip gh-chip-active" : "gh-chip"}>
         <button
           type="button"
           className="gh-chip-main"
@@ -408,14 +410,11 @@ function SettingsView({
 
   return (
     <div className="settings">
-      <header className="settings-header">
+      <aside className="settings-sidebar">
         <button type="button" className="settings-back" onClick={onBack}>
           ← {t(locale, "backToWorkspace")}
         </button>
         <h1>{t(locale, "settings")}</h1>
-      </header>
-
-      <div className="settings-layout">
         <nav className="settings-nav" aria-label={t(locale, "settingsNav")}>
           {navItems.map((item) => (
             <button
@@ -432,143 +431,143 @@ function SettingsView({
             </button>
           ))}
         </nav>
+      </aside>
 
-        <div className="settings-panel">
-          {section === "general" && (
-            <section className="settings-section">
-              <h2>{t(locale, "settingsGeneral")}</h2>
-              <div className="settings-row">
-                <div className="settings-row-text">
-                  <div className="settings-label">{t(locale, "language")}</div>
-                  <div className="settings-hint">{t(locale, "languageHint")}</div>
-                </div>
-                <select
-                  className="settings-select"
-                  value={locale}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    if (isLocale(next)) onLocaleChange(next);
-                  }}
-                  aria-label={t(locale, "language")}
-                >
-                  {LOCALES.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nativeLabel}
-                    </option>
-                  ))}
-                </select>
+      <div className="settings-panel">
+        {section === "general" && (
+          <section className="settings-section">
+            <h2>{t(locale, "settingsGeneral")}</h2>
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-label">{t(locale, "language")}</div>
+                <div className="settings-hint">{t(locale, "languageHint")}</div>
               </div>
-            </section>
-          )}
+              <select
+                className="settings-select"
+                value={locale}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (isLocale(next)) onLocaleChange(next);
+                }}
+                aria-label={t(locale, "language")}
+              >
+                {LOCALES.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.nativeLabel}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </section>
+        )}
 
-          {section === "updates" && (
-            <section className="settings-section">
-              <h2>{t(locale, "settingsUpdates")}</h2>
-              <p className="settings-section-hint">
-                {t(locale, "settingsUpdatesHint")}
-              </p>
-              <div className="settings-row">
-                <div className="settings-row-text">
-                  <div className="settings-label">{t(locale, "currentVersion")}</div>
-                  <div className="settings-hint">v{version || "…"}</div>
-                  {updateStatus && (
-                    <div className={updateError ? "error-text" : "settings-hint"}>
-                      {updateStatus}
+        {section === "updates" && (
+          <section className="settings-section">
+            <h2>{t(locale, "settingsUpdates")}</h2>
+            <p className="settings-section-hint">
+              {t(locale, "settingsUpdatesHint")}
+            </p>
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-label">{t(locale, "currentVersion")}</div>
+                <div className="settings-hint">v{version || "…"}</div>
+                {updateStatus && (
+                  <div className={updateError ? "error-text" : "settings-hint"}>
+                    {updateStatus}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="auth-action-btn"
+                onClick={() => {
+                  void checkUpdate();
+                }}
+                disabled={updateBusy}
+              >
+                {updateBusy ? "…" : t(locale, "checkUpdate")}
+              </button>
+            </div>
+            <div className="changelog">
+              <div className="changelog-title">{t(locale, "versionHistory")}</div>
+              <ul className="changelog-list">
+                {CHANGELOG.map((entry) => (
+                  <li key={entry.version} className="changelog-item">
+                    <div className="changelog-head">
+                      <span className="changelog-version">v{entry.version}</span>
+                      <span className="changelog-date">{entry.date}</span>
                     </div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  className="auth-action-btn"
-                  onClick={() => {
-                    void checkUpdate();
-                  }}
-                  disabled={updateBusy}
-                >
-                  {updateBusy ? "…" : t(locale, "checkUpdate")}
-                </button>
-              </div>
-              <div className="changelog">
-                <div className="changelog-title">{t(locale, "versionHistory")}</div>
-                <ul className="changelog-list">
-                  {CHANGELOG.map((entry) => (
-                    <li key={entry.version} className="changelog-item">
-                      <div className="changelog-head">
-                        <span className="changelog-version">v{entry.version}</span>
-                        <span className="changelog-date">{entry.date}</span>
-                      </div>
-                      <p className="changelog-notes">{noteFor(entry, locale)}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </section>
-          )}
+                    <p className="changelog-notes">{noteFor(entry, locale)}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
 
-          {section === "agents" && (
-            <section className="settings-section">
-              <div className="settings-section-head">
-                <h2>{t(locale, "settingsAgents")}</h2>
-                <button
-                  type="button"
-                  className="settings-refresh"
-                  onClick={onRefreshAuth}
-                  disabled={authLoading}
-                >
-                  {authLoading ? t(locale, "authChecking") : t(locale, "authRefresh")}
-                </button>
-              </div>
-              <p className="settings-section-hint">
-                {t(locale, "settingsAgentsHint")}
-              </p>
-              {authMessage && <p className="muted">{authMessage}</p>}
-              <div className="auth-list">
-                {agentAuths.map((item) => {
-                  const status = authStatusLabel(locale, item, authLoading);
-                  return (
-                    <div className="settings-row auth-row" key={item.id}>
-                      <div className="settings-row-text">
-                        <div className="settings-label-row">
-                          <span
-                            className={
-                              !item.installed
-                                ? "engine-lamp engine-lamp-miss"
-                                : item.loggedIn
-                                  ? "engine-lamp engine-lamp-on"
-                                  : "engine-lamp engine-lamp-off"
-                            }
-                            aria-hidden="true"
-                          />
-                          <span className="settings-label">{item.label}</span>
-                        </div>
-                        <div className="settings-hint">{status}</div>
+        {section === "agents" && (
+          <section className="settings-section">
+            <div className="settings-section-head">
+              <h2>{t(locale, "settingsAgents")}</h2>
+              <button
+                type="button"
+                className="settings-refresh"
+                onClick={onRefreshAuth}
+                disabled={authLoading}
+              >
+                {authLoading ? t(locale, "authChecking") : t(locale, "authRefresh")}
+              </button>
+            </div>
+            <p className="settings-section-hint">
+              {t(locale, "settingsAgentsHint")}
+            </p>
+            {authMessage && <p className="muted">{authMessage}</p>}
+            <div className="auth-list">
+              {agentAuths.map((item) => {
+                const status = authStatusLabel(locale, item, authLoading);
+                return (
+                  <div className="settings-row auth-row" key={item.id}>
+                    <div className="settings-row-text">
+                      <div className="settings-label-row">
+                        <span
+                          className={
+                            !item.installed
+                              ? "engine-lamp engine-lamp-miss"
+                              : item.loggedIn
+                                ? "engine-lamp engine-lamp-on"
+                                : "engine-lamp engine-lamp-off"
+                          }
+                          aria-hidden="true"
+                        />
+                        <span className="settings-label">{item.label}</span>
                       </div>
-                      {item.loggedIn ? (
-                        <button
-                          type="button"
-                          className="auth-action-btn"
-                          disabled={!item.installed || authLoading}
-                          onClick={() => onSignOut(item.id)}
-                        >
-                          {t(locale, "authSignOut")}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="auth-action-btn"
-                          disabled={!item.installed || authLoading}
-                          onClick={() => onSignIn(item.id)}
-                        >
-                          {t(locale, "authSignIn")}
-                        </button>
-                      )}
+                      <div className="settings-hint">{status}</div>
                     </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-        </div>
+                    {item.loggedIn ? (
+                      <button
+                        type="button"
+                        className="auth-action-btn"
+                        disabled={!item.installed || authLoading}
+                        onClick={() => onSignOut(item.id)}
+                      >
+                        {t(locale, "authSignOut")}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="auth-action-btn"
+                        disabled={!item.installed || authLoading}
+                        onClick={() => onSignIn(item.id)}
+                      >
+                        {t(locale, "authSignIn")}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );
@@ -577,6 +576,18 @@ function SettingsView({
 export default function App() {
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
   const [view, setView] = useState<View>("workspace");
+  const [openPanel, setOpenPanel] = useState<SidebarPanelId>("notes");
+  const [editorText, setEditorText] = useState(() => {
+    try {
+      return (
+        localStorage.getItem(EDITOR_STORAGE_KEY) ??
+        localStorage.getItem(LEGACY_EDITOR_STORAGE_KEY) ??
+        ""
+      );
+    } catch {
+      return "";
+    }
+  });
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [chaptersError, setChaptersError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -679,20 +690,128 @@ export default function App() {
     codex.status === "running" ||
     cursor.status === "running";
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(EDITOR_STORAGE_KEY, editorText);
+    } catch {
+      // ignore quota / private mode
+    }
+  }, [editorText]);
+
+  const togglePanel = (id: Exclude<SidebarPanelId, null>) => {
+    setOpenPanel((current) => (current === id ? null : id));
+  };
+
+  if (view === "settings") {
+    return (
+      <div className="app">
+        <SettingsView
+          locale={locale}
+          onLocaleChange={setLocale}
+          onBack={() => setView("workspace")}
+          agentAuths={
+            agentAuths.length > 0
+              ? agentAuths
+              : AGENT_IDS.map((id) => ({
+                  id,
+                  label:
+                    id === "claude"
+                      ? "Claude"
+                      : id === "codex"
+                        ? "Codex"
+                        : "Cursor",
+                  installed: false,
+                  loggedIn: false,
+                  account: null,
+                  detail: null,
+                }))
+          }
+          authLoading={authLoading}
+          authMessage={authMessage}
+          onRefreshAuth={() => {
+            void refreshAuth();
+          }}
+          onSignIn={(provider) => {
+            void signIn(provider);
+          }}
+          onSignOut={(provider) => {
+            void signOut(provider);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <aside className="sidebar">
-        <h2>{t(locale, "chapters")}</h2>
-        {chaptersError && <p className="error-text">{chaptersError}</p>}
-        <ul>
-          {chapters.map((c) => (
-            <li key={c.file}>
-              <button type="button" onClick={() => loadChapter(c.file)}>
-                {c.title}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="sidebar-panels">
+          <section
+            className={
+              openPanel === "notes"
+                ? "sidebar-panel sidebar-panel-open"
+                : "sidebar-panel"
+            }
+          >
+            <button
+              type="button"
+              className="sidebar-panel-toggle"
+              aria-expanded={openPanel === "notes"}
+              onClick={() => togglePanel("notes")}
+            >
+              <span className="sidebar-panel-chevron" aria-hidden="true">
+                {openPanel === "notes" ? "▾" : "▸"}
+              </span>
+              <span>{t(locale, "notes")}</span>
+            </button>
+            {openPanel === "notes" && (
+              <div className="sidebar-panel-body">
+                <p className="panel-hint">{t(locale, "notesHint")}</p>
+                {chaptersError && <p className="error-text">{chaptersError}</p>}
+                <ul className="chapter-list" aria-label={t(locale, "chapters")}>
+                  {chapters.map((c) => (
+                    <li key={c.file}>
+                      <button type="button" onClick={() => loadChapter(c.file)}>
+                        {c.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+
+          <section
+            className={
+              openPanel === "editor"
+                ? "sidebar-panel sidebar-panel-open"
+                : "sidebar-panel"
+            }
+          >
+            <button
+              type="button"
+              className="sidebar-panel-toggle"
+              aria-expanded={openPanel === "editor"}
+              onClick={() => togglePanel("editor")}
+            >
+              <span className="sidebar-panel-chevron" aria-hidden="true">
+                {openPanel === "editor" ? "▾" : "▸"}
+              </span>
+              <span>{t(locale, "editor")}</span>
+            </button>
+            {openPanel === "editor" && (
+              <div className="sidebar-panel-body editor-panel-body">
+                <p className="panel-hint">{t(locale, "editorHint")}</p>
+                <textarea
+                  className="editor-box"
+                  value={editorText}
+                  onChange={(e) => setEditorText(e.target.value)}
+                  placeholder={t(locale, "editorPlaceholder")}
+                />
+              </div>
+            )}
+          </section>
+        </div>
         <div className="sidebar-footer">
           <GithubChip
             locale={locale}
@@ -709,102 +828,63 @@ export default function App() {
               void refreshAuth();
             }}
             onOpenSettings={() => setView("settings")}
-            settingsOpen={view === "settings"}
           />
         </div>
       </aside>
 
       <main className="main">
         <div className="main-body">
-          {view === "settings" ? (
-            <SettingsView
-              locale={locale}
-              onLocaleChange={setLocale}
-              onBack={() => setView("workspace")}
-              agentAuths={
-                agentAuths.length > 0
-                  ? agentAuths
-                  : AGENT_IDS.map((id) => ({
-                      id,
-                      label:
-                        id === "claude"
-                          ? "Claude"
-                          : id === "codex"
-                            ? "Codex"
-                            : "Cursor",
-                      installed: false,
-                      loggedIn: false,
-                      account: null,
-                      detail: null,
-                    }))
-              }
-              authLoading={authLoading}
-              authMessage={authMessage}
-              onRefreshAuth={() => {
-                void refreshAuth();
-              }}
-              onSignIn={(provider) => {
-                void signIn(provider);
-              }}
-              onSignOut={(provider) => {
-                void signOut(provider);
-              }}
+          <div className="prompt-wrap">
+            <textarea
+              className="prompt-box"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder={t(locale, "promptPlaceholder")}
             />
-          ) : (
-            <>
-              <div className="prompt-wrap">
-                <textarea
-                  className="prompt-box"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder={t(locale, "promptPlaceholder")}
-                />
-                {prompt.length > 0 && (
-                  <button
-                    type="button"
-                    className="clear-prompt-btn"
-                    onClick={() => setPrompt("")}
-                    disabled={busy}
-                    title={t(locale, "clearPrompt")}
-                  >
-                    {t(locale, "clearPrompt")}
-                  </button>
-                )}
-              </div>
+            {prompt.length > 0 && (
               <button
                 type="button"
-                className="send-btn"
-                onClick={send}
-                disabled={busy || !prompt.trim()}
+                className="clear-prompt-btn"
+                onClick={() => setPrompt("")}
+                disabled={busy}
+                title={t(locale, "clearPrompt")}
               >
-                {busy ? t(locale, "waitingAgents") : t(locale, "send")}
+                {t(locale, "clearPrompt")}
               </button>
+            )}
+          </div>
+          <button
+            type="button"
+            className="send-btn"
+            onClick={send}
+            disabled={busy || !prompt.trim()}
+          >
+            {busy ? t(locale, "waitingAgents") : t(locale, "send")}
+          </button>
 
-              <div className="variants">
-                <Variant
-                  label="Claude"
-                  state={claude}
-                  locale={locale}
-                  auth={authById("claude")}
-                  authLoading={authLoading}
-                />
-                <Variant
-                  label="Codex (Sol)"
-                  state={codex}
-                  locale={locale}
-                  auth={authById("codex")}
-                  authLoading={authLoading}
-                />
-                <Variant
-                  label="Cursor (ask)"
-                  state={cursor}
-                  locale={locale}
-                  auth={authById("cursor")}
-                  authLoading={authLoading}
-                />
-              </div>
-            </>
-          )}
+          <div className="variants">
+            <Variant
+              label="Claude"
+              state={claude}
+              locale={locale}
+              auth={authById("claude")}
+              authLoading={authLoading}
+            />
+            <Variant
+              label="Codex (Sol)"
+              state={codex}
+              locale={locale}
+              auth={authById("codex")}
+              authLoading={authLoading}
+            />
+            <Variant
+              label="Cursor (ask)"
+              state={cursor}
+              locale={locale}
+              auth={authById("cursor")}
+              authLoading={authLoading}
+            />
+          </div>
         </div>
         <div className="main-footer">
           <UpdateBar locale={locale} />

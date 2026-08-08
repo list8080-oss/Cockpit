@@ -11,6 +11,11 @@ export const LOCALE_STORAGE_KEY = "yar-cockpit.locale";
 
 type Dict = {
   chapters: string;
+  notes: string;
+  notesHint: string;
+  editor: string;
+  editorPlaceholder: string;
+  editorHint: string;
   settings: string;
   settingsNav: string;
   settingsGeneral: string;
@@ -59,6 +64,12 @@ type Dict = {
 
 const en: Dict = {
   chapters: "Chapters",
+  notes: "Notes",
+  notesHint: "For now chapters come from the manuscript folder. Later: chapters from Apple Notes.",
+  editor: "Editor",
+  editorPlaceholder:
+    "Write here — a simple text pad for now. A full editor will land here later.",
+  editorHint: "Local draft for now. Later: a real writing editor in this panel.",
   settings: "Settings",
   settingsNav: "Settings sections",
   settingsGeneral: "General",
@@ -109,6 +120,12 @@ const en: Dict = {
 
 const ru: Dict = {
   chapters: "Главы",
+  notes: "Заметки",
+  notesHint: "Пока главы из папки рукописи. Потом — главы из Заметок Apple.",
+  editor: "Редактор",
+  editorPlaceholder:
+    "Пишите здесь — пока простой текст. Позже сюда переедет полноценный редактор.",
+  editorHint: "Пока локальный черновик. Потом — полноценный редактор в этой панели.",
   settings: "Настройки",
   settingsNav: "Разделы настроек",
   settingsGeneral: "Общие",
@@ -159,6 +176,12 @@ const ru: Dict = {
 
 const uk: Dict = {
   chapters: "Розділи",
+  notes: "Нотатки",
+  notesHint: "Поки розділи з теки рукопису. Потім — розділи з Нотаток Apple.",
+  editor: "Редактор",
+  editorPlaceholder:
+    "Пишіть тут — поки простий текст. Пізніше сюди переїде повноцінний редактор.",
+  editorHint: "Поки локальна чернетка. Потім — повноцінний редактор у цій панелі.",
   settings: "Налаштування",
   settingsNav: "Розділи налаштувань",
   settingsGeneral: "Загальні",
@@ -209,6 +232,12 @@ const uk: Dict = {
 
 const cs: Dict = {
   chapters: "Kapitoly",
+  notes: "Poznámky",
+  notesHint: "Zatím kapitoly ze složky rukopisu. Později kapitoly z Poznámek Apple.",
+  editor: "Editor",
+  editorPlaceholder:
+    "Pište sem — zatím jednoduchý text. Později sem přijde plnohodnotný editor.",
+  editorHint: "Zatím místní koncept. Později plnohodnotný editor v tomto panelu.",
   settings: "Nastavení",
   settingsNav: "Sekce nastavení",
   settingsGeneral: "Obecné",
