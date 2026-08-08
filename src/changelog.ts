@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.8",
+    date: "2026-08-08",
+    notes: {
+      en: "New Apple Notes sidebar panel (read-only: pick a folder and a note, its text goes into the agents prompt). Cursor engine now answers in plan mode for more thorough replies.",
+      ru: "Новая панель «Заметки Apple» в сайдбаре (только чтение: выбери папку и заметку — текст попадёт в поле для агентов). Cursor теперь отвечает в режиме plan для более развёрнутых ответов.",
+      uk: "Нова панель «Нотатки Apple» в бічній панелі (лише читання: обери теку й нотатку — текст потрапить у поле для агентів). Cursor тепер відповідає в режимі plan для розлогіших відповідей.",
+      cs: "Nový panel „Poznámky Apple“ v postranním panelu (jen ke čtení: vyber složku a poznámku — text se vloží do pole pro agenty). Cursor nyní odpovídá v režimu plan pro podrobnější odpovědi.",
+    },
+  },
+  {
     version: "0.3.7",
     date: "2026-08-08",
     notes: {

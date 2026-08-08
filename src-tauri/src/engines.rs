@@ -85,9 +85,11 @@ pub async fn run_claude(prompt: String) -> Result<String, String> {
     }
 }
 
-/// `--mode ask` is Cursor's read-only Q&A mode (no file edits, no shell) —
-/// same safety posture as the other two engines here, which are only ever
-/// asked to transform pasted text, not to touch the manuscript files.
+/// `--mode plan` is Cursor's read-only planning mode (analyze, propose a
+/// plan, no edits, no shell) — same safety posture as `ask` but with more
+/// room to reason before answering, matching the other two engines here,
+/// which are only ever asked to transform pasted text, not to touch the
+/// manuscript files.
 #[tauri::command]
 pub async fn run_cursor(prompt: String) -> Result<String, String> {
     let cwd = manuscript_root()?;
@@ -96,7 +98,7 @@ pub async fn run_cursor(prompt: String) -> Result<String, String> {
         .stdin(Stdio::null())
         .arg("--print")
         .arg("--mode")
-        .arg("ask")
+        .arg("plan")
         .arg("--trust")
         .arg("--output-format")
         .arg("json")

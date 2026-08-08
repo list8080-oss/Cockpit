@@ -26,10 +26,19 @@ import "./App.css";
 
 type View = "workspace" | "settings";
 type WorkspaceMode = "agents" | "editor";
-type SidebarPanelId = "notes" | null;
+type SidebarPanelId = "notes" | "appleNotes" | null;
 
 const EDITOR_STORAGE_KEY = "yar-cockpit.editor";
 const LEGACY_EDITOR_STORAGE_KEY = "yar-cockpit.notes";
+const SIDEBAR_PANEL_STORAGE_KEY = "yar-cockpit.sidebarPanel";
+
+function loadSidebarPanel(): SidebarPanelId {
+  try {
+    return localStorage.getItem(SIDEBAR_PANEL_STORAGE_KEY) === "notes" ? "notes" : null;
+  } catch {
+    return null;
+  }
+}
 
 type CodexLimitWindow = {
   usedPercent: number;
@@ -382,6 +391,17 @@ function EngineLamp({
 
 interface ChapterInfo {
   file: string;
+  title: string;
+}
+
+interface AppleNotesFolder {
+  id: string;
+  name: string;
+  account: string;
+}
+
+interface AppleNotesItem {
+  id: string;
   title: string;
 }
 
@@ -802,7 +822,7 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(() => detectTheme());
   const [view, setView] = useState<View>("workspace");
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("agents");
-  const [openPanel, setOpenPanel] = useState<SidebarPanelId>("notes");
+  const [openPanel, setOpenPanel] = useState<SidebarPanelId>(loadSidebarPanel);
   const [editorText, setEditorText] = useState(() => {
     try {
       return (
@@ -816,6 +836,12 @@ export default function App() {
   });
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [chaptersError, setChaptersError] = useState<string | null>(null);
+  const [appleFolders, setAppleFolders] = useState<AppleNotesFolder[]>([]);
+  const [appleNotes, setAppleNotes] = useState<AppleNotesItem[]>([]);
+  const [appleFolderId, setAppleFolderId] = useState<string | null>(null);
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [appleError, setAppleError] = useState<string | null>(null);
+  const [appleConnected, setAppleConnected] = useState(false);
   const [manuscriptPath, setManuscriptPath] = useState<string | null>(null);
   const [manuscriptMessage, setManuscriptMessage] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -984,6 +1010,64 @@ export default function App() {
     }
   };
 
+  const formatAppleNotesError = (raw: string) => {
+    const msg = String(raw);
+    if (msg.includes("only available on macOS") || msg.includes("only on macOS")) {
+      return t(locale, "appleNotesOnlyMac");
+    }
+    if (msg.includes("access_denied") || msg.toLowerCase().includes("not allowed")) {
+      return t(locale, "appleNotesAccessDenied");
+    }
+    return msg;
+  };
+
+  const connectAppleNotes = async () => {
+    setAppleLoading(true);
+    setAppleError(null);
+    setAppleFolderId(null);
+    setAppleNotes([]);
+    try {
+      const folders = await invoke<AppleNotesFolder[]>("list_apple_notes_folders");
+      setAppleFolders(folders);
+      setAppleConnected(true);
+    } catch (e) {
+      setAppleConnected(false);
+      setAppleError(formatAppleNotesError(String(e)));
+    } finally {
+      setAppleLoading(false);
+    }
+  };
+
+  const openAppleFolder = async (folderId: string) => {
+    setAppleLoading(true);
+    setAppleError(null);
+    setAppleFolderId(folderId);
+    try {
+      const notes = await invoke<AppleNotesItem[]>("list_apple_notes", { folderId });
+      setAppleNotes(notes);
+    } catch (e) {
+      setAppleNotes([]);
+      setAppleError(formatAppleNotesError(String(e)));
+    } finally {
+      setAppleLoading(false);
+    }
+  };
+
+  const loadAppleNote = async (noteId: string) => {
+    try {
+      const text = await invoke<string>("read_apple_note", { noteId });
+      setPrompt(text);
+      setWorkspaceMode("agents");
+      setView("workspace");
+    } catch (e) {
+      setPrompt(
+        t(locale, "loadAppleNoteFailed", { error: formatAppleNotesError(String(e)) }),
+      );
+      setWorkspaceMode("agents");
+      setView("workspace");
+    }
+  };
+
   const send = () => {
     if (!prompt.trim()) return;
     setClaude({ status: "running" });
@@ -1013,6 +1097,14 @@ export default function App() {
 
   useEffect(() => {
     try {
+      localStorage.setItem(SIDEBAR_PANEL_STORAGE_KEY, openPanel ?? "");
+    } catch {
+      /* ignore */
+    }
+  }, [openPanel]);
+
+  useEffect(() => {
+    try {
       localStorage.setItem(EDITOR_STORAGE_KEY, editorText);
     } catch {
       // ignore quota / private mode
@@ -1021,6 +1113,16 @@ export default function App() {
 
   const toggleNotesPanel = () => {
     setOpenPanel((current) => (current === "notes" ? null : "notes"));
+  };
+
+  const toggleAppleNotesPanel = () => {
+    setOpenPanel((current) => {
+      const opening = current !== "appleNotes";
+      if (opening && !appleConnected && !appleLoading) {
+        void connectAppleNotes();
+      }
+      return opening ? "appleNotes" : null;
+    });
   };
 
   const openEditorMode = () => {
@@ -1123,6 +1225,107 @@ export default function App() {
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+          </section>
+
+          <section
+            className={
+              openPanel === "appleNotes"
+                ? "sidebar-panel sidebar-panel-open"
+                : "sidebar-panel"
+            }
+          >
+            <button
+              type="button"
+              className="sidebar-panel-toggle"
+              aria-expanded={openPanel === "appleNotes"}
+              onClick={toggleAppleNotesPanel}
+            >
+              <span className="sidebar-panel-chevron" aria-hidden="true">
+                {openPanel === "appleNotes" ? "▾" : "▸"}
+              </span>
+              <span>{t(locale, "appleNotes")}</span>
+            </button>
+            {openPanel === "appleNotes" && (
+              <div className="sidebar-panel-body">
+                <p className="panel-hint">{t(locale, "appleNotesHint")}</p>
+                {!appleConnected && (
+                  <button
+                    type="button"
+                    className="apple-notes-connect-btn"
+                    disabled={appleLoading}
+                    onClick={() => {
+                      void connectAppleNotes();
+                    }}
+                  >
+                    {appleLoading
+                      ? t(locale, "appleNotesConnecting")
+                      : t(locale, "appleNotesConnect")}
+                  </button>
+                )}
+                {appleConnected && (
+                  <div className="apple-notes-toolbar">
+                    {appleFolderId ? (
+                      <button
+                        type="button"
+                        className="apple-notes-link-btn"
+                        onClick={() => {
+                          setAppleFolderId(null);
+                          setAppleNotes([]);
+                          setAppleError(null);
+                        }}
+                      >
+                        {t(locale, "appleNotesBack")}
+                      </button>
+                    ) : (
+                      <span className="apple-notes-toolbar-label">
+                        {t(locale, "appleNotesFolders")}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="apple-notes-link-btn"
+                      disabled={appleLoading}
+                      onClick={() => {
+                        if (appleFolderId) void openAppleFolder(appleFolderId);
+                        else void connectAppleNotes();
+                      }}
+                    >
+                      {t(locale, "appleNotesRefresh")}
+                    </button>
+                  </div>
+                )}
+                {appleError && <p className="error-text">{appleError}</p>}
+                {appleLoading && appleConnected && (
+                  <p className="panel-hint">{t(locale, "appleNotesConnecting")}</p>
+                )}
+                {appleConnected && !appleFolderId && !appleLoading && (
+                  <ul className="chapter-list" aria-label={t(locale, "appleNotesFolders")}>
+                    {appleFolders.map((f) => (
+                      <li key={f.id}>
+                        <button type="button" onClick={() => void openAppleFolder(f.id)}>
+                          {f.account} / {f.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {appleConnected && appleFolderId && !appleLoading && (
+                  <ul className="chapter-list" aria-label={t(locale, "appleNotesNotes")}>
+                    {appleNotes.length === 0 ? (
+                      <li className="panel-hint">{t(locale, "appleNotesEmpty")}</li>
+                    ) : (
+                      appleNotes.map((n) => (
+                        <li key={n.id}>
+                          <button type="button" onClick={() => void loadAppleNote(n.id)}>
+                            {n.title}
+                          </button>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
               </div>
             )}
           </section>

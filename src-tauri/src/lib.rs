@@ -1,3 +1,4 @@
+mod apple_notes;
 mod auth;
 mod codex_limits;
 mod config;
@@ -33,6 +34,9 @@ pub fn run() {
             dictionaries::download_dictionary,
             dictionaries::delete_dictionary,
             dictionaries::read_dictionary,
+            apple_notes::list_apple_notes_folders,
+            apple_notes::list_apple_notes,
+            apple_notes::read_apple_note,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

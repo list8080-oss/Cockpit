@@ -13,6 +13,18 @@ type Dict = {
   chapters: string;
   notes: string;
   notesHint: string;
+  appleNotes: string;
+  appleNotesHint: string;
+  appleNotesConnect: string;
+  appleNotesConnecting: string;
+  appleNotesFolders: string;
+  appleNotesNotes: string;
+  appleNotesEmpty: string;
+  appleNotesBack: string;
+  appleNotesRefresh: string;
+  appleNotesAccessDenied: string;
+  appleNotesOnlyMac: string;
+  loadAppleNoteFailed: string;
   editor: string;
   editorPlaceholder: string;
   editorHint: string;
@@ -87,7 +99,21 @@ type Dict = {
 const en: Dict = {
   chapters: "Chapters",
   notes: "Notes",
-  notesHint: "For now chapters come from the manuscript folder. Later: chapters from Apple Notes.",
+  notesHint: "Chapters from your manuscript folder.",
+  appleNotes: "Apple Notes",
+  appleNotesHint:
+    "macOS will ask to let Cockpit control the Notes app. Then pick a folder and a note — its text goes into the agents prompt.",
+  appleNotesConnect: "Open Apple Notes",
+  appleNotesConnecting: "Opening Notes…",
+  appleNotesFolders: "Folders",
+  appleNotesNotes: "Notes",
+  appleNotesEmpty: "No notes in this folder.",
+  appleNotesBack: "← Folders",
+  appleNotesRefresh: "Refresh",
+  appleNotesAccessDenied:
+    "Access denied. Allow Cockpit → Notes in System Settings → Privacy & Security → Automation.",
+  appleNotesOnlyMac: "Apple Notes works only on Mac.",
+  loadAppleNoteFailed: "[failed to load note: {error}]",
   editor: "Editor",
   editorPlaceholder: "Write in the Loomdraft editor — draft autosaves locally.",
   editorHint: "Loomdraft writing editor: markdown, outline, history, images. Draft saves locally.",
@@ -165,7 +191,21 @@ const en: Dict = {
 const ru: Dict = {
   chapters: "Главы",
   notes: "Заметки",
-  notesHint: "Пока главы из папки рукописи. Потом — главы из Заметок Apple.",
+  notesHint: "Главы из папки рукописи.",
+  appleNotes: "Заметки Apple",
+  appleNotesHint:
+    "macOS спросит разрешение управлять приложением «Заметки». Выбери папку и заметку — текст попадёт в поле для агентов.",
+  appleNotesConnect: "Открыть Заметки Apple",
+  appleNotesConnecting: "Открываем Заметки…",
+  appleNotesFolders: "Папки",
+  appleNotesNotes: "Заметки",
+  appleNotesEmpty: "В этой папке нет заметок.",
+  appleNotesBack: "← Папки",
+  appleNotesRefresh: "Обновить",
+  appleNotesAccessDenied:
+    "Нет доступа. Разреши Кабине → Заметки в Системные настройки → Конфиденциальность → Автоматизация.",
+  appleNotesOnlyMac: "Заметки Apple работают только на Mac.",
+  loadAppleNoteFailed: "[не удалось загрузить заметку: {error}]",
   editor: "Редактор",
   editorPlaceholder: "Пишите в редакторе Loomdraft — черновик автосохраняется локально.",
   editorHint:
@@ -244,7 +284,21 @@ const ru: Dict = {
 const uk: Dict = {
   chapters: "Розділи",
   notes: "Нотатки",
-  notesHint: "Поки розділи з теки рукопису. Потім — розділи з Нотаток Apple.",
+  notesHint: "Розділи з теки рукопису.",
+  appleNotes: "Нотатки Apple",
+  appleNotesHint:
+    "macOS запитає дозвіл керувати програмою «Нотатки». Обери теку й нотатку — текст потрапить у поле для агентів.",
+  appleNotesConnect: "Відкрити Нотатки Apple",
+  appleNotesConnecting: "Відкриваємо Нотатки…",
+  appleNotesFolders: "Теки",
+  appleNotesNotes: "Нотатки",
+  appleNotesEmpty: "У цій теці немає нотаток.",
+  appleNotesBack: "← Теки",
+  appleNotesRefresh: "Оновити",
+  appleNotesAccessDenied:
+    "Немає доступу. Дозволь Кабіні → Нотатки в Системні параметри → Конфіденційність → Автоматизація.",
+  appleNotesOnlyMac: "Нотатки Apple працюють лише на Mac.",
+  loadAppleNoteFailed: "[не вдалося завантажити нотатку: {error}]",
   editor: "Редактор",
   editorPlaceholder: "Пишіть у редакторі Loomdraft — чернетка автозберігається локально.",
   editorHint:
@@ -323,7 +377,21 @@ const uk: Dict = {
 const cs: Dict = {
   chapters: "Kapitoly",
   notes: "Poznámky",
-  notesHint: "Zatím kapitoly ze složky rukopisu. Později kapitoly z Poznámek Apple.",
+  notesHint: "Kapitoly ze složky rukopisu.",
+  appleNotes: "Poznámky Apple",
+  appleNotesHint:
+    "macOS požádá o povolení ovládat aplikaci Poznámky. Vyberte složku a poznámku — text půjde do pole pro agenty.",
+  appleNotesConnect: "Otevřít Poznámky Apple",
+  appleNotesConnecting: "Otevíráme Poznámky…",
+  appleNotesFolders: "Složky",
+  appleNotesNotes: "Poznámky",
+  appleNotesEmpty: "V této složce nejsou žádné poznámky.",
+  appleNotesBack: "← Složky",
+  appleNotesRefresh: "Obnovit",
+  appleNotesAccessDenied:
+    "Přístup odepřen. Povolte Cockpit → Poznámky v Nastavení systému → Soukromí → Automatizace.",
+  appleNotesOnlyMac: "Poznámky Apple fungují jen na Macu.",
+  loadAppleNoteFailed: "[poznámku se nepodařilo načíst: {error}]",
   editor: "Editor",
   editorPlaceholder: "Pište v editoru Loomdraft — koncept se automaticky ukládá lokálně.",
   editorHint:
