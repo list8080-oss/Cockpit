@@ -16,9 +16,20 @@ type Dict = {
   editor: string;
   editorPlaceholder: string;
   editorHint: string;
+  backToAgents: string;
+  limitFiveHour: string;
+  limitWeekly: string;
+  limitUsed: string;
+  limitUnavailable: string;
+  limitRefresh: string;
   settings: string;
   settingsNav: string;
   settingsGeneral: string;
+  settingsManuscript: string;
+  settingsManuscriptHint: string;
+  manuscriptPath: string;
+  manuscriptNotSet: string;
+  chooseFolder: string;
   settingsUpdates: string;
   settingsUpdatesHint: string;
   currentVersion: string;
@@ -27,6 +38,11 @@ type Dict = {
   settingsAgentsHint: string;
   language: string;
   languageHint: string;
+  appearance: string;
+  appearanceHint: string;
+  themeNormal: string;
+  themeNight: string;
+  themeBook: string;
   backToWorkspace: string;
   githubTitle: string;
   githubSignedInAs: string;
@@ -67,12 +83,22 @@ const en: Dict = {
   notes: "Notes",
   notesHint: "For now chapters come from the manuscript folder. Later: chapters from Apple Notes.",
   editor: "Editor",
-  editorPlaceholder:
-    "Write here — a simple text pad for now. A full editor will land here later.",
-  editorHint: "Local draft for now. Later: a real writing editor in this panel.",
+  editorPlaceholder: "Write in the Loomdraft editor — draft autosaves locally.",
+  editorHint: "Loomdraft writing editor: markdown, outline, history, images. Draft saves locally.",
+  backToAgents: "Agents",
+  limitFiveHour: "5h",
+  limitWeekly: "week",
+  limitUsed: "{label} {percent}% used",
+  limitUnavailable: "limits n/a",
+  limitRefresh: "Refresh Codex limits",
   settings: "Settings",
   settingsNav: "Settings sections",
   settingsGeneral: "General",
+  settingsManuscript: "Manuscript",
+  settingsManuscriptHint: "Choose the folder your chapters live in.",
+  manuscriptPath: "Folder",
+  manuscriptNotSet: "Not set",
+  chooseFolder: "Choose folder…",
   settingsUpdates: "Updates",
   settingsUpdatesHint: "Installed version and what changed in each release.",
   currentVersion: "Current version",
@@ -82,6 +108,11 @@ const en: Dict = {
     "Sign in with your own Claude, Codex, and Cursor accounts. Green on a column means that agent is ready.",
   language: "Language",
   languageHint: "Interface language for the app.",
+  appearance: "Appearance",
+  appearanceHint: "Normal, night, or a book-like reading look.",
+  themeNormal: "Normal",
+  themeNight: "Night",
+  themeBook: "Book",
   backToWorkspace: "Back",
   githubTitle: "GitHub",
   githubSignedInAs: "GitHub",
@@ -123,12 +154,23 @@ const ru: Dict = {
   notes: "Заметки",
   notesHint: "Пока главы из папки рукописи. Потом — главы из Заметок Apple.",
   editor: "Редактор",
-  editorPlaceholder:
-    "Пишите здесь — пока простой текст. Позже сюда переедет полноценный редактор.",
-  editorHint: "Пока локальный черновик. Потом — полноценный редактор в этой панели.",
+  editorPlaceholder: "Пишите в редакторе Loomdraft — черновик автосохраняется локально.",
+  editorHint:
+    "Редактор Loomdraft: markdown, оглавление, история, картинки. Черновик сохраняется локально.",
+  backToAgents: "Агенты",
+  limitFiveHour: "5ч",
+  limitWeekly: "нед.",
+  limitUsed: "{label} {percent}%",
+  limitUnavailable: "лимиты н/д",
+  limitRefresh: "Обновить лимиты Codex",
   settings: "Настройки",
   settingsNav: "Разделы настроек",
   settingsGeneral: "Общие",
+  settingsManuscript: "Рукопись",
+  settingsManuscriptHint: "Выбери папку, где лежат главы.",
+  manuscriptPath: "Папка",
+  manuscriptNotSet: "Не задана",
+  chooseFolder: "Выбрать папку…",
   settingsUpdates: "Обновления",
   settingsUpdatesHint: "Установленная версия и что изменилось в каждом релизе.",
   currentVersion: "Текущая версия",
@@ -138,6 +180,11 @@ const ru: Dict = {
     "Вход через ваши аккаунты Claude, Codex и Cursor. Зелёная лампочка над колонкой значит, что агент готов.",
   language: "Язык",
   languageHint: "Язык интерфейса приложения.",
+  appearance: "Оформление",
+  appearanceHint: "Обычный, ночной или книжный режим.",
+  themeNormal: "Обычный",
+  themeNight: "Ночной",
+  themeBook: "Книжный",
   backToWorkspace: "Назад",
   githubTitle: "GitHub",
   githubSignedInAs: "GitHub",
@@ -179,12 +226,23 @@ const uk: Dict = {
   notes: "Нотатки",
   notesHint: "Поки розділи з теки рукопису. Потім — розділи з Нотаток Apple.",
   editor: "Редактор",
-  editorPlaceholder:
-    "Пишіть тут — поки простий текст. Пізніше сюди переїде повноцінний редактор.",
-  editorHint: "Поки локальна чернетка. Потім — повноцінний редактор у цій панелі.",
+  editorPlaceholder: "Пишіть у редакторі Loomdraft — чернетка автозберігається локально.",
+  editorHint:
+    "Редактор Loomdraft: markdown, зміст, історія, зображення. Чернетка зберігається локально.",
+  backToAgents: "Агенти",
+  limitFiveHour: "5 год",
+  limitWeekly: "тижд.",
+  limitUsed: "{label} {percent}%",
+  limitUnavailable: "ліміти н/д",
+  limitRefresh: "Оновити ліміти Codex",
   settings: "Налаштування",
   settingsNav: "Розділи налаштувань",
   settingsGeneral: "Загальні",
+  settingsManuscript: "Рукопис",
+  settingsManuscriptHint: "Обери теку, де лежать розділи.",
+  manuscriptPath: "Тека",
+  manuscriptNotSet: "Не задано",
+  chooseFolder: "Обрати теку…",
   settingsUpdates: "Оновлення",
   settingsUpdatesHint: "Встановлена версія і що змінилося в кожному релізі.",
   currentVersion: "Поточна версія",
@@ -194,6 +252,11 @@ const uk: Dict = {
     "Вхід через ваші акаунти Claude, Codex і Cursor. Зелена лампочка над колонкою означає, що агент готовий.",
   language: "Мова",
   languageHint: "Мова інтерфейсу програми.",
+  appearance: "Оформлення",
+  appearanceHint: "Звичайний, нічний або книжковий режим.",
+  themeNormal: "Звичайний",
+  themeNight: "Нічний",
+  themeBook: "Книжковий",
   backToWorkspace: "Назад",
   githubTitle: "GitHub",
   githubSignedInAs: "GitHub",
@@ -235,12 +298,23 @@ const cs: Dict = {
   notes: "Poznámky",
   notesHint: "Zatím kapitoly ze složky rukopisu. Později kapitoly z Poznámek Apple.",
   editor: "Editor",
-  editorPlaceholder:
-    "Pište sem — zatím jednoduchý text. Později sem přijde plnohodnotný editor.",
-  editorHint: "Zatím místní koncept. Později plnohodnotný editor v tomto panelu.",
+  editorPlaceholder: "Pište v editoru Loomdraft — koncept se automaticky ukládá lokálně.",
+  editorHint:
+    "Editor Loomdraft: markdown, osnovu, historii, obrázky. Koncept se ukládá lokálně.",
+  backToAgents: "Agenti",
+  limitFiveHour: "5 h",
+  limitWeekly: "týden",
+  limitUsed: "{label} {percent} %",
+  limitUnavailable: "limity n/a",
+  limitRefresh: "Obnovit limity Codex",
   settings: "Nastavení",
   settingsNav: "Sekce nastavení",
   settingsGeneral: "Obecné",
+  settingsManuscript: "Rukopis",
+  settingsManuscriptHint: "Vyberte složku, kde jsou kapitoly.",
+  manuscriptPath: "Složka",
+  manuscriptNotSet: "Nenastaveno",
+  chooseFolder: "Vybrat složku…",
   settingsUpdates: "Aktualizace",
   settingsUpdatesHint: "Nainstalovaná verze a co se změnilo v jednotlivých vydáních.",
   currentVersion: "Aktuální verze",
@@ -250,6 +324,11 @@ const cs: Dict = {
     "Přihlášení přes vaše účty Claude, Codex a Cursor. Zelená kontrolka nad sloupcem znamená, že je agent připraven.",
   language: "Jazyk",
   languageHint: "Jazyk rozhraní aplikace.",
+  appearance: "Vzhled",
+  appearanceHint: "Běžný, noční nebo knižní režim.",
+  themeNormal: "Běžný",
+  themeNight: "Noční",
+  themeBook: "Knižní",
   backToWorkspace: "Zpět",
   githubTitle: "GitHub",
   githubSignedInAs: "GitHub",

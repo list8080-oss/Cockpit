@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import {
   LOCALES,
   LOCALE_STORAGE_KEY,
@@ -11,14 +12,38 @@ import {
   t,
   type Locale,
 } from "./i18n";
+import {
+  THEMES,
+  THEME_STORAGE_KEY,
+  applyTheme,
+  detectTheme,
+  isTheme,
+  type Theme,
+} from "./theme";
 import { CHANGELOG, noteFor } from "./changelog";
+import { WritingEditor } from "./writing-editor";
 import "./App.css";
 
 type View = "workspace" | "settings";
-type SidebarPanelId = "notes" | "editor" | null;
+type WorkspaceMode = "agents" | "editor";
+type SidebarPanelId = "notes" | null;
 
 const EDITOR_STORAGE_KEY = "yar-cockpit.editor";
 const LEGACY_EDITOR_STORAGE_KEY = "yar-cockpit.notes";
+
+type CodexLimitWindow = {
+  usedPercent: number;
+  windowMinutes: number | null;
+  resetsAt: number | null;
+};
+
+type CodexLimits = {
+  available: boolean;
+  fiveHour: CodexLimitWindow | null;
+  weekly: CodexLimitWindow | null;
+  planType: string | null;
+  detail: string | null;
+};
 
 type UpdateState =
   | { status: "idle" }
@@ -269,14 +294,42 @@ function GithubChip({
   );
 }
 
+function formatLimitChip(locale: Locale, limits: CodexLimits | null): string {
+  if (!limits?.available) return t(locale, "limitUnavailable");
+  const parts: string[] = [];
+  if (limits.fiveHour) {
+    parts.push(
+      t(locale, "limitUsed", {
+        label: t(locale, "limitFiveHour"),
+        percent: String(Math.round(limits.fiveHour.usedPercent)),
+      }),
+    );
+  }
+  if (limits.weekly) {
+    parts.push(
+      t(locale, "limitUsed", {
+        label: t(locale, "limitWeekly"),
+        percent: String(Math.round(limits.weekly.usedPercent)),
+      }),
+    );
+  }
+  return parts.length > 0 ? parts.join(" · ") : t(locale, "limitUnavailable");
+}
+
 function EngineLamp({
   locale,
   auth,
   loading,
+  limits,
+  limitsLoading,
+  onRefreshLimits,
 }: {
   locale: Locale;
   auth: AuthStatus | undefined;
   loading: boolean;
+  limits?: CodexLimits | null;
+  limitsLoading?: boolean;
+  onRefreshLimits?: () => void;
 }) {
   const signedIn = Boolean(auth?.loggedIn);
   const missing = Boolean(auth && !auth.installed);
@@ -287,6 +340,11 @@ function EngineLamp({
       : signedIn
         ? auth?.account || t(locale, "authReady")
         : t(locale, "authNotReady");
+
+  const showLimits = limits !== undefined;
+  const limitTitle = limits?.detail
+    ? `${formatLimitChip(locale, limits)} — ${limits.detail}`
+    : formatLimitChip(locale, limits ?? null);
 
   return (
     <div className="engine-lamp-row" title={label}>
@@ -302,6 +360,22 @@ function EngineLamp({
         }
         aria-label={label}
       />
+      {showLimits && (
+        <button
+          type="button"
+          className={
+            limits?.available
+              ? "limit-chip"
+              : "limit-chip limit-chip-muted"
+          }
+          title={limitTitle}
+          aria-label={t(locale, "limitRefresh")}
+          disabled={limitsLoading}
+          onClick={() => onRefreshLimits?.()}
+        >
+          {limitsLoading ? "…" : formatLimitChip(locale, limits ?? null)}
+        </button>
+      )}
     </div>
   );
 }
@@ -323,19 +397,32 @@ function Variant({
   locale,
   auth,
   authLoading,
+  limits,
+  limitsLoading,
+  onRefreshLimits,
 }: {
   label: string;
   state: VariantState;
   locale: Locale;
   auth: AuthStatus | undefined;
   authLoading: boolean;
+  limits?: CodexLimits | null;
+  limitsLoading?: boolean;
+  onRefreshLimits?: () => void;
 }) {
   const copy = () => {
     if (state.status === "done") navigator.clipboard.writeText(state.text);
   };
   return (
     <div className="variant-column">
-      <EngineLamp locale={locale} auth={auth} loading={authLoading} />
+      <EngineLamp
+        locale={locale}
+        auth={auth}
+        loading={authLoading}
+        limits={limits}
+        limitsLoading={limitsLoading}
+        onRefreshLimits={onRefreshLimits}
+      />
       <div className="variant">
         <div className="variant-head">
           <span className="variant-label">{label}</span>
@@ -370,11 +457,24 @@ function Variant({
   );
 }
 
-type SettingsSection = "general" | "updates" | "agents";
+type SettingsSection = "general" | "manuscript" | "updates" | "agents";
+
+function themeLabel(locale: Locale, theme: Theme): string {
+  switch (theme) {
+    case "normal":
+      return t(locale, "themeNormal");
+    case "night":
+      return t(locale, "themeNight");
+    case "book":
+      return t(locale, "themeBook");
+  }
+}
 
 function SettingsView({
   locale,
   onLocaleChange,
+  theme,
+  onThemeChange,
   onBack,
   agentAuths,
   authLoading,
@@ -382,9 +482,14 @@ function SettingsView({
   onRefreshAuth,
   onSignIn,
   onSignOut,
+  manuscriptPath,
+  onChooseManuscriptFolder,
+  manuscriptMessage,
 }: {
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
+  theme: Theme;
+  onThemeChange: (theme: Theme) => void;
   onBack: () => void;
   agentAuths: AuthStatus[];
   authLoading: boolean;
@@ -392,6 +497,9 @@ function SettingsView({
   onRefreshAuth: () => void;
   onSignIn: (provider: string) => void;
   onSignOut: (provider: string) => void;
+  manuscriptPath: string | null;
+  onChooseManuscriptFolder: () => void;
+  manuscriptMessage: string | null;
 }) {
   const [section, setSection] = useState<SettingsSection>("general");
   const {
@@ -404,6 +512,7 @@ function SettingsView({
 
   const navItems: { id: SettingsSection; label: string }[] = [
     { id: "general", label: t(locale, "settingsGeneral") },
+    { id: "manuscript", label: t(locale, "settingsManuscript") },
     { id: "updates", label: t(locale, "settingsUpdates") },
     { id: "agents", label: t(locale, "settingsAgents") },
   ];
@@ -457,6 +566,54 @@ function SettingsView({
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-label">{t(locale, "appearance")}</div>
+                <div className="settings-hint">{t(locale, "appearanceHint")}</div>
+              </div>
+              <select
+                className="settings-select"
+                value={theme}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (isTheme(next)) onThemeChange(next);
+                }}
+                aria-label={t(locale, "appearance")}
+              >
+                {THEMES.map((id) => (
+                  <option key={id} value={id}>
+                    {themeLabel(locale, id)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </section>
+        )}
+
+        {section === "manuscript" && (
+          <section className="settings-section">
+            <h2>{t(locale, "settingsManuscript")}</h2>
+            <p className="settings-section-hint">
+              {t(locale, "settingsManuscriptHint")}
+            </p>
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-label">{t(locale, "manuscriptPath")}</div>
+                <div className="settings-hint">
+                  {manuscriptPath || t(locale, "manuscriptNotSet")}
+                </div>
+                {manuscriptMessage && (
+                  <div className="settings-hint">{manuscriptMessage}</div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="auth-action-btn"
+                onClick={onChooseManuscriptFolder}
+              >
+                {t(locale, "chooseFolder")}
+              </button>
             </div>
           </section>
         )}
@@ -575,7 +732,9 @@ function SettingsView({
 
 export default function App() {
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
+  const [theme, setTheme] = useState<Theme>(() => detectTheme());
   const [view, setView] = useState<View>("workspace");
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("agents");
   const [openPanel, setOpenPanel] = useState<SidebarPanelId>("notes");
   const [editorText, setEditorText] = useState(() => {
     try {
@@ -590,6 +749,8 @@ export default function App() {
   });
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [chaptersError, setChaptersError] = useState<string | null>(null);
+  const [manuscriptPath, setManuscriptPath] = useState<string | null>(null);
+  const [manuscriptMessage, setManuscriptMessage] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [claude, setClaude] = useState<VariantState>({ status: "idle" });
   const [codex, setCodex] = useState<VariantState>({ status: "idle" });
@@ -597,11 +758,31 @@ export default function App() {
   const [auths, setAuths] = useState<AuthStatus[]>([]);
   const [authLoading, setAuthLoading] = useState(true);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [codexLimits, setCodexLimits] = useState<CodexLimits | null>(null);
+  const [codexLimitsLoading, setCodexLimitsLoading] = useState(false);
 
   const authById = (id: string) => auths.find((item) => item.id === id);
   const agentAuths = AGENT_IDS.map((id) => authById(id)).filter(
     (item): item is AuthStatus => Boolean(item),
   );
+
+  const refreshCodexLimits = async () => {
+    setCodexLimitsLoading(true);
+    try {
+      const limits = await invoke<CodexLimits>("get_codex_limits");
+      setCodexLimits(limits);
+    } catch (e) {
+      setCodexLimits({
+        available: false,
+        fiveHour: null,
+        weekly: null,
+        planType: null,
+        detail: String(e),
+      });
+    } finally {
+      setCodexLimitsLoading(false);
+    }
+  };
 
   const refreshAuth = async () => {
     setAuthLoading(true);
@@ -609,6 +790,7 @@ export default function App() {
       const list = await invoke<AuthStatus[]>("list_auth_status");
       setAuths(list);
       setAuthMessage(null);
+      void refreshCodexLimits();
     } catch (e) {
       setAuthMessage(String(e));
     } finally {
@@ -652,19 +834,52 @@ export default function App() {
   }, [locale]);
 
   useEffect(() => {
+    applyTheme(theme);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      /* ignore */
+    }
+  }, [theme]);
+
+  const loadChapters = () => {
     invoke<ChapterInfo[]>("list_chapters")
-      .then(setChapters)
+      .then((list) => {
+        setChapters(list);
+        setChaptersError(null);
+      })
       .catch((e) => setChaptersError(String(e)));
+  };
+
+  useEffect(() => {
+    loadChapters();
+    invoke<string | null>("get_manuscript_path").then(setManuscriptPath);
     void refreshAuth();
+    void refreshCodexLimits();
   }, []);
+
+  const chooseManuscriptFolder = async () => {
+    setManuscriptMessage(null);
+    const selected = await openFolderDialog({ directory: true, multiple: false });
+    if (!selected || Array.isArray(selected)) return;
+    try {
+      await invoke("set_manuscript_path", { path: selected });
+      setManuscriptPath(selected);
+      loadChapters();
+    } catch (e) {
+      setManuscriptMessage(String(e));
+    }
+  };
 
   const loadChapter = async (file: string) => {
     try {
       const text = await invoke<string>("read_chapter", { file });
       setPrompt(text);
+      setWorkspaceMode("agents");
       setView("workspace");
     } catch (e) {
       setPrompt(t(locale, "loadChapterFailed", { error: String(e) }));
+      setWorkspaceMode("agents");
       setView("workspace");
     }
   };
@@ -678,8 +893,14 @@ export default function App() {
       .then((text) => setClaude({ status: "done", text }))
       .catch((e) => setClaude({ status: "error", message: String(e) }));
     invoke<string>("run_codex", { prompt })
-      .then((text) => setCodex({ status: "done", text }))
-      .catch((e) => setCodex({ status: "error", message: String(e) }));
+      .then((text) => {
+        setCodex({ status: "done", text });
+        void refreshCodexLimits();
+      })
+      .catch((e) => {
+        setCodex({ status: "error", message: String(e) });
+        void refreshCodexLimits();
+      });
     invoke<string>("run_cursor", { prompt })
       .then((text) => setCursor({ status: "done", text }))
       .catch((e) => setCursor({ status: "error", message: String(e) }));
@@ -698,8 +919,18 @@ export default function App() {
     }
   }, [editorText]);
 
-  const togglePanel = (id: Exclude<SidebarPanelId, null>) => {
-    setOpenPanel((current) => (current === id ? null : id));
+  const toggleNotesPanel = () => {
+    setOpenPanel((current) => (current === "notes" ? null : "notes"));
+  };
+
+  const openEditorMode = () => {
+    setWorkspaceMode("editor");
+    setOpenPanel(null);
+  };
+
+  const openAgentsMode = () => {
+    setWorkspaceMode("agents");
+    setOpenPanel("notes");
   };
 
   if (view === "settings") {
@@ -708,6 +939,8 @@ export default function App() {
         <SettingsView
           locale={locale}
           onLocaleChange={setLocale}
+          theme={theme}
+          onThemeChange={setTheme}
           onBack={() => setView("workspace")}
           agentAuths={
             agentAuths.length > 0
@@ -737,6 +970,11 @@ export default function App() {
           onSignOut={(provider) => {
             void signOut(provider);
           }}
+          manuscriptPath={manuscriptPath}
+          onChooseManuscriptFolder={() => {
+            void chooseManuscriptFolder();
+          }}
+          manuscriptMessage={manuscriptMessage}
         />
       </div>
     );
@@ -757,7 +995,7 @@ export default function App() {
               type="button"
               className="sidebar-panel-toggle"
               aria-expanded={openPanel === "notes"}
-              onClick={() => togglePanel("notes")}
+              onClick={toggleNotesPanel}
             >
               <span className="sidebar-panel-chevron" aria-hidden="true">
                 {openPanel === "notes" ? "▾" : "▸"}
@@ -783,33 +1021,22 @@ export default function App() {
 
           <section
             className={
-              openPanel === "editor"
-                ? "sidebar-panel sidebar-panel-open"
+              workspaceMode === "editor"
+                ? "sidebar-panel sidebar-panel-mode-active"
                 : "sidebar-panel"
             }
           >
             <button
               type="button"
               className="sidebar-panel-toggle"
-              aria-expanded={openPanel === "editor"}
-              onClick={() => togglePanel("editor")}
+              aria-pressed={workspaceMode === "editor"}
+              onClick={openEditorMode}
             >
               <span className="sidebar-panel-chevron" aria-hidden="true">
-                {openPanel === "editor" ? "▾" : "▸"}
+                {workspaceMode === "editor" ? "●" : "○"}
               </span>
               <span>{t(locale, "editor")}</span>
             </button>
-            {openPanel === "editor" && (
-              <div className="sidebar-panel-body editor-panel-body">
-                <p className="panel-hint">{t(locale, "editorHint")}</p>
-                <textarea
-                  className="editor-box"
-                  value={editorText}
-                  onChange={(e) => setEditorText(e.target.value)}
-                  placeholder={t(locale, "editorPlaceholder")}
-                />
-              </div>
-            )}
           </section>
         </div>
         <div className="sidebar-footer">
@@ -834,57 +1061,75 @@ export default function App() {
 
       <main className="main">
         <div className="main-body">
-          <div className="prompt-wrap">
-            <textarea
-              className="prompt-box"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder={t(locale, "promptPlaceholder")}
+          {workspaceMode === "editor" ? (
+            <WritingEditor
+              content={editorText}
+              onContentChange={setEditorText}
+              onBack={openAgentsMode}
+              backLabel={t(locale, "backToAgents")}
+              title={t(locale, "editor")}
+              themeId={theme}
             />
-            {prompt.length > 0 && (
+          ) : (
+            <>
+              <div className="prompt-wrap">
+                <textarea
+                  className="prompt-box"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder={t(locale, "promptPlaceholder")}
+                />
+                {prompt.length > 0 && (
+                  <button
+                    type="button"
+                    className="clear-prompt-btn"
+                    onClick={() => setPrompt("")}
+                    disabled={busy}
+                    title={t(locale, "clearPrompt")}
+                  >
+                    {t(locale, "clearPrompt")}
+                  </button>
+                )}
+              </div>
               <button
                 type="button"
-                className="clear-prompt-btn"
-                onClick={() => setPrompt("")}
-                disabled={busy}
-                title={t(locale, "clearPrompt")}
+                className="send-btn"
+                onClick={send}
+                disabled={busy || !prompt.trim()}
               >
-                {t(locale, "clearPrompt")}
+                {busy ? t(locale, "waitingAgents") : t(locale, "send")}
               </button>
-            )}
-          </div>
-          <button
-            type="button"
-            className="send-btn"
-            onClick={send}
-            disabled={busy || !prompt.trim()}
-          >
-            {busy ? t(locale, "waitingAgents") : t(locale, "send")}
-          </button>
 
-          <div className="variants">
-            <Variant
-              label="Claude"
-              state={claude}
-              locale={locale}
-              auth={authById("claude")}
-              authLoading={authLoading}
-            />
-            <Variant
-              label="Codex (Sol)"
-              state={codex}
-              locale={locale}
-              auth={authById("codex")}
-              authLoading={authLoading}
-            />
-            <Variant
-              label="Cursor (ask)"
-              state={cursor}
-              locale={locale}
-              auth={authById("cursor")}
-              authLoading={authLoading}
-            />
-          </div>
+              <div className="variants">
+                <Variant
+                  label="Claude"
+                  state={claude}
+                  locale={locale}
+                  auth={authById("claude")}
+                  authLoading={authLoading}
+                />
+                <Variant
+                  label="Codex (Sol)"
+                  state={codex}
+                  locale={locale}
+                  auth={authById("codex")}
+                  authLoading={authLoading}
+                  limits={codexLimits}
+                  limitsLoading={codexLimitsLoading}
+                  onRefreshLimits={() => {
+                    void refreshCodexLimits();
+                  }}
+                />
+                <Variant
+                  label="Cursor (ask)"
+                  state={cursor}
+                  locale={locale}
+                  auth={authById("cursor")}
+                  authLoading={authLoading}
+                />
+              </div>
+            </>
+          )}
         </div>
         <div className="main-footer">
           <UpdateBar locale={locale} />

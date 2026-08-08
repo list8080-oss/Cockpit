@@ -1,0 +1,71 @@
+/* ── Toast notifications (scoped under writing editor host) ───────────────── */
+
+.writing-editor .toast-stack,
+.toast-stack {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 10px 20px;
+  border-radius: var(--radius, 6px);
+  font-size: 13px;
+  color: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  animation: we-toast-in 0.25s ease-out;
+  max-width: 500px;
+  text-align: center;
+}
+
+.toast-success {
+  background: #2d8a4e;
+}
+
+.toast-error {
+  background: var(--danger, #d93636);
+}
+
+.toast-info {
+  background: var(--bg-3, #eaeaee);
+  color: var(--text, #1a1a2e);
+  border: 1px solid var(--border, #d0d0d8);
+}
+
+.toast-warning {
+  background: #b87a1a;
+}
+
+.toast-out {
+  animation: we-toast-out 0.25s ease-in forwards;
+}
+
+@keyframes we-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes we-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}

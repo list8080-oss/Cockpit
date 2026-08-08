@@ -1,0 +1,96 @@
+/* Scoped Loomdraft editor chrome — does not reset the Cockpit app shell. */
+
+.writing-editor {
+  --we-bg: #ffffff;
+  --we-bg-2: #f5f5f7;
+  --we-bg-3: #eaeaee;
+  --we-border: #d0d0d8;
+  --we-text: #1a1a2e;
+  --we-text-dim: #6b6b80;
+  --we-accent: #396cd8;
+  --we-accent-h: #2f5bb8;
+  --we-danger: #d93636;
+  --we-radius: 6px;
+  --bg: var(--we-bg);
+  --bg-2: var(--we-bg-2);
+  --bg-3: var(--we-bg-3);
+  --border: var(--we-border);
+  --text: var(--we-text);
+  --text-dim: var(--we-text-dim);
+  --accent: var(--we-accent);
+  --accent-h: var(--we-accent-h);
+  --danger: var(--we-danger);
+  --radius: var(--we-radius);
+  --font: inherit;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  background: var(--bg-2);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+[data-theme="night"] .writing-editor {
+  --we-bg: #1e1e1e;
+  --we-bg-2: #252525;
+  --we-bg-3: #2a2a2a;
+  --we-border: rgba(255, 255, 255, 0.12);
+  --we-text: #f0f0f0;
+  --we-text-dim: #999;
+  --we-accent: #9db7f0;
+  --we-accent-h: #b8c9f5;
+}
+
+[data-theme="book"] .writing-editor {
+  --we-bg: #f7f1e4;
+  --we-bg-2: #ebe4d4;
+  --we-bg-3: #e0d6c2;
+  --we-border: rgba(70, 55, 30, 0.18);
+  --we-text: #2a241c;
+  --we-text-dim: #6e634f;
+  --we-accent: #6b4f24;
+  --we-accent-h: #8a6830;
+  font-family: inherit;
+}
+
+.writing-editor .editor-root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.writing-editor-back {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.writing-editor-back button {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.writing-editor-back button:hover {
+  text-decoration: underline;
+}
+
+.writing-editor-back-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+}

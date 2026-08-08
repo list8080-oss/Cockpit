@@ -9,6 +9,26 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.5",
+    date: "2026-08-08",
+    notes: {
+      en: "Real writing editor in Editor mode (markdown, images, spellcheck, version history), Normal/Night/Book appearance modes, and a Codex usage-limit indicator.",
+      ru: "Полноценный текстовый редактор в режиме «Редактор» (markdown, картинки, проверка орфографии, история версий), режимы оформления Обычный/Ночь/Книга и индикатор лимита Codex.",
+      uk: "Повноцінний текстовий редактор у режимі «Редактор» (markdown, зображення, перевірка орфографії, історія версій), режими оформлення Звичайний/Ніч/Книга та індикатор ліміту Codex.",
+      cs: "Plnohodnotný textový editor v režimu Editor (markdown, obrázky, kontrola pravopisu, historie verzí), vzhledy Normální/Noc/Kniha a ukazatel limitu Codexu.",
+    },
+  },
+  {
+    version: "0.3.4",
+    date: "2026-08-08",
+    notes: {
+      en: "Manuscript folder is now configurable in Settings > Manuscript (choose any folder — nothing is hardcoded anymore).",
+      ru: "Папка рукописи теперь настраивается в Настройки > Рукопись (можно выбрать любую папку — больше ничего не зашито в коде).",
+      uk: "Тека рукопису тепер налаштовується в Налаштування > Рукопис (можна обрати будь-яку теку — більше нічого не зашито в коді).",
+      cs: "Složku rukopisu lze nyní nastavit v Nastavení > Rukopis (lze vybrat libovolnou složku — nic už není napevno v kódu).",
+    },
+  },
+  {
     version: "0.3.3",
     date: "2026-08-08",
     notes: {
