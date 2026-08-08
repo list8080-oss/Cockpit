@@ -372,33 +372,38 @@ pub async fn list_auth_status() -> Result<Vec<AuthStatus>, String> {
     Ok(vec![claude, codex, cursor, github])
 }
 
-/// Start the provider's own login flow (browser / CLI). Detached so the UI
-/// stays responsive; the user completes login in the browser or Terminal.
-#[tauri::command]
-pub async fn start_auth_login(provider: String) -> Result<(), String> {
+fn provider_bins_and_args(provider: AuthProvider, logout: bool) -> (String, Vec<&'static str>) {
+    match (provider, logout) {
+        (AuthProvider::Claude, false) => (claude_bin(), vec!["auth", "login"]),
+        (AuthProvider::Claude, true) => (claude_bin(), vec!["auth", "logout"]),
+        (AuthProvider::Codex, false) => (codex_bin(), vec!["login"]),
+        (AuthProvider::Codex, true) => (codex_bin(), vec!["logout"]),
+        (AuthProvider::Cursor, false) => (cursor_bin(), vec!["login"]),
+        (AuthProvider::Cursor, true) => (cursor_bin(), vec!["logout"]),
+        // Web flow avoids interactive prompts that need a TTY.
+        (AuthProvider::Github, false) => (gh_bin(), vec!["auth", "login", "-p", "https", "-w"]),
+        (AuthProvider::Github, true) => (gh_bin(), vec!["auth", "logout"]),
+    }
+}
+
+async fn start_auth_flow(provider: String, logout: bool) -> Result<(), String> {
     let provider = AuthProvider::from_id(&provider)
         .ok_or_else(|| format!("unknown provider: {provider}"))?;
-
-    let (bin, args): (String, Vec<&str>) = match provider {
-        AuthProvider::Claude => (claude_bin(), vec!["auth", "login"]),
-        AuthProvider::Codex => (codex_bin(), vec!["login"]),
-        AuthProvider::Cursor => (cursor_bin(), vec!["login"]),
-        // Web flow avoids interactive prompts that need a TTY.
-        AuthProvider::Github => (gh_bin(), vec!["auth", "login", "-p", "https", "-w"]),
-    };
+    let (bin, args) = provider_bins_and_args(provider, logout);
+    let action = if logout { "logout" } else { "login" };
 
     if !bin_exists(&bin) {
         return Err(format!("{} CLI not found", provider.as_str()));
     }
 
-    // On macOS, open Terminal for a visible interactive login session.
-    // Browser-based CLIs still work; Terminal makes progress obvious.
+    // On macOS, open Terminal for a visible interactive session.
     if cfg!(target_os = "macos") {
         let cmdline = format!(
-            "{} {} ; echo; echo '[{}] login finished — you can close this window.'; exec bash",
+            "{} {} ; echo; echo '[{}] {} finished — you can close this window.'; exec bash",
             shell_quote(&bin),
             args.iter().map(|a| shell_quote(a)).collect::<Vec<_>>().join(" "),
-            provider.as_str()
+            provider.as_str(),
+            action
         );
         let status = std::process::Command::new("osascript")
             .arg("-e")
@@ -419,8 +424,20 @@ pub async fn start_auth_login(provider: String) -> Result<(), String> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| format!("failed to start {} login: {e}", provider.as_str()))?;
+        .map_err(|e| format!("failed to start {} {}: {e}", provider.as_str(), action))?;
     Ok(())
+}
+
+/// Start the provider's own login flow (browser / CLI). Detached so the UI
+/// stays responsive; the user completes login in the browser or Terminal.
+#[tauri::command]
+pub async fn start_auth_login(provider: String) -> Result<(), String> {
+    start_auth_flow(provider, false).await
+}
+
+#[tauri::command]
+pub async fn start_auth_logout(provider: String) -> Result<(), String> {
+    start_auth_flow(provider, true).await
 }
 
 fn shell_quote(s: &str) -> String {

@@ -16,6 +16,7 @@ pub fn run() {
             engines::run_cursor,
             auth::list_auth_status,
             auth::start_auth_login,
+            auth::start_auth_logout,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

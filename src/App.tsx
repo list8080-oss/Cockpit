@@ -11,6 +11,7 @@ import {
   t,
   type Locale,
 } from "./i18n";
+import { CHANGELOG, noteFor } from "./changelog";
 import "./App.css";
 
 type View = "workspace" | "settings";
@@ -23,7 +24,7 @@ type UpdateState =
   | { status: "restarting" }
   | { status: "error"; message: string };
 
-function UpdateBar({ locale }: { locale: Locale }) {
+function useAppUpdate(locale: Locale) {
   const [version, setVersion] = useState("");
   const [state, setState] = useState<UpdateState>({ status: "idle" });
 
@@ -62,6 +63,12 @@ function UpdateBar({ locale }: { locale: Locale }) {
   if (state.status === "restarting") statusText = t(locale, "updateRestarting");
   if (state.status === "error") statusText = state.message;
 
+  return { version, busy, statusText, isError: state.status === "error", run };
+}
+
+function UpdateBar({ locale }: { locale: Locale }) {
+  const { version, busy, statusText, isError, run } = useAppUpdate(locale);
+
   return (
     <div className="update-bar">
       <span className="version">v{version || "…"}</span>
@@ -69,9 +76,7 @@ function UpdateBar({ locale }: { locale: Locale }) {
         {busy ? "…" : t(locale, "checkUpdate")}
       </button>
       {statusText && (
-        <span className={state.status === "error" ? "error-text" : "muted"}>
-          {statusText}
-        </span>
+        <span className={isError ? "error-text" : "muted"}>{statusText}</span>
       )}
     </div>
   );
@@ -86,6 +91,8 @@ interface AuthStatus {
   detail: string | null;
 }
 
+const AGENT_IDS = ["claude", "codex", "cursor"] as const;
+
 function authStatusLabel(locale: Locale, auth: AuthStatus | undefined, loading: boolean) {
   if (loading && !auth) return t(locale, "authChecking");
   if (!auth) return t(locale, "authSignedOut");
@@ -94,28 +101,27 @@ function authStatusLabel(locale: Locale, auth: AuthStatus | undefined, loading: 
   return t(locale, "authSignedOut");
 }
 
-function AccountMenu({
+function GithubIcon({
   locale,
-  settingsOpen,
-  onOpenSettings,
   github,
   authLoading,
   authMessage,
-  onSignInGithub,
+  onSignIn,
+  onSignOut,
   onRefreshAuth,
 }: {
   locale: Locale;
-  settingsOpen: boolean;
-  onOpenSettings: () => void;
   github: AuthStatus | undefined;
   authLoading: boolean;
   authMessage: string | null;
-  onSignInGithub: () => void;
+  onSignIn: () => void;
+  onSignOut: () => void;
   onRefreshAuth: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const signedIn = Boolean(github?.loggedIn);
+  const missing = Boolean(github && !github.installed);
 
   useEffect(() => {
     if (!open) return;
@@ -135,27 +141,23 @@ function AccountMenu({
     };
   }, [open]);
 
-  const name = signedIn
-    ? github?.account || "GitHub"
-    : t(locale, "githubTitle");
-  const status = authStatusLabel(locale, github, authLoading);
+  const lampClass = missing
+    ? "gh-icon gh-icon-miss"
+    : signedIn
+      ? "gh-icon gh-icon-on"
+      : "gh-icon gh-icon-off";
+  const title = authStatusLabel(locale, github, authLoading);
 
   return (
-    <div className="account-menu" ref={rootRef}>
+    <div className="gh-menu" ref={rootRef}>
       {open && (
         <div className="account-dropdown" role="menu">
-          <button
-            type="button"
-            role="menuitem"
-            className="account-dropdown-item"
-            onClick={() => {
-              setOpen(false);
-              onOpenSettings();
-            }}
-          >
-            {t(locale, "settings")}
-          </button>
-          {!signedIn && (
+          <div className="account-dropdown-note">
+            {github?.account || t(locale, "githubTitle")}
+            <br />
+            {title}
+          </div>
+          {signedIn ? (
             <button
               type="button"
               role="menuitem"
@@ -163,7 +165,20 @@ function AccountMenu({
               disabled={!github?.installed || authLoading}
               onClick={() => {
                 setOpen(false);
-                onSignInGithub();
+                onSignOut();
+              }}
+            >
+              {t(locale, "githubSignOut")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              className="account-dropdown-item"
+              disabled={!github?.installed || authLoading}
+              onClick={() => {
+                setOpen(false);
+                onSignIn();
               }}
             >
               {t(locale, "githubSignIn")}
@@ -187,74 +202,52 @@ function AccountMenu({
       )}
       <button
         type="button"
-        className={
-          open || settingsOpen
-            ? "account-trigger account-trigger-active"
-            : "account-trigger"
-        }
+        className={open ? `${lampClass} gh-icon-active` : lampClass}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t(locale, "accountMenu")}
+        title={title}
         onClick={() => setOpen((value) => !value)}
       >
-        <span
-          className={
-            signedIn ? "account-avatar account-avatar-ok" : "account-avatar"
-          }
-          aria-hidden="true"
-        >
-          {signedIn ? "GH" : "?"}
-        </span>
-        <span className="account-meta">
-          <span className="account-name">{name}</span>
-          <span className="account-status">{status}</span>
-        </span>
-        <span className="account-caret" aria-hidden="true">
-          ▾
-        </span>
+        GH
       </button>
     </div>
   );
 }
 
-function EngineAuthBar({
+function EngineLamp({
   locale,
   auth,
   loading,
-  onSignIn,
 }: {
   locale: Locale;
   auth: AuthStatus | undefined;
   loading: boolean;
-  onSignIn: () => void;
 }) {
   const signedIn = Boolean(auth?.loggedIn);
   const missing = Boolean(auth && !auth.installed);
-  const status = authStatusLabel(locale, auth, loading);
+  const label = loading && !auth
+    ? t(locale, "authChecking")
+    : missing
+      ? t(locale, "authMissingCli")
+      : signedIn
+        ? auth?.account || t(locale, "authReady")
+        : t(locale, "authNotReady");
 
   return (
-    <div className="engine-auth">
+    <div className="engine-lamp-row" title={label}>
       <span
         className={
-          missing
-            ? "auth-pill auth-pill-miss"
-            : signedIn
-              ? "auth-pill auth-pill-on"
-              : "auth-pill auth-pill-off"
+          loading && !auth
+            ? "engine-lamp engine-lamp-loading"
+            : missing
+              ? "engine-lamp engine-lamp-miss"
+              : signedIn
+                ? "engine-lamp engine-lamp-on"
+                : "engine-lamp engine-lamp-off"
         }
-      >
-        {status}
-      </span>
-      {!signedIn && (
-        <button
-          type="button"
-          className="engine-auth-btn"
-          disabled={!auth?.installed || loading}
-          onClick={onSignIn}
-        >
-          {t(locale, "authSignIn")}
-        </button>
-      )}
+        aria-label={label}
+      />
     </div>
   );
 }
@@ -276,26 +269,19 @@ function Variant({
   locale,
   auth,
   authLoading,
-  onSignIn,
 }: {
   label: string;
   state: VariantState;
   locale: Locale;
   auth: AuthStatus | undefined;
   authLoading: boolean;
-  onSignIn: () => void;
 }) {
   const copy = () => {
     if (state.status === "done") navigator.clipboard.writeText(state.text);
   };
   return (
     <div className="variant-column">
-      <EngineAuthBar
-        locale={locale}
-        auth={auth}
-        loading={authLoading}
-        onSignIn={onSignIn}
-      />
+      <EngineLamp locale={locale} auth={auth} loading={authLoading} />
       <div className="variant">
         <div className="variant-head">
           <span className="variant-label">{label}</span>
@@ -334,11 +320,31 @@ function SettingsView({
   locale,
   onLocaleChange,
   onBack,
+  agentAuths,
+  authLoading,
+  authMessage,
+  onRefreshAuth,
+  onSignIn,
+  onSignOut,
 }: {
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
   onBack: () => void;
+  agentAuths: AuthStatus[];
+  authLoading: boolean;
+  authMessage: string | null;
+  onRefreshAuth: () => void;
+  onSignIn: (provider: string) => void;
+  onSignOut: (provider: string) => void;
 }) {
+  const {
+    version,
+    busy: updateBusy,
+    statusText: updateStatus,
+    isError: updateError,
+    run: checkUpdate,
+  } = useAppUpdate(locale);
+
   return (
     <div className="settings">
       <header className="settings-header">
@@ -372,6 +378,106 @@ function SettingsView({
           </select>
         </div>
       </section>
+
+      <section className="settings-section settings-section-spaced">
+        <h2>{t(locale, "settingsUpdates")}</h2>
+        <p className="settings-section-hint">{t(locale, "settingsUpdatesHint")}</p>
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <div className="settings-label">{t(locale, "currentVersion")}</div>
+            <div className="settings-hint">v{version || "…"}</div>
+            {updateStatus && (
+              <div className={updateError ? "error-text" : "settings-hint"}>
+                {updateStatus}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            className="auth-action-btn"
+            onClick={() => {
+              void checkUpdate();
+            }}
+            disabled={updateBusy}
+          >
+            {updateBusy ? "…" : t(locale, "checkUpdate")}
+          </button>
+        </div>
+        <div className="changelog">
+          <div className="changelog-title">{t(locale, "versionHistory")}</div>
+          <ul className="changelog-list">
+            {CHANGELOG.map((entry) => (
+              <li key={entry.version} className="changelog-item">
+                <div className="changelog-head">
+                  <span className="changelog-version">v{entry.version}</span>
+                  <span className="changelog-date">{entry.date}</span>
+                </div>
+                <p className="changelog-notes">{noteFor(entry, locale)}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="settings-section settings-section-spaced">
+        <div className="settings-section-head">
+          <h2>{t(locale, "settingsAgents")}</h2>
+          <button
+            type="button"
+            className="settings-refresh"
+            onClick={onRefreshAuth}
+            disabled={authLoading}
+          >
+            {authLoading ? t(locale, "authChecking") : t(locale, "authRefresh")}
+          </button>
+        </div>
+        <p className="settings-section-hint">{t(locale, "settingsAgentsHint")}</p>
+        {authMessage && <p className="muted">{authMessage}</p>}
+        <div className="auth-list">
+          {agentAuths.map((item) => {
+            const status = authStatusLabel(locale, item, authLoading);
+            return (
+              <div className="settings-row auth-row" key={item.id}>
+                <div className="settings-row-text">
+                  <div className="settings-label-row">
+                    <span
+                      className={
+                        !item.installed
+                          ? "engine-lamp engine-lamp-miss"
+                          : item.loggedIn
+                            ? "engine-lamp engine-lamp-on"
+                            : "engine-lamp engine-lamp-off"
+                      }
+                      aria-hidden="true"
+                    />
+                    <span className="settings-label">{item.label}</span>
+                  </div>
+                  <div className="settings-hint">{status}</div>
+                </div>
+                {item.loggedIn ? (
+                  <button
+                    type="button"
+                    className="auth-action-btn"
+                    disabled={!item.installed || authLoading}
+                    onClick={() => onSignOut(item.id)}
+                  >
+                    {t(locale, "authSignOut")}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="auth-action-btn"
+                    disabled={!item.installed || authLoading}
+                    onClick={() => onSignIn(item.id)}
+                  >
+                    {t(locale, "authSignIn")}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }
@@ -390,6 +496,9 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState<string | null>(null);
 
   const authById = (id: string) => auths.find((item) => item.id === id);
+  const agentAuths = AGENT_IDS.map((id) => authById(id)).filter(
+    (item): item is AuthStatus => Boolean(item),
+  );
 
   const refreshAuth = async () => {
     setAuthLoading(true);
@@ -409,6 +518,19 @@ export default function App() {
     try {
       await invoke("start_auth_login", { provider });
       setAuthMessage(t(locale, "authLoginStarted"));
+      window.setTimeout(() => {
+        void refreshAuth();
+      }, 4000);
+    } catch (e) {
+      setAuthMessage(String(e));
+    }
+  };
+
+  const signOut = async (provider: string) => {
+    setAuthMessage(null);
+    try {
+      await invoke("start_auth_logout", { provider });
+      setAuthMessage(t(locale, "authLogoutStarted"));
       window.setTimeout(() => {
         void refreshAuth();
       }, 4000);
@@ -480,20 +602,36 @@ export default function App() {
           ))}
         </ul>
         <div className="sidebar-footer">
-          <AccountMenu
-            locale={locale}
-            settingsOpen={view === "settings"}
-            onOpenSettings={() => setView("settings")}
-            github={authById("github")}
-            authLoading={authLoading}
-            authMessage={authMessage}
-            onSignInGithub={() => {
-              void signIn("github");
-            }}
-            onRefreshAuth={() => {
-              void refreshAuth();
-            }}
-          />
+          <div className="sidebar-footer-row">
+            <GithubIcon
+              locale={locale}
+              github={authById("github")}
+              authLoading={authLoading}
+              authMessage={authMessage}
+              onSignIn={() => {
+                void signIn("github");
+              }}
+              onSignOut={() => {
+                void signOut("github");
+              }}
+              onRefreshAuth={() => {
+                void refreshAuth();
+              }}
+            />
+            <button
+              type="button"
+              className={
+                view === "settings"
+                  ? "settings-icon-btn settings-icon-btn-active"
+                  : "settings-icon-btn"
+              }
+              aria-label={t(locale, "openSettings")}
+              title={t(locale, "openSettings")}
+              onClick={() => setView("settings")}
+            >
+              ⚙
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -504,6 +642,34 @@ export default function App() {
               locale={locale}
               onLocaleChange={setLocale}
               onBack={() => setView("workspace")}
+              agentAuths={
+                agentAuths.length > 0
+                  ? agentAuths
+                  : AGENT_IDS.map((id) => ({
+                      id,
+                      label:
+                        id === "claude"
+                          ? "Claude"
+                          : id === "codex"
+                            ? "Codex"
+                            : "Cursor",
+                      installed: false,
+                      loggedIn: false,
+                      account: null,
+                      detail: null,
+                    }))
+              }
+              authLoading={authLoading}
+              authMessage={authMessage}
+              onRefreshAuth={() => {
+                void refreshAuth();
+              }}
+              onSignIn={(provider) => {
+                void signIn(provider);
+              }}
+              onSignOut={(provider) => {
+                void signOut(provider);
+              }}
             />
           ) : (
             <>
@@ -542,9 +708,6 @@ export default function App() {
                   locale={locale}
                   auth={authById("claude")}
                   authLoading={authLoading}
-                  onSignIn={() => {
-                    void signIn("claude");
-                  }}
                 />
                 <Variant
                   label="Codex (Sol)"
@@ -552,9 +715,6 @@ export default function App() {
                   locale={locale}
                   auth={authById("codex")}
                   authLoading={authLoading}
-                  onSignIn={() => {
-                    void signIn("codex");
-                  }}
                 />
                 <Variant
                   label="Cursor (ask)"
@@ -562,9 +722,6 @@ export default function App() {
                   locale={locale}
                   auth={authById("cursor")}
                   authLoading={authLoading}
-                  onSignIn={() => {
-                    void signIn("cursor");
-                  }}
                 />
               </div>
             </>

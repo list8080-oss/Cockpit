@@ -1,0 +1,55 @@
+import type { Locale } from "./i18n";
+
+export type ChangelogEntry = {
+  version: string;
+  date: string;
+  notes: Record<Locale, string>;
+};
+
+/** Newest first. Keep in sync with public GitHub Releases notes. */
+export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "0.3.0",
+    date: "2026-08-08",
+    notes: {
+      en: "Readiness lamps above each engine column, sign-in/out moved to Settings > Agents, compact GitHub icon, and localized version history.",
+      ru: "Лампочки готовности над каждой колонкой, вход/выход перенесён в Настройки > Агенты, компактная иконка GitHub, локализованная история версий.",
+      uk: "Лампочки готовності над кожною колонкою, вхід/вихід перенесено в Налаштування > Агенти, компактна іконка GitHub, локалізована історія версій.",
+      cs: "Kontrolky připravenosti nad každým sloupcem, přihlášení/odhlášení přesunuto do Nastavení > Agenti, kompaktní ikona GitHub a lokalizovaná historie verzí.",
+    },
+  },
+  {
+    version: "0.2.1",
+    date: "2026-08-08",
+    notes: {
+      en: "Renamed to Cockpit (neutral public name).",
+      ru: "Переименовано в Cockpit (нейтральное публичное название).",
+      uk: "Перейменовано на Cockpit (нейтральна публічна назва).",
+      cs: "Přejmenováno na Cockpit (neutrální veřejný název).",
+    },
+  },
+  {
+    version: "0.2.0",
+    date: "2026-08-08",
+    notes: {
+      en: "Added Cursor as a third engine, per-service sign-in status, and UI language settings (en/ru/uk/cs).",
+      ru: "Добавлен Cursor как третий движок, статусы входа для каждого сервиса, настройки языка интерфейса (en/ru/uk/cs).",
+      uk: "Додано Cursor як третій рушій, статуси входу для кожного сервісу, налаштування мови інтерфейсу (en/ru/uk/cs).",
+      cs: "Přidán Cursor jako třetí engine, stavy přihlášení u každé služby a nastavení jazyka rozhraní (en/ru/uk/cs).",
+    },
+  },
+  {
+    version: "0.1.1",
+    date: "2026-08-08",
+    notes: {
+      en: "First public Cockpit release with Claude and Codex comparison.",
+      ru: "Первый публичный релиз: сравнение Claude и Codex.",
+      uk: "Перший публічний реліз: порівняння Claude і Codex.",
+      cs: "První veřejné vydání: porovnání Claude a Codex.",
+    },
+  },
+];
+
+export function noteFor(entry: ChangelogEntry, locale: Locale): string {
+  return entry.notes[locale] ?? entry.notes.en;
+}
