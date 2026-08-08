@@ -36,6 +36,18 @@ fn codex_bin() -> String {
     )
 }
 
+/// Both `claude -p` and `cursor-agent` occasionally report `is_error: false`
+/// with an empty `result` and zero output tokens — a silent failure on the
+/// CLI's end, not a real (if terse) answer. Surface it as an error so the UI
+/// shows "try again" instead of a copy button with nothing to copy.
+fn require_nonempty(result: String, engine: &str) -> Result<String, String> {
+    if result.trim().is_empty() {
+        Err(format!("{engine} returned an empty response — try again"))
+    } else {
+        Ok(result)
+    }
+}
+
 fn cursor_bin() -> String {
     if let Some(home) = dirs::home_dir() {
         let p = home.join(".local/bin/cursor-agent");
@@ -81,7 +93,7 @@ pub async fn run_claude(prompt: String) -> Result<String, String> {
     if is_error {
         Err(result.to_string())
     } else {
-        Ok(result.to_string())
+        require_nonempty(result.to_string(), "claude")
     }
 }
 
@@ -125,7 +137,7 @@ pub async fn run_cursor(prompt: String) -> Result<String, String> {
     if is_error {
         Err(result.to_string())
     } else {
-        Ok(result.to_string())
+        require_nonempty(result.to_string(), "cursor-agent")
     }
 }
 

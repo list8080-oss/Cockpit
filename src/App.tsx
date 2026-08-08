@@ -1433,7 +1433,7 @@ export default function App() {
                   }}
                 />
                 <Variant
-                  label="Cursor (ask)"
+                  label="Cursor (plan)"
                   state={cursor}
                   locale={locale}
                   auth={authById("cursor")}

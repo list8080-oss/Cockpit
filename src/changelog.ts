@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.9",
+    date: "2026-08-08",
+    notes: {
+      en: "Fixed a leftover label (Cursor column now says \"Cursor (plan)\") and a silent-failure bug: Claude/Cursor occasionally report success with an empty reply — now shown as a retryable error instead of a blank result.",
+      ru: "Исправлена забытая подпись (колонка Cursor теперь верно показывает «Cursor (plan)») и баг с тихим сбоем: Claude/Cursor иногда сообщают об успехе с пустым ответом — теперь это показывается как ошибка с возможностью повторить, а не пустой результат.",
+      uk: "Виправлено застарілий підпис (колонка Cursor тепер показує «Cursor (plan)») і баг із тихим збоєм: Claude/Cursor іноді повідомляють про успіх із порожньою відповіддю — тепер це показується як помилка з можливістю повторити, а не порожній результат.",
+      cs: "Opraven zastaralý popisek (sloupec Cursor nyní zobrazuje „Cursor (plan)“) a chyba s tichým selháním: Claude/Cursor občas hlásí úspěch s prázdnou odpovědí — nyní se to zobrazí jako chyba s možností opakování místo prázdného výsledku.",
+    },
+  },
+  {
     version: "0.3.8",
     date: "2026-08-08",
     notes: {
