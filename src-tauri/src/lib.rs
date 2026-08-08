@@ -1,3 +1,4 @@
+mod auth;
 mod engines;
 mod manuscript;
 
@@ -12,6 +13,9 @@ pub fn run() {
             manuscript::read_chapter,
             engines::run_claude,
             engines::run_codex,
+            engines::run_cursor,
+            auth::list_auth_status,
+            auth::start_auth_login,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -36,6 +36,19 @@ fn codex_bin() -> String {
     )
 }
 
+fn cursor_bin() -> String {
+    if let Some(home) = dirs::home_dir() {
+        let p = home.join(".local/bin/cursor-agent");
+        if p.is_file() {
+            return p.to_string_lossy().to_string();
+        }
+    }
+    resolve_bin(
+        &["/opt/homebrew/bin/cursor-agent", "/usr/local/bin/cursor-agent"],
+        "cursor-agent",
+    )
+}
+
 #[tauri::command]
 pub async fn run_claude(prompt: String) -> Result<String, String> {
     let cwd = manuscript_root()?;
@@ -64,6 +77,48 @@ pub async fn run_claude(prompt: String) -> Result<String, String> {
         .get("result")
         .and_then(Value::as_str)
         .ok_or_else(|| format!("no `result` field in claude output: {}", stdout.trim()))?;
+
+    if is_error {
+        Err(result.to_string())
+    } else {
+        Ok(result.to_string())
+    }
+}
+
+/// `--mode ask` is Cursor's read-only Q&A mode (no file edits, no shell) —
+/// same safety posture as the other two engines here, which are only ever
+/// asked to transform pasted text, not to touch the manuscript files.
+#[tauri::command]
+pub async fn run_cursor(prompt: String) -> Result<String, String> {
+    let cwd = manuscript_root()?;
+    let output = Command::new(cursor_bin())
+        .current_dir(&cwd)
+        .stdin(Stdio::null())
+        .arg("--print")
+        .arg("--mode")
+        .arg("ask")
+        .arg("--trust")
+        .arg("--output-format")
+        .arg("json")
+        .arg(&prompt)
+        .output()
+        .await
+        .map_err(|e| format!("failed to run cursor-agent: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("cursor-agent exited with {}: {}", output.status, stderr.trim()));
+    }
+
+    let json: Value = serde_json::from_str(stdout.trim())
+        .map_err(|e| format!("unexpected cursor-agent output ({e}): {}", stdout.trim()))?;
+
+    let is_error = json.get("is_error").and_then(Value::as_bool).unwrap_or(false);
+    let result = json
+        .get("result")
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("no `result` field in cursor-agent output: {}", stdout.trim()))?;
 
     if is_error {
         Err(result.to_string())
