@@ -323,20 +323,41 @@ async fn status_github() -> AuthStatus {
             // `gh auth status` writes to stderr by default.
             let combined = format!("{stdout}\n{stderr}");
             let logged_in = output.status.success();
-            let account = combined
-                .lines()
-                .find_map(|line| {
-                    let lower = line.to_lowercase();
-                    if lower.contains("logged in to") {
-                        line.split_whitespace().rev().find(|t| {
-                            t.contains('@')
-                                || (!t.contains('.') && t.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'))
-                        }).map(|s| s.trim_matches(|c: char| c == '"' || c == '\'').to_string())
-                    } else {
-                        None
+
+            // Prefer the real GitHub login from the API — not a placeholder.
+            let mut account = None;
+            if logged_in {
+                if let Ok(who) = run_output(&bin, &["api", "user", "-q", ".login"]).await {
+                    if who.status.success() {
+                        let login = String::from_utf8_lossy(&who.stdout).trim().to_string();
+                        if !login.is_empty() && !login.contains(' ') {
+                            account = Some(login);
+                        }
                     }
-                })
-                .or_else(|| extract_email(&combined));
+                }
+            }
+            if account.is_none() {
+                account = combined
+                    .lines()
+                    .find_map(|line| {
+                        let lower = line.to_lowercase();
+                        if lower.contains("logged in to") {
+                            line.split_whitespace()
+                                .rev()
+                                .find(|t| {
+                                    !t.contains('.')
+                                        && t.chars().all(|c| {
+                                            c.is_ascii_alphanumeric() || c == '-' || c == '_'
+                                        })
+                                })
+                                .map(|s| s.trim_matches(|c: char| c == '"' || c == '\'').to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .or_else(|| extract_email(&combined));
+            }
+
             AuthStatus {
                 id: "github".into(),
                 label: "GitHub".into(),

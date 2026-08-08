@@ -67,82 +67,120 @@ body,
   border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.sidebar-footer-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.gh-menu {
+.gh-chip-wrap {
   position: relative;
 }
 
-.gh-icon {
-  width: 36px;
-  height: 36px;
+.gh-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.gh-chip-active {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.gh-chip-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 4px 6px;
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.gh-chip-main:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.gh-mark {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  border: 2px solid transparent;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  box-shadow: none;
-  padding: 0;
 }
 
-.gh-icon-on {
+.gh-mark-on {
   background: rgba(46, 125, 50, 0.16);
-  border-color: #2e7d32;
   color: #1b5e20;
 }
 
-.gh-icon-off {
+.gh-mark-off {
   background: rgba(192, 57, 43, 0.12);
-  border-color: #c0392b;
   color: #922b21;
 }
 
-.gh-icon-miss {
-  background: rgba(0, 0, 0, 0.06);
-  border-color: #999;
+.gh-mark-miss {
+  background: rgba(0, 0, 0, 0.08);
   color: #777;
 }
 
-.gh-icon:hover,
-.gh-icon-active {
-  filter: brightness(0.97);
+.gh-chip-meta {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
 }
 
-.settings-icon-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  background: rgba(0, 0, 0, 0.04);
-  color: inherit;
-  font-size: 16px;
+.gh-chip-name {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gh-chip-status {
+  color: #888;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gh-chip-settings {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: #666;
+  font-size: 15px;
   line-height: 1;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  box-shadow: none;
 }
 
-.settings-icon-btn:hover,
-.settings-icon-btn-active {
-  background: rgba(57, 108, 216, 0.12);
-  border-color: rgba(57, 108, 216, 0.35);
-  color: #2f5bb8;
+.gh-chip-settings:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: inherit;
 }
 
 .account-dropdown {
   position: absolute;
   left: 0;
+  right: 0;
   bottom: calc(100% + 6px);
   min-width: 200px;
   display: flex;
@@ -455,8 +493,10 @@ body,
 .settings {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  max-width: 920px;
+  width: 100%;
 }
 
 .settings-header {
@@ -464,7 +504,8 @@ body,
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
 }
 
 .settings-header h1 {
@@ -487,6 +528,52 @@ body,
   text-decoration: underline;
 }
 
+.settings-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 20px;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.settings-nav-item {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.settings-nav-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.settings-nav-item-active {
+  background: rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+.settings-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .settings-section {
   display: flex;
   flex-direction: column;
@@ -495,14 +582,11 @@ body,
 
 .settings-section h2 {
   margin: 0;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #888;
-}
-
-.settings-section-spaced {
-  margin-top: 28px;
+  font-size: 16px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  color: inherit;
 }
 
 .settings-section-head {
@@ -678,23 +762,31 @@ body,
     background: rgba(255, 255, 255, 0.08);
   }
 
-  .settings-icon-btn {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.14);
-    color: #eee;
+  .gh-chip,
+  .gh-chip-active {
+    background: rgba(255, 255, 255, 0.06);
   }
 
-  .settings-icon-btn:hover,
-  .settings-icon-btn-active {
-    background: rgba(57, 108, 216, 0.22);
-    border-color: rgba(157, 183, 240, 0.4);
-    color: #9db7f0;
+  .gh-chip-main:hover,
+  .gh-chip-settings:hover {
+    background: rgba(255, 255, 255, 0.08);
   }
 
-  .gh-icon-miss {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: #777;
+  .gh-mark-miss {
+    background: rgba(255, 255, 255, 0.1);
     color: #bbb;
+  }
+
+  .gh-chip-settings {
+    color: #aaa;
+  }
+
+  .settings-nav-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .settings-nav-item-active {
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .settings-refresh,

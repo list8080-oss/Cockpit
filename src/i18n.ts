@@ -12,6 +12,7 @@ export const LOCALE_STORAGE_KEY = "yar-cockpit.locale";
 type Dict = {
   chapters: string;
   settings: string;
+  settingsNav: string;
   settingsGeneral: string;
   settingsUpdates: string;
   settingsUpdatesHint: string;
@@ -23,6 +24,7 @@ type Dict = {
   languageHint: string;
   backToWorkspace: string;
   githubTitle: string;
+  githubSignedInAs: string;
   githubSignIn: string;
   githubSignOut: string;
   accountMenu: string;
@@ -58,6 +60,7 @@ type Dict = {
 const en: Dict = {
   chapters: "Chapters",
   settings: "Settings",
+  settingsNav: "Settings sections",
   settingsGeneral: "General",
   settingsUpdates: "Updates",
   settingsUpdatesHint: "Installed version and what changed in each release.",
@@ -70,9 +73,10 @@ const en: Dict = {
   languageHint: "Interface language for the app.",
   backToWorkspace: "Back",
   githubTitle: "GitHub",
+  githubSignedInAs: "GitHub",
   githubSignIn: "Sign in to GitHub",
   githubSignOut: "Sign out of GitHub",
-  accountMenu: "GitHub",
+  accountMenu: "GitHub account",
   openSettings: "Settings",
   authSignedIn: "Signed in",
   authSignedOut: "Not signed in",
@@ -106,6 +110,7 @@ const en: Dict = {
 const ru: Dict = {
   chapters: "Главы",
   settings: "Настройки",
+  settingsNav: "Разделы настроек",
   settingsGeneral: "Общие",
   settingsUpdates: "Обновления",
   settingsUpdatesHint: "Установленная версия и что изменилось в каждом релизе.",
@@ -118,9 +123,10 @@ const ru: Dict = {
   languageHint: "Язык интерфейса приложения.",
   backToWorkspace: "Назад",
   githubTitle: "GitHub",
+  githubSignedInAs: "GitHub",
   githubSignIn: "Войти в GitHub",
   githubSignOut: "Выйти из GitHub",
-  accountMenu: "GitHub",
+  accountMenu: "Аккаунт GitHub",
   openSettings: "Настройки",
   authSignedIn: "Вход выполнен",
   authSignedOut: "Нет входа",
@@ -154,6 +160,7 @@ const ru: Dict = {
 const uk: Dict = {
   chapters: "Розділи",
   settings: "Налаштування",
+  settingsNav: "Розділи налаштувань",
   settingsGeneral: "Загальні",
   settingsUpdates: "Оновлення",
   settingsUpdatesHint: "Встановлена версія і що змінилося в кожному релізі.",
@@ -166,9 +173,10 @@ const uk: Dict = {
   languageHint: "Мова інтерфейсу програми.",
   backToWorkspace: "Назад",
   githubTitle: "GitHub",
+  githubSignedInAs: "GitHub",
   githubSignIn: "Увійти в GitHub",
   githubSignOut: "Вийти з GitHub",
-  accountMenu: "GitHub",
+  accountMenu: "Акаунт GitHub",
   openSettings: "Налаштування",
   authSignedIn: "Вхід виконано",
   authSignedOut: "Немає входу",
@@ -202,6 +210,7 @@ const uk: Dict = {
 const cs: Dict = {
   chapters: "Kapitoly",
   settings: "Nastavení",
+  settingsNav: "Sekce nastavení",
   settingsGeneral: "Obecné",
   settingsUpdates: "Aktualizace",
   settingsUpdatesHint: "Nainstalovaná verze a co se změnilo v jednotlivých vydáních.",
@@ -214,9 +223,10 @@ const cs: Dict = {
   languageHint: "Jazyk rozhraní aplikace.",
   backToWorkspace: "Zpět",
   githubTitle: "GitHub",
+  githubSignedInAs: "GitHub",
   githubSignIn: "Přihlásit se na GitHub",
   githubSignOut: "Odhlásit se z GitHubu",
-  accountMenu: "GitHub",
+  accountMenu: "Účet GitHub",
   openSettings: "Nastavení",
   authSignedIn: "Přihlášeno",
   authSignedOut: "Nepřihlášeno",

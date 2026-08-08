@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.2",
+    date: "2026-08-08",
+    notes: {
+      en: "GitHub chip shows your real account name, Settings reorganized into General/Updates/Agents tabs.",
+      ru: "Чип GitHub теперь показывает настоящее имя аккаунта, Настройки разложены на вкладки Общие/Обновления/Агенты.",
+      uk: "Чип GitHub тепер показує справжнє ім'я акаунта, Налаштування розкладені на вкладки Загальні/Оновлення/Агенти.",
+      cs: "Čip GitHub nyní zobrazuje skutečné jméno účtu, Nastavení jsou rozdělena na karty Obecné/Aktualizace/Agenti.",
+    },
+  },
+  {
     version: "0.3.1",
     date: "2026-08-08",
     notes: {
