@@ -1,7 +1,7 @@
 //! Per-provider auth status for the CLIs this app fans out to.
-//! Each service uses the user's own subscription/account — Кабина only
+//! Each service uses the user's own subscription/account — Cockpit only
 //! surfaces whether that login is present and can start the provider's
-//! own login flow. There is no shared "Кабина account".
+//! own login flow. There is no shared "Cockpit account".
 
 use serde::Serialize;
 use std::process::Stdio;
@@ -151,7 +151,7 @@ async fn status_claude() -> AuthStatus {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let combined = format!("{stdout}\n{stderr}");
             let mut logged_in = output.status.success();
-            let mut account = None;
+            let account;
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(stdout.trim()) {
                 if let Some(v) = json.get("loggedIn").and_then(|v| v.as_bool()) {
                     logged_in = v;
