@@ -457,7 +457,19 @@ function Variant({
   );
 }
 
-type SettingsSection = "general" | "manuscript" | "updates" | "agents";
+type SettingsSection = "general" | "manuscript" | "dictionaries" | "updates" | "agents";
+
+interface DictionaryStatus {
+  lang: string;
+  installed: boolean;
+}
+
+const DICTIONARY_LABELS: Record<string, string> = {
+  en: "English",
+  ru: "Русский",
+  uk: "Українська",
+  cs: "Čeština",
+};
 
 function themeLabel(locale: Locale, theme: Theme): string {
   switch (theme) {
@@ -485,6 +497,10 @@ function SettingsView({
   manuscriptPath,
   onChooseManuscriptFolder,
   manuscriptMessage,
+  dictionaries,
+  dictionaryBusy,
+  onDownloadDictionary,
+  onDeleteDictionary,
 }: {
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
@@ -500,6 +516,10 @@ function SettingsView({
   manuscriptPath: string | null;
   onChooseManuscriptFolder: () => void;
   manuscriptMessage: string | null;
+  dictionaries: DictionaryStatus[];
+  dictionaryBusy: string | null;
+  onDownloadDictionary: (lang: string) => void;
+  onDeleteDictionary: (lang: string) => void;
 }) {
   const [section, setSection] = useState<SettingsSection>("general");
   const {
@@ -513,6 +533,7 @@ function SettingsView({
   const navItems: { id: SettingsSection; label: string }[] = [
     { id: "general", label: t(locale, "settingsGeneral") },
     { id: "manuscript", label: t(locale, "settingsManuscript") },
+    { id: "dictionaries", label: t(locale, "settingsDictionaries") },
     { id: "updates", label: t(locale, "settingsUpdates") },
     { id: "agents", label: t(locale, "settingsAgents") },
   ];
@@ -614,6 +635,52 @@ function SettingsView({
               >
                 {t(locale, "chooseFolder")}
               </button>
+            </div>
+          </section>
+        )}
+
+        {section === "dictionaries" && (
+          <section className="settings-section">
+            <h2>{t(locale, "settingsDictionaries")}</h2>
+            <p className="settings-section-hint">
+              {t(locale, "settingsDictionariesHint")}
+            </p>
+            <div className="auth-list">
+              {dictionaries.map((item) => (
+                <div className="settings-row auth-row" key={item.lang}>
+                  <div className="settings-row-text">
+                    <div className="settings-label">
+                      {DICTIONARY_LABELS[item.lang] ?? item.lang}
+                    </div>
+                    <div className="settings-hint">
+                      {item.installed
+                        ? t(locale, "dictionaryInstalled")
+                        : t(locale, "dictionaryNotInstalled")}
+                    </div>
+                  </div>
+                  {item.installed ? (
+                    <button
+                      type="button"
+                      className="auth-action-btn"
+                      disabled={dictionaryBusy === item.lang}
+                      onClick={() => onDeleteDictionary(item.lang)}
+                    >
+                      {t(locale, "dictionaryRemove")}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="auth-action-btn"
+                      disabled={dictionaryBusy === item.lang}
+                      onClick={() => onDownloadDictionary(item.lang)}
+                    >
+                      {dictionaryBusy === item.lang
+                        ? "…"
+                        : t(locale, "dictionaryDownload")}
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -760,6 +827,8 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [codexLimits, setCodexLimits] = useState<CodexLimits | null>(null);
   const [codexLimitsLoading, setCodexLimitsLoading] = useState(false);
+  const [dictionaries, setDictionaries] = useState<DictionaryStatus[]>([]);
+  const [dictionaryBusy, setDictionaryBusy] = useState<string | null>(null);
 
   const authById = (id: string) => auths.find((item) => item.id === id);
   const agentAuths = AGENT_IDS.map((id) => authById(id)).filter(
@@ -851,12 +920,43 @@ export default function App() {
       .catch((e) => setChaptersError(String(e)));
   };
 
+  const loadDictionaries = () => {
+    invoke<DictionaryStatus[]>("list_dictionary_status")
+      .then(setDictionaries)
+      .catch(() => {});
+  };
+
   useEffect(() => {
     loadChapters();
     invoke<string | null>("get_manuscript_path").then(setManuscriptPath);
     void refreshAuth();
     void refreshCodexLimits();
+    loadDictionaries();
   }, []);
+
+  const downloadDictionary = async (lang: string) => {
+    setDictionaryBusy(lang);
+    try {
+      await invoke("download_dictionary", { lang });
+      loadDictionaries();
+    } catch {
+      // status list keeps showing "not installed"; user can retry
+    } finally {
+      setDictionaryBusy(null);
+    }
+  };
+
+  const deleteDictionary = async (lang: string) => {
+    setDictionaryBusy(lang);
+    try {
+      await invoke("delete_dictionary", { lang });
+      loadDictionaries();
+    } catch {
+      // ignore
+    } finally {
+      setDictionaryBusy(null);
+    }
+  };
 
   const chooseManuscriptFolder = async () => {
     setManuscriptMessage(null);
@@ -975,6 +1075,14 @@ export default function App() {
             void chooseManuscriptFolder();
           }}
           manuscriptMessage={manuscriptMessage}
+          dictionaries={dictionaries}
+          dictionaryBusy={dictionaryBusy}
+          onDownloadDictionary={(lang) => {
+            void downloadDictionary(lang);
+          }}
+          onDeleteDictionary={(lang) => {
+            void deleteDictionary(lang);
+          }}
         />
       </div>
     );

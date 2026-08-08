@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.7",
+    date: "2026-08-08",
+    notes: {
+      en: "Spell-check dictionaries are no longer bundled — download only the languages you need in Settings > Dictionaries.",
+      ru: "Словари орфографии больше не встроены в приложение — скачивай только нужные языки в Настройки > Словари.",
+      uk: "Словники орфографії більше не вбудовані в застосунок — завантажуй лише потрібні мови в Налаштування > Словники.",
+      cs: "Slovníky pro kontrolu pravopisu už nejsou součástí instalace — stáhněte si jen potřebné jazyky v Nastavení > Slovníky.",
+    },
+  },
+  {
     version: "0.3.6",
     date: "2026-08-08",
     notes: {

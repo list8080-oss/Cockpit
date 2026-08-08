@@ -33,7 +33,7 @@ import { focusModeExtension } from "../editor/focusModeExtension";
 import { createSyntaxHighlighting } from "../themes/syntaxTheme";
 import type { ThemeDefinition } from "../themes/themeTypes";
 import { AUTOSAVE_INTERVAL_MS, UNDO_GROUP_DELAY_MS } from "../constants";
-import { useWeT } from "../LocaleContext";
+import { useWeLocale, useWeT } from "../LocaleContext";
 import { pushLocalBackup } from "../stubs/localSnapshots";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -64,6 +64,7 @@ export function Editor({
   breadcrumbTitle,
 }: EditorProps) {
   const t = useWeT();
+  const locale = useWeLocale();
   const [content, setContent] = useState(doc.content);
   const [activeImage, setActiveImage] = useState<ActiveImage | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -308,7 +309,7 @@ export function Editor({
       focusModeCompartment.current.of([]),
       // Spell-check (decoration-based with nspell dictionary)
       misspelledStyle,
-      spellCheckCompartment.current.of(spellCheck ? spellCheckExtension() : []),
+      spellCheckCompartment.current.of(spellCheck ? spellCheckExtension(locale) : []),
       // Manuscript mode (centered column, initially from localStorage)
       manuscriptCompartment.current.of(manuscriptMode ? manuscriptTheme : []),
       // Syntax highlighting from active theme
@@ -392,19 +393,21 @@ export function Editor({
     });
   }, [focusMode, viewRef, doc.id]);
 
-  // ── Spell-check toggle ─────────────────────────────────────────────────────
+  // ── Spell-check toggle / locale dictionary ─────────────────────────────────
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({
-      effects: spellCheckCompartment.current.reconfigure(spellCheck ? spellCheckExtension() : []),
+      effects: spellCheckCompartment.current.reconfigure(
+        spellCheck ? spellCheckExtension(locale) : [],
+      ),
     });
     try {
       localStorage.setItem("loomdraft-spellcheck", String(spellCheck));
     } catch {
       /* noop */
     }
-  }, [spellCheck, viewRef, doc.id]);
+  }, [spellCheck, locale, viewRef, doc.id]);
 
   // ── Manuscript mode toggle ──────────────────────────────────────────────────
   useEffect(() => {

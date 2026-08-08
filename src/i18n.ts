@@ -29,6 +29,12 @@ type Dict = {
   settingsManuscriptHint: string;
   manuscriptPath: string;
   manuscriptNotSet: string;
+  settingsDictionaries: string;
+  settingsDictionariesHint: string;
+  dictionaryInstalled: string;
+  dictionaryNotInstalled: string;
+  dictionaryDownload: string;
+  dictionaryRemove: string;
   chooseFolder: string;
   settingsUpdates: string;
   settingsUpdatesHint: string;
@@ -99,6 +105,13 @@ const en: Dict = {
   manuscriptPath: "Folder",
   manuscriptNotSet: "Not set",
   chooseFolder: "Choose folder…",
+  settingsDictionaries: "Dictionaries",
+  settingsDictionariesHint:
+    "Spell-check dictionaries are downloaded on demand, not bundled — pick the ones you need.",
+  dictionaryInstalled: "Installed",
+  dictionaryNotInstalled: "Not installed",
+  dictionaryDownload: "Download",
+  dictionaryRemove: "Remove",
   settingsUpdates: "Updates",
   settingsUpdatesHint: "Installed version and what changed in each release.",
   currentVersion: "Current version",
@@ -171,6 +184,13 @@ const ru: Dict = {
   manuscriptPath: "Папка",
   manuscriptNotSet: "Не задана",
   chooseFolder: "Выбрать папку…",
+  settingsDictionaries: "Словари",
+  settingsDictionariesHint:
+    "Словари орфографии скачиваются по запросу, а не встроены заранее — выбери нужные.",
+  dictionaryInstalled: "Установлен",
+  dictionaryNotInstalled: "Не установлен",
+  dictionaryDownload: "Скачать",
+  dictionaryRemove: "Удалить",
   settingsUpdates: "Обновления",
   settingsUpdatesHint: "Установленная версия и что изменилось в каждом релизе.",
   currentVersion: "Текущая версия",
@@ -243,6 +263,13 @@ const uk: Dict = {
   manuscriptPath: "Тека",
   manuscriptNotSet: "Не задано",
   chooseFolder: "Обрати теку…",
+  settingsDictionaries: "Словники",
+  settingsDictionariesHint:
+    "Словники орфографії завантажуються за запитом, а не вбудовані заздалегідь — обери потрібні.",
+  dictionaryInstalled: "Встановлено",
+  dictionaryNotInstalled: "Не встановлено",
+  dictionaryDownload: "Завантажити",
+  dictionaryRemove: "Видалити",
   settingsUpdates: "Оновлення",
   settingsUpdatesHint: "Встановлена версія і що змінилося в кожному релізі.",
   currentVersion: "Поточна версія",
@@ -315,6 +342,13 @@ const cs: Dict = {
   manuscriptPath: "Složka",
   manuscriptNotSet: "Nenastaveno",
   chooseFolder: "Vybrat složku…",
+  settingsDictionaries: "Slovníky",
+  settingsDictionariesHint:
+    "Slovníky pro kontrolu pravopisu se stahují na vyžádání, nejsou součástí instalace — vyberte, které potřebujete.",
+  dictionaryInstalled: "Nainstalováno",
+  dictionaryNotInstalled: "Nenainstalováno",
+  dictionaryDownload: "Stáhnout",
+  dictionaryRemove: "Odebrat",
   settingsUpdates: "Aktualizace",
   settingsUpdatesHint: "Nainstalovaná verze a co se změnilo v jednotlivých vydáních.",
   currentVersion: "Aktuální verze",

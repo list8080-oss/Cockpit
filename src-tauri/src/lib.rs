@@ -1,6 +1,7 @@
 mod auth;
 mod codex_limits;
 mod config;
+mod dictionaries;
 mod editor_assets;
 mod engines;
 mod manuscript;
@@ -28,6 +29,10 @@ pub fn run() {
             editor_assets::import_image,
             editor_assets::import_image_bytes,
             editor_assets::read_image_base64,
+            dictionaries::list_dictionary_status,
+            dictionaries::download_dictionary,
+            dictionaries::delete_dictionary,
+            dictionaries::read_dictionary,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
