@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import type { Locale } from "../i18n";
 import { Editor } from "./components/Editor";
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
 import { ToastStack, createToast, type ToastData } from "./components/Toast";
+import { WritingEditorLocaleProvider } from "./LocaleContext";
 import type { DocumentContent } from "./types";
 import { BUILTIN_THEMES } from "./themes/builtinThemes";
 import type { ThemeDefinition } from "./themes/themeTypes";
@@ -22,6 +24,7 @@ export function WritingEditor({
   backLabel,
   title,
   themeId,
+  locale,
 }: {
   content: string;
   onContentChange: (value: string) => void;
@@ -30,6 +33,7 @@ export function WritingEditor({
   title: string;
   /** Cockpit appearance: normal | night | book → pick Loomdraft syntax theme */
   themeId?: "normal" | "night" | "book";
+  locale: Locale;
 }) {
   const [doc, setDoc] = useState<DocumentContent>(() => ({
     id: DOC_ID,
@@ -90,23 +94,25 @@ export function WritingEditor({
   );
 
   return (
-    <div className="writing-editor">
-      <div className="writing-editor-back">
-        <button type="button" onClick={onBack}>
-          ← {backLabel}
-        </button>
-        <span className="writing-editor-back-title">{title}</span>
+    <WritingEditorLocaleProvider locale={locale}>
+      <div className="writing-editor">
+        <div className="writing-editor-back">
+          <button type="button" onClick={onBack}>
+            ← {backLabel}
+          </button>
+          <span className="writing-editor-back-title">{title}</span>
+        </div>
+        <Editor
+          doc={docForEditor}
+          onSave={handleSave}
+          projectPath={projectPath ?? undefined}
+          activeTheme={activeTheme}
+          breadcrumbTitle={title}
+          onToast={showToast}
+        />
+        {showShortcuts && <KeyboardShortcuts onClose={() => setShowShortcuts(false)} />}
+        <ToastStack toasts={toasts} onDismiss={dismissToast} />
       </div>
-      <Editor
-        doc={docForEditor}
-        onSave={handleSave}
-        projectPath={projectPath ?? undefined}
-        activeTheme={activeTheme}
-        breadcrumbTitle={title}
-        onToast={showToast}
-      />
-      {showShortcuts && <KeyboardShortcuts onClose={() => setShowShortcuts(false)} />}
-      <ToastStack toasts={toasts} onDismiss={dismissToast} />
-    </div>
+    </WritingEditorLocaleProvider>
   );
 }

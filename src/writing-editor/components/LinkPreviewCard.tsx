@@ -1,5 +1,6 @@
 import type { DocumentContent, ProjectManifest } from "../types";
 import type { HoveredLink } from "../editor/facets";
+import { useWeT } from "../LocaleContext";
 import { DocTypeIcon } from "./DocTypeIcon";
 import { LINK_PREVIEW_SNIPPET_MAX_CHARS } from "../constants";
 
@@ -18,6 +19,7 @@ export function LinkPreviewCard({
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) {
+  const t = useWeT();
   const node = manifest.nodes[hoveredLink.nodeId];
   if (!node) return null;
 
@@ -48,10 +50,10 @@ export function LinkPreviewCard({
         {preview
           ? preview.content.trim().slice(0, LINK_PREVIEW_SNIPPET_MAX_CHARS) +
             (preview.content.length > LINK_PREVIEW_SNIPPET_MAX_CHARS ? "…" : "")
-          : "Loading…"}
+          : t("loading")}
       </p>
-      <button className="lpc-goto" onClick={() => onGoto(hoveredLink.nodeId)}>
-        Open →
+      <button type="button" className="lpc-goto" onClick={() => onGoto(hoveredLink.nodeId)}>
+        {t("openLink")}
       </button>
     </div>
   );

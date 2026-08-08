@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.6",
+    date: "2026-08-08",
+    notes: {
+      en: "Writing editor toolbar and UI fully localized (en/ru/uk/cs).",
+      ru: "Панель инструментов и интерфейс редактора полностью локализованы (en/ru/uk/cs).",
+      uk: "Панель інструментів і інтерфейс редактора повністю локалізовані (en/ru/uk/cs).",
+      cs: "Panel nástrojů a rozhraní editoru jsou plně lokalizovány (en/ru/uk/cs).",
+    },
+  },
+  {
     version: "0.3.5",
     date: "2026-08-08",
     notes: {

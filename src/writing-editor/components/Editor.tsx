@@ -33,6 +33,7 @@ import { focusModeExtension } from "../editor/focusModeExtension";
 import { createSyntaxHighlighting } from "../themes/syntaxTheme";
 import type { ThemeDefinition } from "../themes/themeTypes";
 import { AUTOSAVE_INTERVAL_MS, UNDO_GROUP_DELAY_MS } from "../constants";
+import { useWeT } from "../LocaleContext";
 import { pushLocalBackup } from "../stubs/localSnapshots";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -62,6 +63,7 @@ export function Editor({
   onToast,
   breadcrumbTitle,
 }: EditorProps) {
+  const t = useWeT();
   const [content, setContent] = useState(doc.content);
   const [activeImage, setActiveImage] = useState<ActiveImage | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -641,22 +643,27 @@ export function Editor({
           <span className="editor-meta">
             {doc.doc_type} · {doc.file}
           </span>
-          {isSaving && <span className="editor-meta editor-status saving">Saving…</span>}
+          {isSaving && (
+            <span className="editor-meta editor-status saving">{t("saving")}</span>
+          )}
           {!isSaving && dirty && (
-            <span className="editor-meta editor-status unsaved">Unsaved changes</span>
+            <span className="editor-meta editor-status unsaved">{t("unsavedChanges")}</span>
           )}
           {!isSaving && !dirty && lastSavedLabel && (
-            <span className="editor-meta editor-status saved">Saved at {lastSavedLabel}</span>
+            <span className="editor-meta editor-status saved">
+              {t("savedAt", { time: lastSavedLabel })}
+            </span>
           )}
           <button
+            type="button"
             className={`toolbar-btn${showHistory ? " active" : ""}`}
             onClick={() => setShowHistory((v) => !v)}
-            data-tooltip="Version history"
+            data-tooltip={t("versionHistory")}
           >
-            History
+            {t("history")}
           </button>
-          <button className="save-btn" onClick={handleSave}>
-            Save
+          <button type="button" className="save-btn" onClick={handleSave}>
+            {t("save")}
           </button>
         </div>
       )}
@@ -698,27 +705,40 @@ export function Editor({
           {breadcrumbTitle && (
             <span className="df-breadcrumb">{breadcrumbTitle}</span>
           )}
-          {isSaving && <span className="editor-meta editor-status saving">Saving…</span>}
+          {isSaving && (
+            <span className="editor-meta editor-status saving">{t("saving")}</span>
+          )}
           {!isSaving && dirty && (
-            <span className="editor-meta editor-status unsaved">Unsaved changes</span>
+            <span className="editor-meta editor-status unsaved">{t("unsavedChanges")}</span>
           )}
           {!isSaving && !dirty && lastSavedLabel && (
-            <span className="editor-meta editor-status saved">Saved at {lastSavedLabel}</span>
+            <span className="editor-meta editor-status saved">
+              {t("savedAt", { time: lastSavedLabel })}
+            </span>
           )}
-          <button className="toolbar-btn" onClick={() => setShowOutline((v) => !v)}>
-            Outline
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={() => setShowOutline((v) => !v)}
+          >
+            {t("outline")}
           </button>
           <button
+            type="button"
             className={`toolbar-btn${focusMode ? " active" : ""}`}
             onClick={() => setFocusMode((v) => !v)}
           >
-            Focus
+            {t("focus")}
           </button>
-          <button className="toolbar-btn" onClick={handleSave}>
-            Save
+          <button type="button" className="toolbar-btn" onClick={handleSave}>
+            {t("save")}
           </button>
-          <button className="toolbar-btn" onClick={() => setDistractionFree(false)}>
-            Close distraction free
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={() => setDistractionFree(false)}
+          >
+            {t("closeDistractionFree")}
           </button>
         </div>
       )}
@@ -727,11 +747,12 @@ export function Editor({
         <div className={`editor-shell${isDraggingOver ? " drag-over" : ""}`}>
           {showOutline && (
             <div className="outline-popover" ref={outlinePopoverRef}>
-              <div className="outline-popover-title">Headings</div>
+              <div className="outline-popover-title">{t("headings")}</div>
               <div className="outline-popover-list">
                 {outlineEntries.length ? (
                   outlineEntries.map((entry) => (
                     <button
+                      type="button"
                       key={`${entry.offset}-${entry.line}`}
                       className={`outline-item level-${entry.level}`}
                       onClick={() => jumpToHeading(entry.offset)}
@@ -741,7 +762,7 @@ export function Editor({
                     </button>
                   ))
                 ) : (
-                  <div className="outline-empty">No H1-H3 headings in this document</div>
+                  <div className="outline-empty">{t("noHeadings")}</div>
                 )}
               </div>
             </div>
@@ -818,23 +839,19 @@ export function Editor({
       {!distractionFree && (
         <div className="editor-status-bar">
           <span className="status-bar-left">
-            {dirty && <span className="dirty-indicator" title="Unsaved changes" />}
-            <span>
-              Ln {cursorPos.line}, Col {cursorPos.col}
-            </span>
+            {dirty && <span className="dirty-indicator" title={t("unsavedChanges")} />}
+            <span>{t("lineCol", { line: cursorPos.line, col: cursorPos.col })}</span>
             <span className="status-sep" />
             {selectionText && (
               <>
-                <span>
-                  Sel: {selWords}w {selChars}c
-                </span>
+                <span>{t("selection", { words: selWords, chars: selChars })}</span>
                 <span className="status-sep" />
               </>
             )}
-            <span>{docWords} words</span>
-            <span>{docChars} chars</span>
+            <span>{t("words", { n: docWords })}</span>
+            <span>{t("chars", { n: docChars })}</span>
             <span className="status-sep" />
-            <span>{readingTime} min read</span>
+            <span>{t("minRead", { n: readingTime })}</span>
           </span>
           <span className="status-bar-right">
             {wordGoal && (
@@ -851,11 +868,12 @@ export function Editor({
               </>
             )}
             <button
+              type="button"
               className="goal-btn"
               onClick={() => setShowGoalInput((v) => !v)}
-              title="Set word count goal"
+              title={t("setGoalTitle")}
             >
-              {wordGoal ? "Goal" : "Set goal"}
+              {wordGoal ? t("goal") : t("setGoal")}
             </button>
             {showGoalInput && (
               <span className="goal-input-wrapper">
@@ -863,7 +881,7 @@ export function Editor({
                   className="goal-input"
                   type="number"
                   min={0}
-                  placeholder="Words…"
+                  placeholder={t("wordsPlaceholder")}
                   defaultValue={wordGoal ?? ""}
                   autoFocus
                   onKeyDown={(e) => {
@@ -873,12 +891,16 @@ export function Editor({
                         setWordGoal(val);
                         try {
                           localStorage.setItem(`loomdraft-goal:${doc.id}`, String(val));
-                        } catch {}
+                        } catch {
+                          /* ignore */
+                        }
                       } else {
                         setWordGoal(null);
                         try {
                           localStorage.removeItem(`loomdraft-goal:${doc.id}`);
-                        } catch {}
+                        } catch {
+                          /* ignore */
+                        }
                       }
                       setShowGoalInput(false);
                     } else if (e.key === "Escape") {
@@ -892,7 +914,11 @@ export function Editor({
             {manuscriptWordCount && (
               <>
                 <span className="status-sep" />
-                <span>Manuscript: {manuscriptWordCount.words.toLocaleString()}w</span>
+                <span>
+                  {t("manuscriptWords", {
+                    n: manuscriptWordCount.words.toLocaleString(),
+                  })}
+                </span>
               </>
             )}
           </span>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { History, RotateCcw } from "lucide-react";
 import type { BackupEntry, DocumentContent, SnapshotEntry } from "../types";
+import { useWeT } from "../LocaleContext";
 import {
   listLocalBackups,
   listLocalSnapshots,
@@ -48,10 +49,12 @@ function formatSize(bytes: number): string {
 /** Local (localStorage) version history — Loomdraft UI, Cockpit storage. */
 export function VersionHistory({
   nodeId,
-  docTitle = "Draft",
+  docTitle,
   onRestore,
   onClose,
 }: VersionHistoryProps) {
+  const t = useWeT();
+  const title = docTitle ?? t("draftTitle");
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [snapshots, setSnapshots] = useState<SnapshotEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +85,7 @@ export function VersionHistory({
       setRestoring(timestamp);
       setError(null);
       try {
-        const doc = restoreLocalBackup(nodeId, timestamp, docTitle);
+        const doc = restoreLocalBackup(nodeId, timestamp, title);
         if (!doc) throw new Error("Backup not found");
         onRestore(doc);
       } catch (err) {
@@ -91,7 +94,7 @@ export function VersionHistory({
         setRestoring(null);
       }
     },
-    [nodeId, docTitle, onRestore],
+    [nodeId, title, onRestore],
   );
 
   const handlePin = useCallback(
@@ -124,7 +127,7 @@ export function VersionHistory({
     async (snapshot: SnapshotEntry) => {
       setRestoring(snapshot.timestamp);
       try {
-        const doc = restoreLocalSnapshot(nodeId, snapshot.timestamp, docTitle);
+        const doc = restoreLocalSnapshot(nodeId, snapshot.timestamp, title);
         if (!doc) throw new Error("Snapshot not found");
         onRestore(doc);
       } catch (err) {
@@ -133,25 +136,25 @@ export function VersionHistory({
         setRestoring(null);
       }
     },
-    [nodeId, docTitle, onRestore],
+    [nodeId, title, onRestore],
   );
 
   return (
     <div className="version-history">
       <div className="vh-header">
         <span className="vh-title">
-          <History size={14} /> Version history
+          <History size={14} /> {t("versionHistory")}
         </span>
         <button type="button" className="vh-close" onClick={onClose}>
           ✕
         </button>
       </div>
       <div className="vh-list">
-        {loading && <div className="vh-empty">Loading…</div>}
+        {loading && <div className="vh-empty">{t("loading")}</div>}
         {error && <div className="vh-error">{error}</div>}
         {!loading && snapshots.length > 0 && (
           <>
-            <div className="vh-section-label">Pinned</div>
+            <div className="vh-section-label">{t("pinned")}</div>
             {snapshots.map((s) => (
               <div key={s.timestamp} className="vh-entry vh-entry--snapshot">
                 <div className="vh-entry-main">
@@ -165,7 +168,7 @@ export function VersionHistory({
                     className="vh-action"
                     disabled={restoring === s.timestamp}
                     onClick={() => void handleRestoreSnapshot(s)}
-                    title="Restore"
+                    title={t("restore")}
                   >
                     <RotateCcw size={12} />
                   </button>
@@ -173,7 +176,7 @@ export function VersionHistory({
                     type="button"
                     className="vh-action"
                     onClick={() => void handleUnpin(s)}
-                    title="Unpin"
+                    title={t("unpin")}
                   >
                     ×
                   </button>
@@ -184,7 +187,7 @@ export function VersionHistory({
         )}
         {!loading && backups.length > 0 && (
           <>
-            <div className="vh-section-label">Autosaves</div>
+            <div className="vh-section-label">{t("autosaves")}</div>
             {backups.map((b) => (
               <div key={b.timestamp} className="vh-entry">
                 <div className="vh-entry-main">
@@ -198,7 +201,7 @@ export function VersionHistory({
                     className="vh-action"
                     disabled={restoring === b.timestamp}
                     onClick={() => void handleRestore(b.timestamp)}
-                    title="Restore"
+                    title={t("restore")}
                   >
                     <RotateCcw size={12} />
                   </button>
@@ -207,13 +210,16 @@ export function VersionHistory({
                       className="vh-pin-form"
                       onSubmit={(e) => {
                         e.preventDefault();
-                        void handlePin(b.timestamp, pinNameDraft.trim() || "Pinned");
+                        void handlePin(
+                          b.timestamp,
+                          pinNameDraft.trim() || t("pinnedDefaultName"),
+                        );
                       }}
                     >
                       <input
                         value={pinNameDraft}
                         onChange={(e) => setPinNameDraft(e.target.value)}
-                        placeholder="Name this snapshot"
+                        placeholder={t("pinNamePlaceholder")}
                         autoFocus
                       />
                     </form>
@@ -222,7 +228,7 @@ export function VersionHistory({
                       type="button"
                       className="vh-action"
                       onClick={() => setPinNamingFor(b.timestamp)}
-                      title="Pin"
+                      title={t("pin")}
                     >
                       ♥
                     </button>
@@ -233,7 +239,7 @@ export function VersionHistory({
           </>
         )}
         {!loading && !error && backups.length === 0 && snapshots.length === 0 && (
-          <div className="vh-empty">No versions yet — they appear after you save.</div>
+          <div className="vh-empty">{t("noVersions")}</div>
         )}
       </div>
     </div>

@@ -3,6 +3,7 @@ import { ImagePlus } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import type { EditorView } from "@codemirror/view";
 import type { ProjectManifest } from "../types";
+import { useWeT } from "../LocaleContext";
 import { keepFocus, type ViewGetter } from "./toolbarHelpers";
 
 // ── Link Picker ──────────────────────────────────────────────────────────────
@@ -13,6 +14,7 @@ export interface LinkPickerButtonProps {
 }
 
 export function LinkPickerButton({ viewRef, manifest }: LinkPickerButtonProps) {
+  const t = useWeT();
   const view: ViewGetter = () => viewRef.current;
   const linkPickerRef = useRef<HTMLDivElement>(null);
   const linkInputRef = useRef<HTMLInputElement>(null);
@@ -128,12 +130,13 @@ export function LinkPickerButton({ viewRef, manifest }: LinkPickerButtonProps) {
   return (
     <div className="toolbar-link-picker" ref={linkPickerRef}>
       <button
+        type="button"
         className="toolbar-btn"
-        data-tooltip="Insert or edit internal link"
+        data-tooltip={t("insertLink")}
         onMouseDown={keepFocus}
         onClick={openLinkPicker}
       >
-        <span className="toolbar-label">Link</span>
+        <span className="toolbar-label">{t("linkLabel")}</span>
       </button>
 
       {showLinkPicker && (
@@ -141,7 +144,7 @@ export function LinkPickerButton({ viewRef, manifest }: LinkPickerButtonProps) {
           <input
             ref={linkInputRef}
             className="link-picker-input"
-            placeholder="Type node title…"
+            placeholder={t("linkPlaceholder")}
             value={linkQuery}
             onChange={(e) => {
               setLinkQuery(e.target.value);
@@ -197,13 +200,14 @@ export function LinkPickerButton({ viewRef, manifest }: LinkPickerButtonProps) {
               </button>
             ))}
             {!filteredLinkItems.length && (
-              <div className="link-picker-empty">
-                No matches. Press Enter to insert typed title.
-              </div>
+              <div className="link-picker-empty">{t("linkNoMatches")}</div>
             )}
             {totalMatches > filteredLinkItems.length && (
               <div className="link-picker-count">
-                Showing {filteredLinkItems.length} of {totalMatches}
+                {t("showingOf", {
+                  shown: filteredLinkItems.length,
+                  total: totalMatches,
+                })}
               </div>
             )}
           </div>
@@ -221,6 +225,7 @@ export interface ImageInsertButtonProps {
 }
 
 export function ImageInsertButton({ viewRef, projectPath }: ImageInsertButtonProps) {
+  const t = useWeT();
   const view: ViewGetter = () => viewRef.current;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -272,12 +277,12 @@ export function ImageInsertButton({ viewRef, projectPath }: ImageInsertButtonPro
       <button
         type="button"
         className="toolbar-btn"
-        data-tooltip="Insert image"
+        data-tooltip={t("insertImage")}
         onMouseDown={keepFocus}
         onClick={() => fileInputRef.current?.click()}
       >
         <ImagePlus size={14} />
-        <span className="toolbar-label">Image</span>
+        <span className="toolbar-label">{t("imageLabel")}</span>
       </button>
     </>
   );

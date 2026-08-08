@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useWeT } from "../LocaleContext";
 import { mod } from "../utils/platform";
 
 interface Shortcut {
@@ -11,33 +12,36 @@ interface ShortcutGroup {
   shortcuts: Shortcut[];
 }
 
-/** Editor-only shortcuts (Loomdraft shell/tree/corkboard omitted). */
-const SHORTCUT_GROUPS: ShortcutGroup[] = [
-  {
-    title: "Editor",
-    shortcuts: [
-      { keys: `${mod}+S`, label: "Save" },
-      { keys: `${mod}+Z`, label: "Undo" },
-      { keys: `${mod}+Shift+Z`, label: "Redo" },
-      { keys: `${mod}+B`, label: "Bold" },
-      { keys: `${mod}+I`, label: "Italic" },
-      { keys: `${mod}+F`, label: "Find in document" },
-      { keys: `${mod}+/`, label: "Keyboard shortcuts" },
-    ],
-  },
-  {
-    title: "Writing Modes",
-    shortcuts: [
-      { keys: `${mod}+Shift+D`, label: "Distraction-free mode" },
-      { keys: `${mod}+Alt+T`, label: "Typewriter mode" },
-      { keys: `${mod}+Alt+F`, label: "Focus mode" },
-      { keys: `${mod}+Alt+W`, label: "Soft wrap" },
-    ],
-  },
-];
-
 export function KeyboardShortcuts({ onClose }: { onClose: () => void }) {
+  const t = useWeT();
   const backdropRef = useRef<HTMLDivElement>(null);
+
+  const groups = useMemo<ShortcutGroup[]>(
+    () => [
+      {
+        title: t("shortcutsGroupEditor"),
+        shortcuts: [
+          { keys: `${mod}+S`, label: t("shortcutSave") },
+          { keys: `${mod}+Z`, label: t("shortcutUndo") },
+          { keys: `${mod}+Shift+Z`, label: t("shortcutRedo") },
+          { keys: `${mod}+B`, label: t("shortcutBold") },
+          { keys: `${mod}+I`, label: t("shortcutItalic") },
+          { keys: `${mod}+F`, label: t("shortcutFind") },
+          { keys: `${mod}+/`, label: t("shortcutShortcuts") },
+        ],
+      },
+      {
+        title: t("shortcutsGroupModes"),
+        shortcuts: [
+          { keys: `${mod}+Shift+D`, label: t("shortcutDistractionFree") },
+          { keys: `${mod}+Alt+T`, label: t("shortcutTypewriter") },
+          { keys: `${mod}+Alt+F`, label: t("shortcutFocus") },
+          { keys: `${mod}+Alt+W`, label: t("shortcutWrap") },
+        ],
+      },
+    ],
+    [t],
+  );
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -60,13 +64,13 @@ export function KeyboardShortcuts({ onClose }: { onClose: () => void }) {
     >
       <div className="shortcuts-panel">
         <div className="shortcuts-header">
-          <span className="shortcuts-title">Keyboard Shortcuts</span>
+          <span className="shortcuts-title">{t("shortcutsTitle")}</span>
           <button type="button" className="shortcuts-close" onClick={onClose}>
             &times;
           </button>
         </div>
         <div className="shortcuts-body">
-          {SHORTCUT_GROUPS.map((group) => (
+          {groups.map((group) => (
             <div key={group.title} className="shortcuts-group">
               <div className="shortcuts-group-title">{group.title}</div>
               {group.shortcuts.map((s) => (

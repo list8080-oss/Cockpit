@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useWeT } from "../LocaleContext";
 
 // ── ImagePreviewCard ─────────────────────────────────────────────────────────
 
@@ -21,6 +22,7 @@ export function ImagePreviewCard({
   onResize: (width: number | undefined, height: number | undefined) => void;
   onClose: () => void;
 }) {
+  const t = useWeT();
   const cardRef = useRef<HTMLDivElement>(null);
   const [widthInput, setWidthInput] = useState(image.width?.toString() ?? "");
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
@@ -87,11 +89,11 @@ export function ImagePreviewCard({
         <img
           className="ipc-image"
           src={dataUrl}
-          alt={image.alt || "Preview"}
+          alt={image.alt || t("preview")}
           onLoad={handleNaturalSize}
         />
       ) : (
-        <div className="ipc-loading">Loading image…</div>
+        <div className="ipc-loading">{t("loadingImage")}</div>
       )}
 
       {image.alt && <div className="ipc-alt">{image.alt}</div>}
@@ -103,20 +105,18 @@ export function ImagePreviewCard({
           </span>
         )}
         {naturalSize && (
-          <span>
-            Original: {naturalSize.w} × {naturalSize.h}
-          </span>
+          <span>{t("originalSize", { w: naturalSize.w, h: naturalSize.h })}</span>
         )}
       </div>
 
       <div className="ipc-resize-row">
-        <span style={{ fontSize: 11, color: "var(--text-dim)" }}>Width:</span>
+        <span style={{ fontSize: 11, color: "var(--text-dim)" }}>{t("width")}:</span>
         <input
           className="ipc-size-input"
           type="number"
           min={10}
           value={widthInput}
-          placeholder="auto"
+          placeholder={t("autoSize")}
           onChange={(e) => setWidthInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") handleWidthSubmit();
@@ -124,17 +124,17 @@ export function ImagePreviewCard({
           onBlur={handleWidthSubmit}
         />
         <div className="ipc-size-presets">
-          <button className="ipc-size-btn" onClick={() => applyWidth(200)}>
+          <button type="button" className="ipc-size-btn" onClick={() => applyWidth(200)}>
             S
           </button>
-          <button className="ipc-size-btn" onClick={() => applyWidth(400)}>
+          <button type="button" className="ipc-size-btn" onClick={() => applyWidth(400)}>
             M
           </button>
-          <button className="ipc-size-btn" onClick={() => applyWidth(800)}>
+          <button type="button" className="ipc-size-btn" onClick={() => applyWidth(800)}>
             L
           </button>
-          <button className="ipc-size-btn" onClick={() => applyWidth(undefined)}>
-            Auto
+          <button type="button" className="ipc-size-btn" onClick={() => applyWidth(undefined)}>
+            {t("autoSize")}
           </button>
         </div>
       </div>

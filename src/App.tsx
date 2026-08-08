@@ -1069,6 +1069,7 @@ export default function App() {
               backLabel={t(locale, "backToAgents")}
               title={t(locale, "editor")}
               themeId={theme}
+              locale={locale}
             />
           ) : (
             <>

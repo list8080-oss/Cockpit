@@ -2,12 +2,11 @@ import { Undo2, Redo2, Scissors, Copy, Clipboard, TextSelect, Search } from "luc
 import type { EditorView } from "@codemirror/view";
 import { selectAll } from "@codemirror/commands";
 import type { ProjectManifest } from "../types";
+import { useWeT } from "../LocaleContext";
 import { keepFocus } from "./toolbarHelpers";
 import { FormattingButtons } from "./FormattingButtons";
 import { LinkPickerButton, ImageInsertButton } from "./InsertButtons";
 import { mod } from "../utils/platform";
-
-// ── Toolbar ───────────────────────────────────────────────────────────────────
 
 export interface ToolbarProps {
   viewRef: React.MutableRefObject<EditorView | null>;
@@ -62,6 +61,7 @@ export function Toolbar({
   onToggleSpellCheck,
   onToggleManuscriptMode,
 }: ToolbarProps) {
+  const t = useWeT();
   const view = () => viewRef.current;
 
   const handleCopy = async () => {
@@ -119,11 +119,11 @@ export function Toolbar({
 
   return (
     <div className="editor-toolbar">
-      {/* Undo / Redo */}
       <div className="toolbar-group">
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip={`Undo (${mod}+Z)`}
+          data-tooltip={`${t("undo")} (${mod}+Z)`}
           disabled={!canUndo}
           onMouseDown={keepFocus}
           onClick={onUndo}
@@ -131,8 +131,9 @@ export function Toolbar({
           <Undo2 size={14} />
         </button>
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip={`Redo (${mod}+Shift+Z)`}
+          data-tooltip={`${t("redo")} (${mod}+Shift+Z)`}
           disabled={!canRedo}
           onMouseDown={keepFocus}
           onClick={onRedo}
@@ -155,29 +156,31 @@ export function Toolbar({
 
       <div className="toolbar-sep" />
 
-      {/* Cut / Copy / Paste */}
       <div className="toolbar-group">
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip={`Cut (${mod}+X)`}
+          data-tooltip={`${t("cut")} (${mod}+X)`}
           onMouseDown={keepFocus}
-          onClick={handleCut}
+          onClick={() => void handleCut()}
         >
           <Scissors size={14} />
         </button>
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip={`Copy (${mod}+C)`}
+          data-tooltip={`${t("copy")} (${mod}+C)`}
           onMouseDown={keepFocus}
-          onClick={handleCopy}
+          onClick={() => void handleCopy()}
         >
           <Copy size={14} />
         </button>
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip={`Paste (${mod}+V)`}
+          data-tooltip={`${t("paste")} (${mod}+V)`}
           onMouseDown={keepFocus}
-          onClick={handlePaste}
+          onClick={() => void handlePaste()}
         >
           <Clipboard size={14} />
         </button>
@@ -185,11 +188,11 @@ export function Toolbar({
 
       <div className="toolbar-sep" />
 
-      {/* Select all */}
       <div className="toolbar-group">
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip={`Select all (${mod}+A)`}
+          data-tooltip={`${t("selectAll")} (${mod}+A)`}
           onMouseDown={keepFocus}
           onClick={handleSelectAll}
         >
@@ -199,79 +202,85 @@ export function Toolbar({
 
       <div className="toolbar-sep" />
 
-      {/* Find / Replace */}
       <div className="toolbar-group">
         <button
+          type="button"
           className={`toolbar-btn${showFind ? " active" : ""}`}
-          data-tooltip={`Find / Replace (${mod}+F)`}
+          data-tooltip={`${t("findReplace")} (${mod}+F)`}
           onMouseDown={keepFocus}
           onClick={onToggleFind}
         >
           <Search size={14} />
-          <span className="toolbar-label">Find</span>
+          <span className="toolbar-label">{t("find")}</span>
         </button>
       </div>
 
       <div className="toolbar-sep" />
 
-      {/* Writing modes (ModeButtons) */}
       <div className="toolbar-group">
         <button
+          type="button"
           className={`toolbar-btn${showOutline ? " active" : ""}`}
-          data-tooltip={`Outline navigator (${mod}+Shift+O)`}
+          data-tooltip={`${t("outlineTooltip")} (${mod}+Shift+O)`}
           onMouseDown={keepFocus}
           onClick={onToggleOutline}
         >
-          <span className="toolbar-label">Outline</span>
+          <span className="toolbar-label">{t("outline")}</span>
           <span className="toolbar-count">{outlineCount}</span>
         </button>
         <button
+          type="button"
           className={`toolbar-btn${typewriterMode ? " active" : ""}`}
-          data-tooltip={`Typewriter mode (${mod}+Alt+T)`}
+          data-tooltip={`${t("typewriterTooltip")} (${mod}+Alt+T)`}
           onMouseDown={keepFocus}
           onClick={onToggleTypewriter}
         >
-          <span className="toolbar-label">Typewriter</span>
+          <span className="toolbar-label">{t("typewriter")}</span>
         </button>
         <button
+          type="button"
           className={`toolbar-btn${focusMode ? " active" : ""}`}
-          data-tooltip={`Focus mode (${mod}+Alt+F)`}
+          data-tooltip={`${t("focusTooltip")} (${mod}+Alt+F)`}
           onMouseDown={keepFocus}
           onClick={onToggleFocusMode}
         >
-          <span className="toolbar-label">Focus</span>
+          <span className="toolbar-label">{t("focus")}</span>
         </button>
         <button
+          type="button"
           className={`toolbar-btn${distractionFree ? " active" : ""}`}
-          data-tooltip={`Distraction-free mode (${mod}+Shift+D)`}
+          data-tooltip={`${t("distractionFreeTooltip")} (${mod}+Shift+D)`}
           onMouseDown={keepFocus}
           onClick={onToggleDistractionFree}
         >
-          <span className="toolbar-label">Distraction-free</span>
+          <span className="toolbar-label">{t("distractionFree")}</span>
         </button>
         <button
+          type="button"
           className={`toolbar-btn${softWrap ? " active" : ""}`}
-          data-tooltip={`Soft wrap (${mod}+Alt+W)`}
+          data-tooltip={`${t("wrapTooltip")} (${mod}+Alt+W)`}
           onMouseDown={keepFocus}
           onClick={onToggleSoftWrap}
         >
-          <span className="toolbar-label">Wrap</span>
+          <span className="toolbar-label">{t("wrap")}</span>
         </button>
         <button
+          type="button"
           className={`toolbar-btn${manuscriptMode ? " active" : ""}`}
-          data-tooltip="Manuscript mode — centered column"
+          data-tooltip={t("manuscriptTooltip")}
           onMouseDown={keepFocus}
           onClick={onToggleManuscriptMode}
         >
-          <span className="toolbar-label">Manuscript</span>
+          <span className="toolbar-label">{t("manuscript")}</span>
         </button>
         <button
+          type="button"
           className={`toolbar-btn${spellCheck ? " active" : ""}`}
-          data-tooltip="Spell check"
+          data-tooltip={t("spellTooltip")}
           onMouseDown={keepFocus}
           onClick={onToggleSpellCheck}
         >
-          <span className="toolbar-label">Spell</span>
+          <span className="toolbar-label">{t("spell")}</span>
         </button>
       </div>
     </div>

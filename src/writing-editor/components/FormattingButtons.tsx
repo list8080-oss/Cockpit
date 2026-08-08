@@ -1,4 +1,5 @@
 import type { EditorView } from "@codemirror/view";
+import { useWeT } from "../LocaleContext";
 import {
   keepFocus,
   wrapInline,
@@ -16,6 +17,7 @@ export interface FormattingButtonsProps {
 }
 
 export function FormattingButtons({ viewRef, inlineExtra, blockExtra }: FormattingButtonsProps) {
+  const t = useWeT();
   const view: ViewGetter = () => viewRef.current;
 
   const setHeadingLevel = (level: 1 | 2 | 3) => {
@@ -93,8 +95,9 @@ export function FormattingButtons({ viewRef, inlineExtra, blockExtra }: Formatti
       {/* Markdown inline */}
       <div className="toolbar-group">
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip="Bold"
+          data-tooltip={t("bold")}
           onMouseDown={keepFocus}
           onClick={() => wrapInline(view, "**", "**", "bold")}
         >
@@ -103,8 +106,9 @@ export function FormattingButtons({ viewRef, inlineExtra, blockExtra }: Formatti
           </span>
         </button>
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip="Italic"
+          data-tooltip={t("italic")}
           onMouseDown={keepFocus}
           onClick={() => wrapInline(view, "_", "_", "italic")}
         >
@@ -113,8 +117,9 @@ export function FormattingButtons({ viewRef, inlineExtra, blockExtra }: Formatti
           </span>
         </button>
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip="Inline code"
+          data-tooltip={t("inlineCode")}
           onMouseDown={keepFocus}
           onClick={() => wrapInline(view, "`", "`", "code")}
         >
@@ -129,60 +134,67 @@ export function FormattingButtons({ viewRef, inlineExtra, blockExtra }: Formatti
       {/* Markdown block */}
       <div className="toolbar-group">
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip="Heading 1"
+          data-tooltip={t("heading1")}
           onMouseDown={keepFocus}
           onClick={() => setHeadingLevel(1)}
         >
           <span className="toolbar-label">H1</span>
         </button>
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip="Heading 2"
+          data-tooltip={t("heading2")}
           onMouseDown={keepFocus}
           onClick={() => setHeadingLevel(2)}
         >
           <span className="toolbar-label">H2</span>
         </button>
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip="Heading 3"
+          data-tooltip={t("heading3")}
           onMouseDown={keepFocus}
           onClick={() => setHeadingLevel(3)}
         >
           <span className="toolbar-label">H3</span>
         </button>
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip="Bulleted list"
+          data-tooltip={t("bulletedList")}
           onMouseDown={keepFocus}
           onClick={toggleBulletedList}
         >
-          <span className="toolbar-label">• List</span>
+          <span className="toolbar-label">{t("listBulletLabel")}</span>
         </button>
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip="Numbered list"
+          data-tooltip={t("numberedList")}
           onMouseDown={keepFocus}
           onClick={toggleNumberedList}
         >
-          <span className="toolbar-label">1. List</span>
+          <span className="toolbar-label">{t("listNumberLabel")}</span>
         </button>
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip="Blockquote"
+          data-tooltip={t("blockquote")}
           onMouseDown={keepFocus}
           onClick={toggleBlockquote}
         >
-          <span className="toolbar-label">Quote</span>
+          <span className="toolbar-label">{t("quoteLabel")}</span>
         </button>
         <button
+          type="button"
           className="toolbar-btn"
-          data-tooltip="Code block"
+          data-tooltip={t("codeBlock")}
           onMouseDown={keepFocus}
           onClick={insertCodeBlock}
         >
-          <span className="toolbar-label">Code block</span>
+          <span className="toolbar-label">{t("codeBlockLabel")}</span>
         </button>
         {blockExtra}
       </div>
