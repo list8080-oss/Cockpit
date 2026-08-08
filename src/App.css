@@ -419,10 +419,36 @@ body,
   border-color: transparent;
 }
 
+.history-row {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+
 .history-item {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.history-delete-btn {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  padding: 0 8px;
+  font-size: 16px;
+  line-height: 1;
+  color: #999;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.history-delete-btn:hover {
+  background: rgba(192, 57, 43, 0.12);
+  color: #c0392b;
 }
 
 .history-item-title {

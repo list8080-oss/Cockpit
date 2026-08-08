@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.14",
+    date: "2026-08-08",
+    notes: {
+      en: "Each item in the History panel now has a delete button (with a confirmation) to remove conversations you no longer need.",
+      ru: "У каждого пункта в панели «История» появилась кнопка удаления (с подтверждением) — можно убрать ненужные обсуждения.",
+      uk: "У кожного пункту в панелі «Історія» з'явилася кнопка видалення (з підтвердженням) — можна прибрати непотрібні обговорення.",
+      cs: "Každá položka v panelu Historie má nyní tlačítko pro smazání (s potvrzením) — nepotřebné konverzace lze odstranit.",
+    },
+  },
+  {
     version: "0.3.13",
     date: "2026-08-08",
     notes: {

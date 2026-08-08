@@ -99,6 +99,8 @@ type Dict = {
   agentHistory: string;
   agentHistoryHint: string;
   agentHistoryEmpty: string;
+  agentHistoryDelete: string;
+  agentHistoryDeleteConfirm: string;
 };
 
 const en: Dict = {
@@ -197,6 +199,8 @@ const en: Dict = {
   agentHistoryHint:
     "Past agent comparisons. Open one to keep going — replies use the same session, not a cold start.",
   agentHistoryEmpty: "No saved conversations yet.",
+  agentHistoryDelete: "Delete conversation",
+  agentHistoryDeleteConfirm: "Delete this conversation? This can't be undone.",
 };
 
 const ru: Dict = {
@@ -296,6 +300,8 @@ const ru: Dict = {
   agentHistoryHint:
     "Прошлые обсуждения с агентами. Открой любое — ответ продолжит ту же сессию, а не начнёт с нуля.",
   agentHistoryEmpty: "Пока нет сохранённых обсуждений.",
+  agentHistoryDelete: "Удалить обсуждение",
+  agentHistoryDeleteConfirm: "Удалить это обсуждение? Отменить будет нельзя.",
 };
 
 const uk: Dict = {
@@ -395,6 +401,8 @@ const uk: Dict = {
   agentHistoryHint:
     "Минулі обговорення з агентами. Відкрий будь-яке — відповідь продовжить ту саму сесію, а не почне з нуля.",
   agentHistoryEmpty: "Поки немає збережених обговорень.",
+  agentHistoryDelete: "Видалити обговорення",
+  agentHistoryDeleteConfirm: "Видалити це обговорення? Скасувати буде неможливо.",
 };
 
 const cs: Dict = {
@@ -494,6 +502,8 @@ const cs: Dict = {
   agentHistoryHint:
     "Předchozí porovnání s agenty. Otevřete některé — odpověď naváže na stejnou relaci, ne od nuly.",
   agentHistoryEmpty: "Zatím žádné uložené konverzace.",
+  agentHistoryDelete: "Smazat konverzaci",
+  agentHistoryDeleteConfirm: "Smazat tuto konverzaci? Nelze vrátit zpět.",
 };
 
 const dictionaries: Record<Locale, Dict> = { en, ru, uk, cs };

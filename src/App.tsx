@@ -1485,6 +1485,32 @@ export default function App() {
     setView("workspace");
   };
 
+  const deleteConversation = (id: string) => {
+    if (!window.confirm(t(locale, "agentHistoryDeleteConfirm"))) return;
+    setConversations((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      persistConversations(next);
+      return next;
+    });
+    if (activeConversationId === id) {
+      setActiveConversationId(null);
+      persistActiveConversationId(null);
+      setPrompt("");
+      setClaudeHistory([]);
+      setCodexHistory([]);
+      setCursorHistory([]);
+      setClaudeSessionId(null);
+      setCodexThreadId(null);
+      setCursorSessionId(null);
+      setClaudeReply("");
+      setCodexReply("");
+      setCursorReply("");
+      setClaude({ status: "idle" });
+      setCodex({ status: "idle" });
+      setCursor({ status: "idle" });
+    }
+  };
+
   const busy =
     claude.status === "running" ||
     codex.status === "running" ||
@@ -1757,7 +1783,7 @@ export default function App() {
                     {[...conversations]
                       .sort((a, b) => b.updatedAt - a.updatedAt)
                       .map((c) => (
-                        <li key={c.id}>
+                        <li key={c.id} className="history-row">
                           <button
                             type="button"
                             className={
@@ -1771,6 +1797,14 @@ export default function App() {
                             <span className="history-item-date">
                               {new Date(c.updatedAt).toLocaleString()}
                             </span>
+                          </button>
+                          <button
+                            type="button"
+                            className="history-delete-btn"
+                            title={t(locale, "agentHistoryDelete")}
+                            onClick={() => deleteConversation(c.id)}
+                          >
+                            ×
                           </button>
                         </li>
                       ))}
