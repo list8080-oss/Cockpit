@@ -645,6 +645,8 @@ function SettingsView({
   onSignOut,
   manuscriptPath,
   onChooseManuscriptFolder,
+  onChooseManuscriptFile,
+  onDisconnectManuscript,
   manuscriptMessage,
   dictionaries,
   dictionaryBusy,
@@ -664,6 +666,8 @@ function SettingsView({
   onSignOut: (provider: string) => void;
   manuscriptPath: string | null;
   onChooseManuscriptFolder: () => void;
+  onChooseManuscriptFile: () => void;
+  onDisconnectManuscript: () => void;
   manuscriptMessage: string | null;
   dictionaries: DictionaryStatus[];
   dictionaryBusy: string | null;
@@ -777,13 +781,31 @@ function SettingsView({
                   <div className="settings-hint">{manuscriptMessage}</div>
                 )}
               </div>
-              <button
-                type="button"
-                className="auth-action-btn"
-                onClick={onChooseManuscriptFolder}
-              >
-                {t(locale, "chooseFolder")}
-              </button>
+              <div className="settings-row-actions">
+                <button
+                  type="button"
+                  className="auth-action-btn"
+                  onClick={onChooseManuscriptFolder}
+                >
+                  {t(locale, "chooseFolder")}
+                </button>
+                <button
+                  type="button"
+                  className="auth-action-btn"
+                  onClick={onChooseManuscriptFile}
+                >
+                  {t(locale, "chooseFile")}
+                </button>
+                {manuscriptPath && (
+                  <button
+                    type="button"
+                    className="auth-action-btn"
+                    onClick={onDisconnectManuscript}
+                  >
+                    {t(locale, "projectDisconnect")}
+                  </button>
+                )}
+              </div>
             </div>
           </section>
         )}
@@ -1157,6 +1179,32 @@ export default function App() {
       await invoke("set_manuscript_path", { path: selected });
       setManuscriptPath(selected);
       loadChapters();
+    } catch (e) {
+      setManuscriptMessage(String(e));
+    }
+  };
+
+  const chooseManuscriptFile = async () => {
+    setManuscriptMessage(null);
+    const selected = await openFolderDialog({ directory: false, multiple: false });
+    if (!selected || Array.isArray(selected)) return;
+    try {
+      await invoke("set_manuscript_path", { path: selected });
+      setManuscriptPath(selected);
+      loadChapters();
+    } catch (e) {
+      setManuscriptMessage(String(e));
+    }
+  };
+
+  const disconnectManuscript = async () => {
+    if (!window.confirm(t(locale, "projectDisconnectConfirm"))) return;
+    setManuscriptMessage(null);
+    try {
+      await invoke("clear_manuscript_path");
+      setManuscriptPath(null);
+      setChapters([]);
+      setChaptersError(null);
     } catch (e) {
       setManuscriptMessage(String(e));
     }
@@ -1601,6 +1649,12 @@ export default function App() {
           onChooseManuscriptFolder={() => {
             void chooseManuscriptFolder();
           }}
+          onChooseManuscriptFile={() => {
+            void chooseManuscriptFile();
+          }}
+          onDisconnectManuscript={() => {
+            void disconnectManuscript();
+          }}
           manuscriptMessage={manuscriptMessage}
           dictionaries={dictionaries}
           dictionaryBusy={dictionaryBusy}
@@ -1635,21 +1689,63 @@ export default function App() {
               <span className="sidebar-panel-chevron" aria-hidden="true">
                 {openPanel === "notes" ? "▾" : "▸"}
               </span>
-              <span>{t(locale, "notes")}</span>
+              <span>{t(locale, "project")}</span>
             </button>
             {openPanel === "notes" && (
               <div className="sidebar-panel-body">
-                <p className="panel-hint">{t(locale, "notesHint")}</p>
-                {chaptersError && <p className="error-text">{chaptersError}</p>}
-                <ul className="chapter-list" aria-label={t(locale, "chapters")}>
-                  {chapters.map((c) => (
-                    <li key={c.file}>
-                      <button type="button" onClick={() => loadChapter(c.file)}>
-                        {c.title}
+                {!manuscriptPath ? (
+                  <>
+                    <p className="panel-hint">{t(locale, "projectConnectHint")}</p>
+                    {manuscriptMessage && (
+                      <p className="error-text">{manuscriptMessage}</p>
+                    )}
+                    <button
+                      type="button"
+                      className="apple-notes-connect-btn"
+                      onClick={() => {
+                        void chooseManuscriptFolder();
+                      }}
+                    >
+                      {t(locale, "chooseFolder")}
+                    </button>
+                    <button
+                      type="button"
+                      className="apple-notes-connect-btn"
+                      onClick={() => {
+                        void chooseManuscriptFile();
+                      }}
+                    >
+                      {t(locale, "chooseFile")}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="apple-notes-toolbar">
+                      <span className="apple-notes-toolbar-label" title={manuscriptPath}>
+                        {manuscriptPath}
+                      </span>
+                      <button
+                        type="button"
+                        className="apple-notes-link-btn"
+                        onClick={() => {
+                          void disconnectManuscript();
+                        }}
+                      >
+                        {t(locale, "projectDisconnect")}
                       </button>
-                    </li>
-                  ))}
-                </ul>
+                    </div>
+                    {chaptersError && <p className="error-text">{chaptersError}</p>}
+                    <ul className="chapter-list" aria-label={t(locale, "chapters")}>
+                      {chapters.map((c) => (
+                        <li key={c.file}>
+                          <button type="button" onClick={() => loadChapter(c.file)}>
+                            {c.title}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </div>
             )}
           </section>

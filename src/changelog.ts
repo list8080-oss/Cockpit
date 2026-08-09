@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.16",
+    date: "2026-08-09",
+    notes: {
+      en: "The Notes panel is now Project: connect a folder OR a single manuscript file (whichever fits how you write), and disconnect it anytime without touching anything on disk.",
+      ru: "Панель «Заметки» стала «Проект»: можно подключить папку ИЛИ один файл рукописи (смотря как ты пишешь), а отключить — в любой момент, ничего не удаляя с диска.",
+      uk: "Панель «Нотатки» стала «Проєкт»: можна підключити теку АБО один файл рукопису (залежно від того, як ти пишеш), а відключити — будь-коли, нічого не видаляючи з диска.",
+      cs: "Panel Poznámky je nyní Projekt: připojte složku NEBO jeden soubor rukopisu (podle toho, jak píšete), a kdykoli jej odpojte, aniž by se cokoli na disku smazalo.",
+    },
+  },
+  {
     version: "0.3.15",
     date: "2026-08-08",
     notes: {

@@ -11,8 +11,11 @@ export const LOCALE_STORAGE_KEY = "yar-cockpit.locale";
 
 type Dict = {
   chapters: string;
-  notes: string;
-  notesHint: string;
+  project: string;
+  projectConnectHint: string;
+  projectDisconnect: string;
+  projectDisconnectConfirm: string;
+  chooseFile: string;
   appleNotes: string;
   appleNotesHint: string;
   appleNotesConnect: string;
@@ -105,8 +108,12 @@ type Dict = {
 
 const en: Dict = {
   chapters: "Chapters",
-  notes: "Notes",
-  notesHint: "Chapters from your manuscript folder.",
+  project: "Project",
+  projectConnectHint:
+    "Connect what you're working on: a folder (chapters as separate files) or a single file (the whole manuscript in one document).",
+  projectDisconnect: "Disconnect",
+  projectDisconnectConfirm: "Disconnect this project? Nothing on disk is touched — you can reconnect it or a different one anytime.",
+  chooseFile: "Choose file…",
   appleNotes: "Apple Notes",
   appleNotesHint:
     "macOS will ask to let Cockpit control the Notes app. Then pick a folder and a note — its text goes into the agents prompt.",
@@ -133,10 +140,10 @@ const en: Dict = {
   settings: "Settings",
   settingsNav: "Settings sections",
   settingsGeneral: "General",
-  settingsManuscript: "Manuscript",
-  settingsManuscriptHint: "Choose the folder your chapters live in.",
-  manuscriptPath: "Folder",
-  manuscriptNotSet: "Not set",
+  settingsManuscript: "Project",
+  settingsManuscriptHint: "Connect a folder (chapters as separate files) or a single file (the whole manuscript in one document).",
+  manuscriptPath: "Path",
+  manuscriptNotSet: "Not connected",
   chooseFolder: "Choose folder…",
   settingsDictionaries: "Dictionaries",
   settingsDictionariesHint:
@@ -205,8 +212,12 @@ const en: Dict = {
 
 const ru: Dict = {
   chapters: "Главы",
-  notes: "Заметки",
-  notesHint: "Главы из папки рукописи.",
+  project: "Проект",
+  projectConnectHint:
+    "Подключи то, с чем работаешь: папку (главы отдельными файлами) или один файл (вся рукопись целиком).",
+  projectDisconnect: "Отключить",
+  projectDisconnectConfirm: "Отключить этот проект? На диске ничего не тронется — можно подключить его же или другой в любой момент.",
+  chooseFile: "Выбрать файл…",
   appleNotes: "Заметки Apple",
   appleNotesHint:
     "macOS спросит разрешение управлять приложением «Заметки». Выбери папку и заметку — текст попадёт в поле для агентов.",
@@ -234,10 +245,10 @@ const ru: Dict = {
   settings: "Настройки",
   settingsNav: "Разделы настроек",
   settingsGeneral: "Общие",
-  settingsManuscript: "Рукопись",
-  settingsManuscriptHint: "Выбери папку, где лежат главы.",
-  manuscriptPath: "Папка",
-  manuscriptNotSet: "Не задана",
+  settingsManuscript: "Проект",
+  settingsManuscriptHint: "Подключи папку (главы отдельными файлами) или один файл (вся рукопись целиком).",
+  manuscriptPath: "Путь",
+  manuscriptNotSet: "Не подключён",
   chooseFolder: "Выбрать папку…",
   settingsDictionaries: "Словари",
   settingsDictionariesHint:
@@ -306,8 +317,12 @@ const ru: Dict = {
 
 const uk: Dict = {
   chapters: "Розділи",
-  notes: "Нотатки",
-  notesHint: "Розділи з теки рукопису.",
+  project: "Проєкт",
+  projectConnectHint:
+    "Підключи те, з чим працюєш: теку (розділи окремими файлами) або один файл (весь рукопис цілком).",
+  projectDisconnect: "Відключити",
+  projectDisconnectConfirm: "Відключити цей проєкт? На диску нічого не зміниться — можна підключити його ж або інший будь-коли.",
+  chooseFile: "Обрати файл…",
   appleNotes: "Нотатки Apple",
   appleNotesHint:
     "macOS запитає дозвіл керувати програмою «Нотатки». Обери теку й нотатку — текст потрапить у поле для агентів.",
@@ -335,10 +350,10 @@ const uk: Dict = {
   settings: "Налаштування",
   settingsNav: "Розділи налаштувань",
   settingsGeneral: "Загальні",
-  settingsManuscript: "Рукопис",
-  settingsManuscriptHint: "Обери теку, де лежать розділи.",
-  manuscriptPath: "Тека",
-  manuscriptNotSet: "Не задано",
+  settingsManuscript: "Проєкт",
+  settingsManuscriptHint: "Підключи теку (розділи окремими файлами) або один файл (весь рукопис цілком).",
+  manuscriptPath: "Шлях",
+  manuscriptNotSet: "Не підключено",
   chooseFolder: "Обрати теку…",
   settingsDictionaries: "Словники",
   settingsDictionariesHint:
@@ -407,8 +422,12 @@ const uk: Dict = {
 
 const cs: Dict = {
   chapters: "Kapitoly",
-  notes: "Poznámky",
-  notesHint: "Kapitoly ze složky rukopisu.",
+  project: "Projekt",
+  projectConnectHint:
+    "Připojte to, na čem pracujete: složku (kapitoly jako samostatné soubory) nebo jeden soubor (celý rukopis v jednom dokumentu).",
+  projectDisconnect: "Odpojit",
+  projectDisconnectConfirm: "Odpojit tento projekt? Na disku se nic nezmění — kdykoli lze připojit znovu nebo jiný.",
+  chooseFile: "Vybrat soubor…",
   appleNotes: "Poznámky Apple",
   appleNotesHint:
     "macOS požádá o povolení ovládat aplikaci Poznámky. Vyberte složku a poznámku — text půjde do pole pro agenty.",
@@ -436,10 +455,10 @@ const cs: Dict = {
   settings: "Nastavení",
   settingsNav: "Sekce nastavení",
   settingsGeneral: "Obecné",
-  settingsManuscript: "Rukopis",
-  settingsManuscriptHint: "Vyberte složku, kde jsou kapitoly.",
-  manuscriptPath: "Složka",
-  manuscriptNotSet: "Nenastaveno",
+  settingsManuscript: "Projekt",
+  settingsManuscriptHint: "Připojte složku (kapitoly jako samostatné soubory) nebo jeden soubor (celý rukopis v jednom dokumentu).",
+  manuscriptPath: "Cesta",
+  manuscriptNotSet: "Nepřipojeno",
   chooseFolder: "Vybrat složku…",
   settingsDictionaries: "Slovníky",
   settingsDictionariesHint:

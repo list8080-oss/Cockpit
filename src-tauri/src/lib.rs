@@ -19,6 +19,7 @@ pub fn run() {
             manuscript::read_chapter,
             manuscript::get_manuscript_path,
             manuscript::set_manuscript_path,
+            manuscript::clear_manuscript_path,
             engines::run_claude,
             engines::run_codex,
             engines::run_cursor,
