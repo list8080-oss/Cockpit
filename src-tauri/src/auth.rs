@@ -66,12 +66,38 @@ fn gh_bin() -> String {
     resolve_bin(&["/opt/homebrew/bin/gh", "/usr/local/bin/gh"], "gh")
 }
 
+fn opencode_bin() -> String {
+    resolve_bin(&["/opt/homebrew/bin/opencode", "/usr/local/bin/opencode"], "opencode")
+}
+
+/// `opencode auth list` colors its output; strips just the color/reset
+/// escapes (`ESC [ ... letter`) so the plain-text heuristics below see
+/// clean text instead of stray control bytes.
+fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\u{1b}' && chars.peek() == Some(&'[') {
+            chars.next();
+            for c2 in chars.by_ref() {
+                if c2.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthProvider {
     Claude,
     Codex,
     Cursor,
+    Opencode,
     Github,
 }
 
@@ -81,6 +107,7 @@ impl AuthProvider {
             Self::Claude => "claude",
             Self::Codex => "codex",
             Self::Cursor => "cursor",
+            Self::Opencode => "opencode",
             Self::Github => "github",
         }
     }
@@ -90,6 +117,7 @@ impl AuthProvider {
             "claude" => Some(Self::Claude),
             "codex" => Some(Self::Codex),
             "cursor" => Some(Self::Cursor),
+            "opencode" => Some(Self::Opencode),
             "github" => Some(Self::Github),
             _ => None,
         }
@@ -304,6 +332,69 @@ async fn status_cursor() -> AuthStatus {
     }
 }
 
+/// `opencode auth list` has no `--format json` — only human-readable,
+/// color-coded text (verified via `opencode auth --help`). Parsed with a
+/// plain-text heuristic like the other CLIs here that lack a JSON status.
+async fn status_opencode() -> AuthStatus {
+    let bin = opencode_bin();
+    if !bin_exists(&bin) {
+        return AuthStatus {
+            id: "opencode".into(),
+            label: "OpenCode".into(),
+            installed: false,
+            logged_in: false,
+            account: None,
+            detail: Some("CLI not found".into()),
+        };
+    }
+    match run_output(&bin, &["auth", "list"]).await {
+        Ok(output) => {
+            let stdout = strip_ansi(&String::from_utf8_lossy(&output.stdout));
+            let stderr = strip_ansi(&String::from_utf8_lossy(&output.stderr));
+            let combined = format!("{stdout}\n{stderr}");
+            let lower = combined.to_lowercase();
+            let logged_in = output.status.success()
+                && lower.contains("credentials")
+                && !lower.contains("0 credentials")
+                && !lower.contains("no credentials");
+
+            // The line above "N credentials" names the connected provider(s)
+            // (e.g. "OpenCode Go   api") — not an email, but still useful as
+            // an at-a-glance account label.
+            let account = combined.lines().find_map(|line| {
+                let trimmed = line.trim();
+                let has_letters = trimmed.chars().any(|c| c.is_alphanumeric());
+                if trimmed.is_empty()
+                    || !has_letters
+                    || trimmed.starts_with("Credentials")
+                    || trimmed.to_lowercase().ends_with("credentials")
+                {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                }
+            });
+
+            AuthStatus {
+                id: "opencode".into(),
+                label: "OpenCode".into(),
+                installed: true,
+                logged_in,
+                account,
+                detail: if logged_in { None } else { Some("Not logged in".into()) },
+            }
+        }
+        Err(e) => AuthStatus {
+            id: "opencode".into(),
+            label: "OpenCode".into(),
+            installed: true,
+            logged_in: false,
+            account: None,
+            detail: Some(e),
+        },
+    }
+}
+
 async fn status_github() -> AuthStatus {
     let bin = gh_bin();
     if !bin_exists(&bin) {
@@ -384,13 +475,14 @@ async fn status_github() -> AuthStatus {
 
 #[tauri::command]
 pub async fn list_auth_status() -> Result<Vec<AuthStatus>, String> {
-    let (claude, codex, cursor, github) = tokio::join!(
+    let (claude, codex, cursor, opencode, github) = tokio::join!(
         status_claude(),
         status_codex(),
         status_cursor(),
+        status_opencode(),
         status_github()
     );
-    Ok(vec![claude, codex, cursor, github])
+    Ok(vec![claude, codex, cursor, opencode, github])
 }
 
 fn provider_bins_and_args(provider: AuthProvider, logout: bool) -> (String, Vec<&'static str>) {
@@ -401,6 +493,8 @@ fn provider_bins_and_args(provider: AuthProvider, logout: bool) -> (String, Vec<
         (AuthProvider::Codex, true) => (codex_bin(), vec!["logout"]),
         (AuthProvider::Cursor, false) => (cursor_bin(), vec!["login"]),
         (AuthProvider::Cursor, true) => (cursor_bin(), vec!["logout"]),
+        (AuthProvider::Opencode, false) => (opencode_bin(), vec!["auth", "login"]),
+        (AuthProvider::Opencode, true) => (opencode_bin(), vec!["auth", "logout"]),
         // Web flow avoids interactive prompts that need a TTY.
         (AuthProvider::Github, false) => (gh_bin(), vec!["auth", "login", "-p", "https", "-w"]),
         (AuthProvider::Github, true) => (gh_bin(), vec!["auth", "logout"]),

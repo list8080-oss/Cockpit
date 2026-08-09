@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   LOCALES,
   LOCALE_STORAGE_KEY,
@@ -22,6 +23,28 @@ import {
 } from "./theme";
 import { CHANGELOG, noteFor } from "./changelog";
 import { WritingEditor } from "./writing-editor";
+import {
+  type AgentConversation,
+  type ConversationTurn,
+  type OrchestratorAgentId,
+  type OrchestratorMessage,
+  conversationTitle,
+  emptyEngineThread,
+  loadActiveConversationId,
+  loadConversations,
+  persistActiveConversationId,
+  persistConversations,
+} from "./conversations";
+import {
+  AgentPanels,
+  OrchestratorChat,
+  createCompletedMessage,
+  createDispatchedMessage,
+  createUserMessage,
+  legacyMessagesFromConversation,
+  runOrchestratorFanout,
+  summarizeFanoutResults,
+} from "./orchestrator";
 import "./App.css";
 
 type View = "workspace" | "settings";
@@ -31,9 +54,6 @@ type SidebarPanelId = "notes" | "appleNotes" | "history" | null;
 const EDITOR_STORAGE_KEY = "yar-cockpit.editor";
 const LEGACY_EDITOR_STORAGE_KEY = "yar-cockpit.notes";
 const SIDEBAR_PANEL_STORAGE_KEY = "yar-cockpit.sidebarPanel";
-const CONVERSATIONS_STORAGE_KEY = "yar-cockpit.agentConversations";
-const ACTIVE_CONVERSATION_STORAGE_KEY = "yar-cockpit.activeConversationId";
-const MAX_STORED_CONVERSATIONS = 100;
 
 const SIDEBAR_PANEL_IDS: SidebarPanelId[] = ["notes", "appleNotes", "history"];
 
@@ -46,76 +66,60 @@ function loadSidebarPanel(): SidebarPanelId {
   }
 }
 
-interface ConversationTurn {
-  role: "user" | "assistant";
-  text: string;
-}
+const AGENT_SETTING_KEYS = {
+  claudeModel: "yar-cockpit.claudeModel",
+  claudeEffort: "yar-cockpit.claudeEffort",
+  codexModel: "yar-cockpit.codexModel",
+  codexEffort: "yar-cockpit.codexEffort",
+  cursorModel: "yar-cockpit.cursorModel",
+  opencodeModel: "yar-cockpit.opencodeModel",
+  opencodeEffort: "yar-cockpit.opencodeEffort",
+} as const;
 
-interface EngineThread {
-  history: ConversationTurn[];
-  sessionId: string | null;
-}
-
-interface AgentConversation {
-  id: string;
-  title: string;
-  createdAt: number;
-  updatedAt: number;
-  prompt: string;
-  claude: EngineThread;
-  codex: EngineThread;
-  cursor: EngineThread;
-}
-
-function loadConversations(): AgentConversation[] {
+function loadAgentSetting(key: string): string {
   try {
-    const raw = localStorage.getItem(CONVERSATIONS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return localStorage.getItem(key) ?? "";
   } catch {
-    return [];
+    return "";
   }
 }
 
-function persistConversations(list: AgentConversation[]) {
+function persistAgentSetting(key: string, value: string) {
   try {
-    localStorage.setItem(
-      CONVERSATIONS_STORAGE_KEY,
-      JSON.stringify(list.slice(0, MAX_STORED_CONVERSATIONS)),
-    );
-  } catch {
-    /* ignore (e.g. storage quota) */
-  }
-}
-
-function loadActiveConversationId(): string | null {
-  try {
-    return localStorage.getItem(ACTIVE_CONVERSATION_STORAGE_KEY) || null;
-  } catch {
-    return null;
-  }
-}
-
-function persistActiveConversationId(id: string | null) {
-  try {
-    localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, id ?? "");
+    localStorage.setItem(key, value);
   } catch {
     /* ignore */
   }
 }
 
-function conversationTitle(text: string): string {
-  const firstLine = text
-    .split("\n")
-    .map((line) => line.trim())
-    .find((line) => line.length > 0);
-  if (!firstLine) return "…";
-  return firstLine.length > 60 ? `${firstLine.slice(0, 60)}…` : firstLine;
-}
+// `claude --model` accepts an alias for "the latest" of each family (per
+// `claude --help`), not a dated snapshot id — real, documented, and never
+// goes stale, unlike hardcoding e.g. "claude-opus-5".
+const CLAUDE_MODEL_OPTIONS: AgentOption[] = [
+  { value: "sonnet", label: "Sonnet" },
+  { value: "opus", label: "Opus" },
+  { value: "haiku", label: "Haiku" },
+  { value: "fable", label: "Fable" },
+];
+const CLAUDE_EFFORT_OPTIONS = toAgentOptions(["low", "medium", "high", "xhigh", "max"]);
+// `codex` has no `--list-models` of its own; these five ids are the real,
+// currently-used Codex model catalog (sourced from AIOS's own working
+// chat-model list, not invented here).
+const CODEX_MODEL_OPTIONS: AgentOption[] = [
+  { value: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
+  { value: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
+  { value: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
+  { value: "gpt-5.3-codex-spark", label: "Spark" },
+  { value: "gpt-5.5", label: "GPT-5.5" },
+];
+const CODEX_EFFORT_OPTIONS = toAgentOptions(["low", "medium", "high"]);
+// `opencode run --help` documents `--variant` as "provider-specific
+// reasoning effort, e.g., high, max, minimal" — exactly these three, not a
+// guessed superset.
+const OPENCODE_EFFORT_OPTIONS = toAgentOptions(["minimal", "high", "max"]);
 
-function emptyEngineThread(): EngineThread {
-  return { history: [], sessionId: null };
+function toAgentOptions(values: string[]): AgentOption[] {
+  return values.map((v) => ({ value: v, label: v }));
 }
 
 type CodexLimitWindow = {
@@ -207,7 +211,7 @@ interface AuthStatus {
   detail: string | null;
 }
 
-const AGENT_IDS = ["claude", "codex", "cursor"] as const;
+const AGENT_IDS = ["claude", "codex", "cursor", "opencode"] as const;
 
 function authStatusLabel(locale: Locale, auth: AuthStatus | undefined, loading: boolean) {
   if (loading && !auth) return t(locale, "authChecking");
@@ -262,9 +266,14 @@ function GithubChip({
   onOpenSettings: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const signedIn = Boolean(github?.loggedIn);
   const missing = Boolean(github && !github.installed);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [github?.account]);
 
   useEffect(() => {
     if (!open) return;
@@ -350,6 +359,27 @@ function GithubChip({
         </div>
       )}
       <div className={open ? "gh-chip gh-chip-active" : "gh-chip"}>
+        {signedIn && github?.account && !avatarError ? (
+          <button
+            type="button"
+            className={`${markClass} gh-mark-btn`}
+            title={t(locale, "githubOpenProfile")}
+            onClick={() => {
+              void openUrl(`https://github.com/${github.account}`);
+            }}
+          >
+            <img
+              src={`https://github.com/${github.account}.png?size=64`}
+              alt=""
+              className="gh-avatar-img"
+              onError={() => setAvatarError(true)}
+            />
+          </button>
+        ) : (
+          <span className={markClass}>
+            <GithubMark />
+          </span>
+        )}
         <button
           type="button"
           className="gh-chip-main"
@@ -359,9 +389,6 @@ function GithubChip({
           title={status}
           onClick={() => setOpen((value) => !value)}
         >
-          <span className={markClass}>
-            <GithubMark />
-          </span>
           <span className="gh-chip-meta">
             <span className="gh-chip-name">{name}</span>
             <span className="gh-chip-status">{subtitle}</span>
@@ -403,6 +430,148 @@ function formatLimitChip(locale: Locale, limits: CodexLimits | null): string {
   return parts.length > 0 ? parts.join(" · ") : t(locale, "limitUnavailable");
 }
 
+function formatModelChip(model: string, effort?: string): string | null {
+  const parts = [model, effort].filter((v) => v && v.trim().length > 0);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+interface AgentOption {
+  value: string;
+  label: string;
+}
+
+/// Same open/close-on-outside-click-or-Escape pattern as `GithubChip`'s
+/// account dropdown — a small popup anchored to a chip, not a native
+/// <select>, so model and effort can live in one menu.
+function AgentModelMenu({
+  locale,
+  model,
+  onModelChange,
+  modelOptions,
+  effort,
+  onEffortChange,
+  effortOptions,
+}: {
+  locale: Locale;
+  model: string;
+  onModelChange: (value: string) => void;
+  modelOptions: AgentOption[];
+  effort?: string;
+  onEffortChange?: (value: string) => void;
+  effortOptions?: AgentOption[];
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const chipLabel = formatModelChip(model, effort) ?? t(locale, "optionDefault");
+
+  return (
+    <div className="model-menu-wrap" ref={rootRef}>
+      <button
+        type="button"
+        className="limit-chip limit-chip-muted model-chip"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {chipLabel}
+      </button>
+      {open && (
+        <div className="account-dropdown model-menu-dropdown" role="menu">
+          <div className="account-dropdown-note">{t(locale, "agentModel")}</div>
+          <button
+            type="button"
+            role="menuitem"
+            className={
+              model === "" ? "account-dropdown-item account-dropdown-item-active" : "account-dropdown-item"
+            }
+            onClick={() => {
+              onModelChange("");
+              setOpen(false);
+            }}
+          >
+            {t(locale, "optionDefault")}
+          </button>
+          {modelOptions.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="menuitem"
+              className={
+                model === o.value
+                  ? "account-dropdown-item account-dropdown-item-active"
+                  : "account-dropdown-item"
+              }
+              onClick={() => {
+                onModelChange(o.value);
+                setOpen(false);
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+          {effortOptions && onEffortChange && (
+            <>
+              <div className="account-dropdown-note">{t(locale, "agentEffort")}</div>
+              <button
+                type="button"
+                role="menuitem"
+                className={
+                  effort === ""
+                    ? "account-dropdown-item account-dropdown-item-active"
+                    : "account-dropdown-item"
+                }
+                onClick={() => {
+                  onEffortChange("");
+                  setOpen(false);
+                }}
+              >
+                {t(locale, "optionDefault")}
+              </button>
+              {effortOptions.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="menuitem"
+                  className={
+                    effort === o.value
+                      ? "account-dropdown-item account-dropdown-item-active"
+                      : "account-dropdown-item"
+                  }
+                  onClick={() => {
+                    onEffortChange(o.value);
+                    setOpen(false);
+                  }}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EngineLamp({
   locale,
   auth,
@@ -410,6 +579,7 @@ function EngineLamp({
   limits,
   limitsLoading,
   onRefreshLimits,
+  modelMenu,
 }: {
   locale: Locale;
   auth: AuthStatus | undefined;
@@ -417,6 +587,7 @@ function EngineLamp({
   limits?: CodexLimits | null;
   limitsLoading?: boolean;
   onRefreshLimits?: () => void;
+  modelMenu?: ReactNode;
 }) {
   const signedIn = Boolean(auth?.loggedIn);
   const missing = Boolean(auth && !auth.installed);
@@ -463,6 +634,7 @@ function EngineLamp({
           {limitsLoading ? "…" : formatLimitChip(locale, limits ?? null)}
         </button>
       )}
+      {modelMenu}
     </div>
   );
 }
@@ -508,6 +680,7 @@ function Variant({
   replyValue,
   onReplyChange,
   onReplySend,
+  modelMenu,
 }: {
   label: string;
   state: VariantState;
@@ -522,6 +695,7 @@ function Variant({
   replyValue?: string;
   onReplyChange?: (value: string) => void;
   onReplySend?: () => void;
+  modelMenu?: ReactNode;
 }) {
   const copy = () => {
     const lastAssistant = [...history].reverse().find((turn) => turn.role === "assistant");
@@ -542,6 +716,7 @@ function Variant({
         limits={limits}
         limitsLoading={limitsLoading}
         onRefreshLimits={onRefreshLimits}
+        modelMenu={modelMenu}
       />
       <div className="variant">
         <div className="variant-head">
@@ -652,6 +827,22 @@ function SettingsView({
   dictionaryBusy,
   onDownloadDictionary,
   onDeleteDictionary,
+  claudeModel,
+  onClaudeModelChange,
+  claudeEffort,
+  onClaudeEffortChange,
+  codexModel,
+  onCodexModelChange,
+  codexEffort,
+  onCodexEffortChange,
+  cursorModel,
+  onCursorModelChange,
+  cursorModelOptions,
+  opencodeModel,
+  onOpencodeModelChange,
+  opencodeModelOptions,
+  opencodeEffort,
+  onOpencodeEffortChange,
 }: {
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
@@ -671,6 +862,22 @@ function SettingsView({
   manuscriptMessage: string | null;
   dictionaries: DictionaryStatus[];
   dictionaryBusy: string | null;
+  claudeModel: string;
+  onClaudeModelChange: (v: string) => void;
+  claudeEffort: string;
+  onClaudeEffortChange: (v: string) => void;
+  codexModel: string;
+  onCodexModelChange: (v: string) => void;
+  codexEffort: string;
+  onCodexEffortChange: (v: string) => void;
+  cursorModel: string;
+  onCursorModelChange: (v: string) => void;
+  cursorModelOptions: AgentOption[];
+  opencodeModel: string;
+  onOpencodeModelChange: (v: string) => void;
+  opencodeModelOptions: AgentOption[];
+  opencodeEffort: string;
+  onOpencodeEffortChange: (v: string) => void;
   onDownloadDictionary: (lang: string) => void;
   onDeleteDictionary: (lang: string) => void;
 }) {
@@ -961,6 +1168,141 @@ function SettingsView({
                 );
               })}
             </div>
+
+            <h2 className="settings-subhead">{t(locale, "settingsAgentModels")}</h2>
+            <p className="settings-section-hint">{t(locale, "settingsAgentModelsHint")}</p>
+
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-label">Claude — {t(locale, "agentModel")}</div>
+              </div>
+              <select
+                className="settings-select"
+                value={claudeModel}
+                onChange={(e) => onClaudeModelChange(e.target.value)}
+                aria-label={`Claude ${t(locale, "agentModel")}`}
+              >
+                <option value="">{t(locale, "optionDefault")}</option>
+                {CLAUDE_MODEL_OPTIONS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-label">Claude — {t(locale, "agentEffort")}</div>
+              </div>
+              <select
+                className="settings-select"
+                value={claudeEffort}
+                onChange={(e) => onClaudeEffortChange(e.target.value)}
+                aria-label={`Claude ${t(locale, "agentEffort")}`}
+              >
+                <option value="">{t(locale, "optionDefault")}</option>
+                {CLAUDE_EFFORT_OPTIONS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-label">Codex — {t(locale, "agentModel")}</div>
+              </div>
+              <select
+                className="settings-select"
+                value={codexModel}
+                onChange={(e) => onCodexModelChange(e.target.value)}
+                aria-label={`Codex ${t(locale, "agentModel")}`}
+              >
+                <option value="">{t(locale, "optionDefault")}</option>
+                {CODEX_MODEL_OPTIONS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-label">Codex — {t(locale, "agentEffort")}</div>
+              </div>
+              <select
+                className="settings-select"
+                value={codexEffort}
+                onChange={(e) => onCodexEffortChange(e.target.value)}
+                aria-label={`Codex ${t(locale, "agentEffort")}`}
+              >
+                <option value="">{t(locale, "optionDefault")}</option>
+                {CODEX_EFFORT_OPTIONS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-label">Cursor — {t(locale, "agentModel")}</div>
+                <div className="settings-hint">{t(locale, "cursorModelHint")}</div>
+              </div>
+              <select
+                className="settings-select"
+                value={cursorModel}
+                onChange={(e) => onCursorModelChange(e.target.value)}
+                aria-label={`Cursor ${t(locale, "agentModel")}`}
+              >
+                <option value="">{t(locale, "optionDefault")}</option>
+                {cursorModelOptions.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-label">OpenCode — {t(locale, "agentModel")}</div>
+                <div className="settings-hint">{t(locale, "opencodeModelHint")}</div>
+              </div>
+              <select
+                className="settings-select"
+                value={opencodeModel}
+                onChange={(e) => onOpencodeModelChange(e.target.value)}
+                aria-label={`OpenCode ${t(locale, "agentModel")}`}
+              >
+                <option value="">{t(locale, "optionDefault")}</option>
+                {opencodeModelOptions.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-label">OpenCode — {t(locale, "agentEffort")}</div>
+              </div>
+              <select
+                className="settings-select"
+                value={opencodeEffort}
+                onChange={(e) => onOpencodeEffortChange(e.target.value)}
+                aria-label={`OpenCode ${t(locale, "agentEffort")}`}
+              >
+                <option value="">{t(locale, "optionDefault")}</option>
+                {OPENCODE_EFFORT_OPTIONS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </section>
         )}
       </div>
@@ -1004,7 +1346,8 @@ export default function App() {
   });
   const restoredConversation = conversations.find((c) => c.id === activeConversationId) ?? null;
 
-  const [prompt, setPrompt] = useState(() => restoredConversation?.prompt ?? "");
+  // Composer draft for the Orchestrator chat (not the persisted conversation.prompt).
+  const [prompt, setPrompt] = useState("");
   const [claude, setClaude] = useState<VariantState>(() =>
     (restoredConversation?.claude.history.length ?? 0) > 0 ? { status: "done" } : { status: "idle" },
   );
@@ -1013,6 +1356,11 @@ export default function App() {
   );
   const [cursor, setCursor] = useState<VariantState>(() =>
     (restoredConversation?.cursor.history.length ?? 0) > 0 ? { status: "done" } : { status: "idle" },
+  );
+  const [opencode, setOpencode] = useState<VariantState>(() =>
+    (restoredConversation?.opencode.history.length ?? 0) > 0
+      ? { status: "done" }
+      : { status: "idle" },
   );
   const [claudeSessionId, setClaudeSessionId] = useState<string | null>(
     () => restoredConversation?.claude.sessionId ?? null,
@@ -1023,9 +1371,13 @@ export default function App() {
   const [cursorSessionId, setCursorSessionId] = useState<string | null>(
     () => restoredConversation?.cursor.sessionId ?? null,
   );
+  const [opencodeSessionId, setOpencodeSessionId] = useState<string | null>(
+    () => restoredConversation?.opencode.sessionId ?? null,
+  );
   const [claudeReply, setClaudeReply] = useState("");
   const [codexReply, setCodexReply] = useState("");
   const [cursorReply, setCursorReply] = useState("");
+  const [opencodeReply, setOpencodeReply] = useState("");
   const [claudeHistory, setClaudeHistory] = useState<ConversationTurn[]>(
     () => restoredConversation?.claude.history ?? [],
   );
@@ -1035,6 +1387,21 @@ export default function App() {
   const [cursorHistory, setCursorHistory] = useState<ConversationTurn[]>(
     () => restoredConversation?.cursor.history ?? [],
   );
+  const [opencodeHistory, setOpencodeHistory] = useState<ConversationTurn[]>(
+    () => restoredConversation?.opencode.history ?? [],
+  );
+  const [orchestratorMessages, setOrchestratorMessages] = useState<OrchestratorMessage[]>(
+    () => {
+      const stored = restoredConversation?.orchestrator?.messages;
+      if (stored && stored.length > 0) return stored;
+      if (restoredConversation?.prompt) {
+        return legacyMessagesFromConversation(restoredConversation.prompt);
+      }
+      return [];
+    },
+  );
+  const [expandedAgentPanel, setExpandedAgentPanel] =
+    useState<OrchestratorAgentId | null>(null);
   const [auths, setAuths] = useState<AuthStatus[]>([]);
   const [authLoading, setAuthLoading] = useState(true);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
@@ -1042,6 +1409,79 @@ export default function App() {
   const [codexLimitsLoading, setCodexLimitsLoading] = useState(false);
   const [dictionaries, setDictionaries] = useState<DictionaryStatus[]>([]);
   const [dictionaryBusy, setDictionaryBusy] = useState<string | null>(null);
+  const [claudeModel, setClaudeModelState] = useState(() =>
+    loadAgentSetting(AGENT_SETTING_KEYS.claudeModel),
+  );
+  const [claudeEffort, setClaudeEffortState] = useState(() =>
+    loadAgentSetting(AGENT_SETTING_KEYS.claudeEffort),
+  );
+  const [codexModel, setCodexModelState] = useState(() =>
+    loadAgentSetting(AGENT_SETTING_KEYS.codexModel),
+  );
+  const [codexEffort, setCodexEffortState] = useState(() =>
+    loadAgentSetting(AGENT_SETTING_KEYS.codexEffort),
+  );
+  const [cursorModel, setCursorModelState] = useState(() =>
+    loadAgentSetting(AGENT_SETTING_KEYS.cursorModel),
+  );
+  const [cursorModelOptions, setCursorModelOptions] = useState<AgentOption[]>([]);
+  const [opencodeModel, setOpencodeModelState] = useState(() => {
+    // A model saved before the free-only restriction (or edited by hand in
+    // localStorage) could be a paid one — never honor that, reset to
+    // "Default" (which itself now resolves to a real free model) instead.
+    const stored = loadAgentSetting(AGENT_SETTING_KEYS.opencodeModel);
+    if (stored !== "" && !stored.endsWith("-free")) {
+      persistAgentSetting(AGENT_SETTING_KEYS.opencodeModel, "");
+      return "";
+    }
+    return stored;
+  });
+  const [opencodeEffort, setOpencodeEffortState] = useState(() =>
+    loadAgentSetting(AGENT_SETTING_KEYS.opencodeEffort),
+  );
+  const [opencodeModelOptions, setOpencodeModelOptions] = useState<AgentOption[]>([]);
+
+  useEffect(() => {
+    invoke<{ id: string; label: string }[]>("list_cursor_models")
+      .then((models) => setCursorModelOptions(models.map((m) => ({ value: m.id, label: m.label }))))
+      .catch(() => {
+        /* cursor-agent not installed or --list-models failed — leave empty,
+           the picker just falls back to "По умолчанию" only. */
+      });
+    invoke<{ id: string; label: string }[]>("list_opencode_models")
+      .then((models) => setOpencodeModelOptions(models.map((m) => ({ value: m.id, label: m.label }))))
+      .catch(() => {
+        /* opencode not installed or `models` failed — same fallback. */
+      });
+  }, []);
+  const setClaudeModel = (v: string) => {
+    setClaudeModelState(v);
+    persistAgentSetting(AGENT_SETTING_KEYS.claudeModel, v);
+  };
+  const setClaudeEffort = (v: string) => {
+    setClaudeEffortState(v);
+    persistAgentSetting(AGENT_SETTING_KEYS.claudeEffort, v);
+  };
+  const setCodexModel = (v: string) => {
+    setCodexModelState(v);
+    persistAgentSetting(AGENT_SETTING_KEYS.codexModel, v);
+  };
+  const setCodexEffort = (v: string) => {
+    setCodexEffortState(v);
+    persistAgentSetting(AGENT_SETTING_KEYS.codexEffort, v);
+  };
+  const setCursorModel = (v: string) => {
+    setCursorModelState(v);
+    persistAgentSetting(AGENT_SETTING_KEYS.cursorModel, v);
+  };
+  const setOpencodeModel = (v: string) => {
+    setOpencodeModelState(v);
+    persistAgentSetting(AGENT_SETTING_KEYS.opencodeModel, v);
+  };
+  const setOpencodeEffort = (v: string) => {
+    setOpencodeEffortState(v);
+    persistAgentSetting(AGENT_SETTING_KEYS.opencodeEffort, v);
+  };
 
   const authById = (id: string) => auths.find((item) => item.id === id);
   const agentAuths = AGENT_IDS.map((id) => authById(id)).filter(
@@ -1211,6 +1651,7 @@ export default function App() {
   };
 
   const loadChapter = async (file: string) => {
+    if (activeConversationId) resetActiveConversation();
     try {
       const text = await invoke<string>("read_chapter", { file });
       setPrompt(text);
@@ -1267,6 +1708,7 @@ export default function App() {
   };
 
   const loadAppleNote = async (noteId: string) => {
+    if (activeConversationId) resetActiveConversation();
     try {
       const text = await invoke<string>("read_apple_note", { noteId });
       setPrompt(text);
@@ -1296,6 +1738,7 @@ export default function App() {
   const claudeBusyRef = useRef(false);
   const codexBusyRef = useRef(false);
   const cursorBusyRef = useRef(false);
+  const opencodeBusyRef = useRef(false);
 
   const upsertConversation = (id: string, updater: (c: AgentConversation) => AgentConversation) => {
     setConversations((prev) => {
@@ -1308,95 +1751,189 @@ export default function App() {
     });
   };
 
+  const applyAgentResult = (
+    conversationId: string,
+    agent: OrchestratorAgentId,
+    followUp: boolean,
+    userText: string,
+    result:
+      | { ok: true; reply: EngineReply }
+      | { ok: false; error: string },
+  ) => {
+    if (result.ok) {
+      const reply = result.reply;
+      upsertConversation(conversationId, (c) => {
+        const thread = c[agent];
+        const history: ConversationTurn[] = followUp
+          ? [
+              ...thread.history,
+              { role: "user", text: userText },
+              { role: "assistant", text: reply.text },
+            ]
+          : [{ role: "assistant", text: reply.text }];
+        return {
+          ...c,
+          updatedAt: Date.now(),
+          [agent]: { history, sessionId: reply.sessionId },
+        };
+      });
+      if (!isStillActive(conversationId)) return;
+      const appendFollowUp = (h: ConversationTurn[]) => [
+        ...h,
+        { role: "user" as const, text: userText },
+        { role: "assistant" as const, text: reply.text },
+      ];
+      const firstTurn: ConversationTurn[] = [
+        { role: "assistant", text: reply.text },
+      ];
+      if (agent === "claude") {
+        setClaudeSessionId(reply.sessionId);
+        setClaudeHistory(followUp ? appendFollowUp : firstTurn);
+        setClaude({ status: "done" });
+      } else if (agent === "codex") {
+        setCodexThreadId(reply.sessionId);
+        setCodexHistory(followUp ? appendFollowUp : firstTurn);
+        setCodex({ status: "done" });
+        void refreshCodexLimits();
+      } else if (agent === "cursor") {
+        setCursorSessionId(reply.sessionId);
+        setCursorHistory(followUp ? appendFollowUp : firstTurn);
+        setCursor({ status: "done" });
+      } else {
+        setOpencodeSessionId(reply.sessionId);
+        setOpencodeHistory(followUp ? appendFollowUp : firstTurn);
+        setOpencode({ status: "done" });
+      }
+      return;
+    }
+
+    upsertConversation(conversationId, (c) => ({ ...c, updatedAt: Date.now() }));
+    if (!isStillActive(conversationId)) return;
+    const err = { status: "error" as const, message: result.error };
+    if (agent === "claude") setClaude(err);
+    else if (agent === "codex") {
+      setCodex(err);
+      void refreshCodexLimits();
+    } else if (agent === "cursor") setCursor(err);
+    else setOpencode(err);
+  };
+
   const send = () => {
     if (!prompt.trim() || sendBusyRef.current) return;
     sendBusyRef.current = true;
-    const id = crypto.randomUUID();
+    const userText = prompt;
+    const followUp = !!activeConversationId;
+    const id = followUp ? activeConversationId! : crypto.randomUUID();
     const now = Date.now();
-    const conversation: AgentConversation = {
-      id,
-      title: conversationTitle(prompt),
-      createdAt: now,
-      updatedAt: now,
-      prompt,
-      claude: emptyEngineThread(),
-      codex: emptyEngineThread(),
-      cursor: emptyEngineThread(),
-    };
-    setConversations((prev) => {
-      const next = [conversation, ...prev];
-      persistConversations(next);
-      return next;
-    });
-    setActiveConversationId(id);
-    persistActiveConversationId(id);
+    const userMessage = createUserMessage(userText);
+    const dispatchedMessage = createDispatchedMessage();
 
-    setClaude({ status: "running" });
-    setCodex({ status: "running" });
-    setCursor({ status: "running" });
-    setClaudeSessionId(null);
-    setCodexThreadId(null);
-    setCursorSessionId(null);
+    if (!followUp) {
+      const conversation: AgentConversation = {
+        id,
+        title: conversationTitle(userText),
+        createdAt: now,
+        updatedAt: now,
+        prompt: userText,
+        claude: emptyEngineThread(),
+        codex: emptyEngineThread(),
+        cursor: emptyEngineThread(),
+        opencode: emptyEngineThread(),
+        orchestrator: {
+          messages: [userMessage, dispatchedMessage],
+        },
+      };
+      setConversations((prev) => {
+        const next = [conversation, ...prev];
+        persistConversations(next);
+        return next;
+      });
+      setActiveConversationId(id);
+      persistActiveConversationId(id);
+      setOrchestratorMessages([userMessage, dispatchedMessage]);
+      setClaudeSessionId(null);
+      setCodexThreadId(null);
+      setCursorSessionId(null);
+      setOpencodeSessionId(null);
+      setClaudeHistory([]);
+      setCodexHistory([]);
+      setCursorHistory([]);
+      setOpencodeHistory([]);
+    } else {
+      const messages = [...orchestratorMessages, userMessage, dispatchedMessage];
+      setOrchestratorMessages(messages);
+      upsertConversation(id, (c) => ({
+        ...c,
+        updatedAt: Date.now(),
+        orchestrator: { messages },
+      }));
+    }
+
+    setPrompt("");
     setClaudeReply("");
     setCodexReply("");
     setCursorReply("");
-    setClaudeHistory([]);
-    setCodexHistory([]);
-    setCursorHistory([]);
-    const claudeCall = invoke<EngineReply>("run_claude", { prompt })
-      .then((reply) => {
-        const history: ConversationTurn[] = [{ role: "assistant", text: reply.text }];
-        upsertConversation(id, (c) => ({
-          ...c,
-          updatedAt: Date.now(),
-          claude: { history, sessionId: reply.sessionId },
-        }));
-        if (!isStillActive(id)) return;
-        setClaudeSessionId(reply.sessionId);
-        setClaudeHistory(history);
-        setClaude({ status: "done" });
-      })
-      .catch((e) => {
-        if (isStillActive(id)) setClaude({ status: "error", message: String(e) });
-      });
-    const codexCall = invoke<EngineReply>("run_codex", { prompt })
-      .then((reply) => {
-        const history: ConversationTurn[] = [{ role: "assistant", text: reply.text }];
-        upsertConversation(id, (c) => ({
-          ...c,
-          updatedAt: Date.now(),
-          codex: { history, sessionId: reply.sessionId },
-        }));
-        if (isStillActive(id)) {
-          setCodexThreadId(reply.sessionId);
-          setCodexHistory(history);
-          setCodex({ status: "done" });
+    setOpencodeReply("");
+    setClaude({ status: "running" });
+    setCodex({ status: "running" });
+    setCursor({ status: "running" });
+    setOpencode({ status: "running" });
+
+    const sessions = followUp
+      ? {
+          claude: claudeSessionId,
+          codex: codexThreadId,
+          cursor: cursorSessionId,
+          opencode: opencodeSessionId,
         }
-        void refreshCodexLimits();
+      : {};
+
+    void runOrchestratorFanout({
+      prompt: userText,
+      models: {
+        claudeModel,
+        claudeEffort,
+        codexModel,
+        codexEffort,
+        cursorModel,
+        opencodeModel,
+        opencodeEffort,
+      },
+      sessions,
+      isStillActive: () => isStillActive(id),
+      onAgentResult: (result) => {
+        if (result.ok) {
+          applyAgentResult(id, result.id, followUp, userText, {
+            ok: true,
+            reply: result.reply,
+          });
+        } else {
+          applyAgentResult(id, result.id, followUp, userText, {
+            ok: false,
+            error: result.error,
+          });
+        }
+      },
+    })
+      .then((results) => {
+        const summary = summarizeFanoutResults(results);
+        const completed = createCompletedMessage(summary);
+        setOrchestratorMessages((prev) =>
+          prev.some((m) => m.id === completed.id) ? prev : [...prev, completed],
+        );
+        upsertConversation(id, (c) => {
+          const existing = c.orchestrator?.messages ?? [];
+          if (existing.some((m) => m.id === completed.id)) return c;
+          return {
+            ...c,
+            updatedAt: Date.now(),
+            orchestrator: { messages: [...existing, completed] },
+          };
+        });
       })
-      .catch((e) => {
-        if (isStillActive(id)) setCodex({ status: "error", message: String(e) });
-        void refreshCodexLimits();
+      .finally(() => {
+        sendBusyRef.current = false;
       });
-    const cursorCall = invoke<EngineReply>("run_cursor", { prompt })
-      .then((reply) => {
-        const history: ConversationTurn[] = [{ role: "assistant", text: reply.text }];
-        upsertConversation(id, (c) => ({
-          ...c,
-          updatedAt: Date.now(),
-          cursor: { history, sessionId: reply.sessionId },
-        }));
-        if (!isStillActive(id)) return;
-        setCursorSessionId(reply.sessionId);
-        setCursorHistory(history);
-        setCursor({ status: "done" });
-      })
-      .catch((e) => {
-        if (isStillActive(id)) setCursor({ status: "error", message: String(e) });
-      });
-    void Promise.allSettled([claudeCall, codexCall, cursorCall]).finally(() => {
-      sendBusyRef.current = false;
-    });
   };
 
   const continueClaude = () => {
@@ -1413,7 +1950,12 @@ export default function App() {
       updatedAt: Date.now(),
       claude: { ...c.claude, history: withUserTurn },
     }));
-    invoke<EngineReply>("run_claude", { prompt: text, sessionId: claudeSessionId })
+    invoke<EngineReply>("run_claude", {
+      prompt: text,
+      sessionId: claudeSessionId,
+      model: claudeModel,
+      effort: claudeEffort,
+    })
       .then((reply) => {
         upsertConversation(conversationId, (c) => ({
           ...c,
@@ -1450,7 +1992,12 @@ export default function App() {
       updatedAt: Date.now(),
       codex: { ...c.codex, history: withUserTurn },
     }));
-    invoke<EngineReply>("run_codex", { prompt: text, sessionId: codexThreadId })
+    invoke<EngineReply>("run_codex", {
+      prompt: text,
+      sessionId: codexThreadId,
+      model: codexModel,
+      effort: codexEffort,
+    })
       .then((reply) => {
         upsertConversation(conversationId, (c) => ({
           ...c,
@@ -1490,7 +2037,11 @@ export default function App() {
       updatedAt: Date.now(),
       cursor: { ...c.cursor, history: withUserTurn },
     }));
-    invoke<EngineReply>("run_cursor", { prompt: text, sessionId: cursorSessionId })
+    invoke<EngineReply>("run_cursor", {
+      prompt: text,
+      sessionId: cursorSessionId,
+      model: cursorModel,
+    })
       .then((reply) => {
         upsertConversation(conversationId, (c) => ({
           ...c,
@@ -1513,10 +2064,52 @@ export default function App() {
       });
   };
 
+  const continueOpencode = () => {
+    const text = opencodeReply.trim();
+    if (!text || !opencodeSessionId || !activeConversationId || opencodeBusyRef.current) return;
+    opencodeBusyRef.current = true;
+    const conversationId = activeConversationId;
+    setOpencode({ status: "running" });
+    setOpencodeReply("");
+    const withUserTurn: ConversationTurn[] = [...opencodeHistory, { role: "user", text }];
+    setOpencodeHistory(withUserTurn);
+    upsertConversation(conversationId, (c) => ({
+      ...c,
+      updatedAt: Date.now(),
+      opencode: { ...c.opencode, history: withUserTurn },
+    }));
+    invoke<EngineReply>("run_opencode", {
+      prompt: text,
+      sessionId: opencodeSessionId,
+      model: opencodeModel,
+      effort: opencodeEffort,
+    })
+      .then((reply) => {
+        upsertConversation(conversationId, (c) => ({
+          ...c,
+          updatedAt: Date.now(),
+          opencode: {
+            history: [...c.opencode.history, { role: "assistant", text: reply.text }],
+            sessionId: reply.sessionId,
+          },
+        }));
+        if (!isStillActive(conversationId)) return;
+        setOpencodeSessionId(reply.sessionId);
+        setOpencodeHistory((h) => [...h, { role: "assistant", text: reply.text }]);
+        setOpencode({ status: "done" });
+      })
+      .catch((e) => {
+        if (isStillActive(conversationId)) setOpencode({ status: "error", message: String(e) });
+      })
+      .finally(() => {
+        opencodeBusyRef.current = false;
+      });
+  };
+
   const openConversation = (conversation: AgentConversation) => {
     setActiveConversationId(conversation.id);
     persistActiveConversationId(conversation.id);
-    setPrompt(conversation.prompt);
+    setPrompt("");
     setClaudeHistory(conversation.claude.history);
     setClaudeSessionId(conversation.claude.sessionId);
     setClaude({ status: conversation.claude.history.length > 0 ? "done" : "idle" });
@@ -1526,11 +2119,45 @@ export default function App() {
     setCursorHistory(conversation.cursor.history);
     setCursorSessionId(conversation.cursor.sessionId);
     setCursor({ status: conversation.cursor.history.length > 0 ? "done" : "idle" });
+    setOpencodeHistory(conversation.opencode.history);
+    setOpencodeSessionId(conversation.opencode.sessionId);
+    setOpencode({ status: conversation.opencode.history.length > 0 ? "done" : "idle" });
     setClaudeReply("");
     setCodexReply("");
     setCursorReply("");
+    setOpencodeReply("");
+    const orch = conversation.orchestrator?.messages;
+    setOrchestratorMessages(
+      orch && orch.length > 0
+        ? orch
+        : legacyMessagesFromConversation(conversation.prompt),
+    );
+    setExpandedAgentPanel(null);
     setWorkspaceMode("agents");
     setView("workspace");
+  };
+
+  const resetActiveConversation = () => {
+    setActiveConversationId(null);
+    persistActiveConversationId(null);
+    setClaudeHistory([]);
+    setCodexHistory([]);
+    setCursorHistory([]);
+    setOpencodeHistory([]);
+    setClaudeSessionId(null);
+    setCodexThreadId(null);
+    setCursorSessionId(null);
+    setOpencodeSessionId(null);
+    setClaudeReply("");
+    setCodexReply("");
+    setCursorReply("");
+    setOpencodeReply("");
+    setClaude({ status: "idle" });
+    setCodex({ status: "idle" });
+    setCursor({ status: "idle" });
+    setOpencode({ status: "idle" });
+    setOrchestratorMessages([]);
+    setExpandedAgentPanel(null);
   };
 
   const deleteConversation = (id: string) => {
@@ -1541,28 +2168,16 @@ export default function App() {
       return next;
     });
     if (activeConversationId === id) {
-      setActiveConversationId(null);
-      persistActiveConversationId(null);
+      resetActiveConversation();
       setPrompt("");
-      setClaudeHistory([]);
-      setCodexHistory([]);
-      setCursorHistory([]);
-      setClaudeSessionId(null);
-      setCodexThreadId(null);
-      setCursorSessionId(null);
-      setClaudeReply("");
-      setCodexReply("");
-      setCursorReply("");
-      setClaude({ status: "idle" });
-      setCodex({ status: "idle" });
-      setCursor({ status: "idle" });
     }
   };
 
   const busy =
     claude.status === "running" ||
     codex.status === "running" ||
-    cursor.status === "running";
+    cursor.status === "running" ||
+    opencode.status === "running";
 
   useEffect(() => {
     try {
@@ -1627,7 +2242,9 @@ export default function App() {
                       ? "Claude"
                       : id === "codex"
                         ? "Codex"
-                        : "Cursor",
+                        : id === "cursor"
+                          ? "Cursor"
+                          : "OpenCode",
                   installed: false,
                   loggedIn: false,
                   account: null,
@@ -1664,6 +2281,22 @@ export default function App() {
           onDeleteDictionary={(lang) => {
             void deleteDictionary(lang);
           }}
+          claudeModel={claudeModel}
+          onClaudeModelChange={setClaudeModel}
+          claudeEffort={claudeEffort}
+          onClaudeEffortChange={setClaudeEffort}
+          codexModel={codexModel}
+          onCodexModelChange={setCodexModel}
+          codexEffort={codexEffort}
+          onCodexEffortChange={setCodexEffort}
+          cursorModel={cursorModel}
+          onCursorModelChange={setCursorModel}
+          cursorModelOptions={cursorModelOptions}
+          opencodeModel={opencodeModel}
+          onOpencodeModelChange={setOpencodeModel}
+          opencodeModelOptions={opencodeModelOptions}
+          opencodeEffort={opencodeEffort}
+          onOpencodeEffortChange={setOpencodeEffort}
         />
       </div>
     );
@@ -1967,79 +2600,151 @@ export default function App() {
               locale={locale}
             />
           ) : (
-            <>
-              <div className="prompt-wrap">
-                <textarea
-                  className="prompt-box"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder={t(locale, "promptPlaceholder")}
-                />
-                {prompt.length > 0 && (
-                  <button
-                    type="button"
-                    className="clear-prompt-btn"
-                    onClick={() => setPrompt("")}
-                    disabled={busy}
-                    title={t(locale, "clearPrompt")}
-                  >
-                    {t(locale, "clearPrompt")}
-                  </button>
-                )}
-              </div>
-              <button
-                type="button"
-                className="send-btn"
-                onClick={send}
-                disabled={busy || !prompt.trim()}
-              >
-                {busy ? t(locale, "waitingAgents") : t(locale, "send")}
-              </button>
-
-              <div className="variants">
-                <Variant
-                  label="Claude"
-                  state={claude}
-                  history={claudeHistory}
-                  locale={locale}
-                  auth={authById("claude")}
-                  authLoading={authLoading}
-                  sessionId={claudeSessionId}
-                  replyValue={claudeReply}
-                  onReplyChange={setClaudeReply}
-                  onReplySend={continueClaude}
-                />
-                <Variant
-                  label="Codex (Sol)"
-                  state={codex}
-                  history={codexHistory}
-                  locale={locale}
-                  auth={authById("codex")}
-                  authLoading={authLoading}
-                  limits={codexLimits}
-                  limitsLoading={codexLimitsLoading}
-                  onRefreshLimits={() => {
-                    void refreshCodexLimits();
-                  }}
-                  sessionId={codexThreadId}
-                  replyValue={codexReply}
-                  onReplyChange={setCodexReply}
-                  onReplySend={continueCodex}
-                />
-                <Variant
-                  label="Cursor (plan)"
-                  state={cursor}
-                  history={cursorHistory}
-                  locale={locale}
-                  auth={authById("cursor")}
-                  authLoading={authLoading}
-                  sessionId={cursorSessionId}
-                  replyValue={cursorReply}
-                  onReplyChange={setCursorReply}
-                  onReplySend={continueCursor}
-                />
-              </div>
-            </>
+            <div className="orchestrator-workspace">
+              <OrchestratorChat
+                locale={locale}
+                messages={orchestratorMessages}
+                draft={prompt}
+                onDraftChange={setPrompt}
+                onSend={send}
+                busy={busy}
+              />
+              <AgentPanels
+                locale={locale}
+                expandedId={expandedAgentPanel}
+                onToggle={(id) =>
+                  setExpandedAgentPanel((current) => (current === id ? null : id))
+                }
+                panels={[
+                  {
+                    id: "claude",
+                    state: claude,
+                    auth: authById("claude"),
+                    authLoading,
+                    body: (
+                      <Variant
+                        label="Claude"
+                        state={claude}
+                        history={claudeHistory}
+                        locale={locale}
+                        auth={authById("claude")}
+                        authLoading={authLoading}
+                        sessionId={claudeSessionId}
+                        replyValue={claudeReply}
+                        onReplyChange={setClaudeReply}
+                        onReplySend={continueClaude}
+                        modelMenu={
+                          <AgentModelMenu
+                            locale={locale}
+                            model={claudeModel}
+                            onModelChange={setClaudeModel}
+                            modelOptions={CLAUDE_MODEL_OPTIONS}
+                            effort={claudeEffort}
+                            onEffortChange={setClaudeEffort}
+                            effortOptions={CLAUDE_EFFORT_OPTIONS}
+                          />
+                        }
+                      />
+                    ),
+                  },
+                  {
+                    id: "codex",
+                    state: codex,
+                    auth: authById("codex"),
+                    authLoading,
+                    body: (
+                      <Variant
+                        label="Codex (Sol)"
+                        state={codex}
+                        history={codexHistory}
+                        locale={locale}
+                        auth={authById("codex")}
+                        authLoading={authLoading}
+                        limits={codexLimits}
+                        limitsLoading={codexLimitsLoading}
+                        onRefreshLimits={() => {
+                          void refreshCodexLimits();
+                        }}
+                        sessionId={codexThreadId}
+                        replyValue={codexReply}
+                        onReplyChange={setCodexReply}
+                        onReplySend={continueCodex}
+                        modelMenu={
+                          <AgentModelMenu
+                            locale={locale}
+                            model={codexModel}
+                            onModelChange={setCodexModel}
+                            modelOptions={CODEX_MODEL_OPTIONS}
+                            effort={codexEffort}
+                            onEffortChange={setCodexEffort}
+                            effortOptions={CODEX_EFFORT_OPTIONS}
+                          />
+                        }
+                      />
+                    ),
+                  },
+                  {
+                    id: "cursor",
+                    state: cursor,
+                    auth: authById("cursor"),
+                    authLoading,
+                    body: (
+                      <Variant
+                        label="Cursor (plan)"
+                        state={cursor}
+                        history={cursorHistory}
+                        locale={locale}
+                        auth={authById("cursor")}
+                        authLoading={authLoading}
+                        sessionId={cursorSessionId}
+                        replyValue={cursorReply}
+                        onReplyChange={setCursorReply}
+                        onReplySend={continueCursor}
+                        modelMenu={
+                          <AgentModelMenu
+                            locale={locale}
+                            model={cursorModel}
+                            onModelChange={setCursorModel}
+                            modelOptions={cursorModelOptions}
+                          />
+                        }
+                      />
+                    ),
+                  },
+                  {
+                    id: "opencode",
+                    state: opencode,
+                    auth: authById("opencode"),
+                    authLoading,
+                    body: (
+                      <Variant
+                        label="OpenCode (plan)"
+                        state={opencode}
+                        history={opencodeHistory}
+                        locale={locale}
+                        auth={authById("opencode")}
+                        authLoading={authLoading}
+                        sessionId={opencodeSessionId}
+                        replyValue={opencodeReply}
+                        onReplyChange={setOpencodeReply}
+                        onReplySend={continueOpencode}
+                        modelMenu={
+                          <AgentModelMenu
+                            locale={locale}
+                            model={opencodeModel}
+                            onModelChange={setOpencodeModel}
+                            modelOptions={opencodeModelOptions}
+                            effort={opencodeEffort}
+                            onEffortChange={setOpencodeEffort}
+                            effortOptions={OPENCODE_EFFORT_OPTIONS}
+                          />
+                        }
+                      />
+                    ),
+                  },
+                ]}
+              />
+            </div>
           )}
         </div>
         <div className="main-footer">

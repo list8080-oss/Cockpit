@@ -9,6 +9,96 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.25",
+    date: "2026-08-09",
+    notes: {
+      en: "New: Orchestrator — a single main chat that dispatches your request to Claude, Codex, Cursor and OpenCode and shows their status in compact panels below (no AI summary yet, that's next). Each agent's own reply, history and session resume still work exactly as before inside its panel.",
+      ru: "Новое: Оркестратор — единый главный чат, который передаёт запрос Claude, Codex, Cursor и OpenCode и показывает их статус в компактных панелях снизу (без AI-синтеза ответов — это будет следующим шагом). Собственный ответ, история и продолжение сессии каждого агента по-прежнему работают как раньше внутри его панели.",
+      uk: "Нове: Оркестратор — єдиний головний чат, який передає запит Claude, Codex, Cursor і OpenCode та показує їхній статус у компактних панелях знизу (без AI-синтезу відповідей — це буде наступним кроком). Власна відповідь, історія і продовження сесії кожного агента, як і раніше, працюють усередині його панелі.",
+      cs: "Nové: Orchestrátor — jeden hlavní chat, který předá požadavek Claude, Codex, Cursor a OpenCode a zobrazí jejich stav v kompaktních panelech níže (zatím bez AI syntézy odpovědí — to bude další krok). Vlastní odpověď, historie i pokračování relace každého agenta stále fungují jako dřív uvnitř jeho panelu.",
+    },
+  },
+  {
+    version: "0.3.24",
+    date: "2026-08-09",
+    notes: {
+      en: "Claude and Cursor now show the real reason for a failed turn (e.g. \"out of usage credits\" for a specific model) instead of a bare exit status — same fix already applied to Codex earlier.",
+      ru: "Claude и Cursor теперь показывают настоящую причину сбоя (например, «закончились кредиты» у конкретной модели) вместо голого кода выхода — тот же фикс, что раньше сделали для Codex.",
+      uk: "Claude і Cursor тепер показують справжню причину збою (наприклад, «закінчилися кредити» для конкретної моделі) замість голого коду виходу — те саме виправлення, що раніше зробили для Codex.",
+      cs: "Claude a Cursor nyní zobrazují skutečný důvod selhání (např. „došly kredity“ u konkrétního modelu) místo holého stavového kódu — stejná oprava, jakou jsme dřív udělali pro Codex.",
+    },
+  },
+  {
+    version: "0.3.23",
+    date: "2026-08-09",
+    notes: {
+      en: "Fixed: an OpenCode model chosen before the free-only restriction stayed selected and would have run anyway. Non-free saved choices now reset to Default automatically.",
+      ru: "Исправлено: модель OpenCode, выбранная до ограничения на бесплатные, оставалась выбранной и всё равно запустилась бы. Небесплатный сохранённый выбор теперь сам сбрасывается на «По умолчанию».",
+      uk: "Виправлено: модель OpenCode, обрана до обмеження на безкоштовні, лишалася обраною і всупереч усьому запустилася б. Платний збережений вибір тепер сам скидається на «За замовчуванням».",
+      cs: "Opraveno: model OpenCode zvolený před omezením na bezplatné zůstal vybraný a stejně by se spustil. Neplacená uložená volba se nyní sama vrátí na Výchozí.",
+    },
+  },
+  {
+    version: "0.3.22",
+    date: "2026-08-09",
+    notes: {
+      en: "OpenCode's model list now shows only free OpenCode Zen models — a paid one can never run by accident, including when left on Default.",
+      ru: "Список моделей OpenCode теперь показывает только бесплатные модели OpenCode Zen — платная не запустится случайно, даже если оставить «По умолчанию».",
+      uk: "Список моделей OpenCode тепер показує лише безкоштовні моделі OpenCode Zen — платна не запуститься випадково, навіть якщо залишити «За замовчуванням».",
+      cs: "Seznam modelů OpenCode nyní zobrazuje jen bezplatné modely OpenCode Zen — placený se nikdy nespustí omylem, ani při ponechání na Výchozí.",
+    },
+  },
+  {
+    version: "0.3.21",
+    date: "2026-08-09",
+    notes: {
+      en: "OpenCode joins as a fourth engine (read-only plan mode, verified by testing that it actually refuses to write files). Sign in, model, and reasoning effort all work the same way as the other three.",
+      ru: "OpenCode добавлен как четвёртый движок (read-only режим plan, проверено на деле — он реально отказывается писать файлы). Вход, модель и уровень рассуждения работают так же, как у остальных трёх.",
+      uk: "OpenCode доданий як четвертий рушій (read-only режим plan, перевірено на практиці — він справді відмовляється писати файли). Вхід, модель і рівень міркування працюють так само, як у решти трьох.",
+      cs: "OpenCode přibyl jako čtvrtý engine (read-only režim plan, ověřeno v praxi — skutečně odmítá zapisovat soubory). Přihlášení, model i úroveň uvažování fungují stejně jako u ostatních tří.",
+    },
+  },
+  {
+    version: "0.3.20",
+    date: "2026-08-09",
+    notes: {
+      en: "Model lists are now real, not guessed: Cursor's model picker is fetched live from cursor-agent itself (its full catalog), and Codex now offers its actual 5 models instead of just one.",
+      ru: "Списки моделей теперь настоящие, а не придуманные: список моделей Cursor подтягивается напрямую из cursor-agent (весь его каталог), а у Codex теперь доступны все 5 реальных моделей вместо одной.",
+      uk: "Списки моделей тепер справжні, а не вигадані: список моделей Cursor підтягується напряму з cursor-agent (весь його каталог), а в Codex тепер доступні всі 5 реальних моделей замість однієї.",
+      cs: "Seznamy modelů jsou nyní skutečné, ne vymyšlené: seznam modelů Cursor se načítá přímo z cursor-agent (celý jeho katalog) a Codex nyní nabízí všech 5 skutečných modelů místo jednoho.",
+    },
+  },
+  {
+    version: "0.3.19",
+    date: "2026-08-09",
+    notes: {
+      en: "The model/effort chip above each column is now a dropdown — change model and reasoning effort right there, no need to open Settings.",
+      ru: "Чип модели/уровня над каждой колонкой теперь выпадающий список — можно менять модель и уровень рассуждения прямо там, без захода в Настройки.",
+      uk: "Чип моделі/рівня над кожною колонкою тепер випадний список — можна змінювати модель і рівень міркування прямо там, без заходу в Налаштування.",
+      cs: "Čip modelu/úrovně nad každým sloupcem je nyní rozbalovací seznam — model a úroveň uvažování lze měnit přímo tam, bez otevírání Nastavení.",
+    },
+  },
+  {
+    version: "0.3.18",
+    date: "2026-08-09",
+    notes: {
+      en: "New Settings > Agents section: per-engine model and reasoning-effort overrides (Claude and Codex get an effort level; all three get a model choice). Leave on Default to keep the current behavior.",
+      ru: "Новый раздел в Настройки → Агенты: модель и уровень рассуждения по каждому движку (у Claude и Codex — свой уровень; у всех трёх — выбор модели). Оставь «По умолчанию», если ничего менять не нужно.",
+      uk: "Новий розділ у Налаштування → Агенти: модель і рівень міркування для кожного рушія (у Claude і Codex — свій рівень; у всіх трьох — вибір моделі). Залиш «За замовчуванням», якщо нічого міняти не треба.",
+      cs: "Nová sekce v Nastavení → Agenti: model a úroveň uvažování pro každý engine (Claude a Codex mají úroveň; všechny tři mají výběr modelu). Ponechte na Výchozí, pokud nic měnit nechcete.",
+    },
+  },
+  {
+    version: "0.3.17",
+    date: "2026-08-09",
+    notes: {
+      en: "The GitHub chip now shows your avatar — click it to open your GitHub profile in the browser; the rest of the chip still opens the sign-in menu.",
+      ru: "Чип GitHub теперь показывает твой аватар — клик по нему открывает профиль на GitHub в браузере; остальная часть чипа по-прежнему открывает меню входа.",
+      uk: "Чип GitHub тепер показує твій аватар — клік по ньому відкриває профіль на GitHub у браузері; решта чипа, як і раніше, відкриває меню входу.",
+      cs: "Čip GitHub nyní zobrazuje váš avatar — kliknutím otevřete profil na GitHubu v prohlížeči; zbytek čipu stále otevírá přihlašovací menu.",
+    },
+  },
+  {
     version: "0.3.16",
     date: "2026-08-09",
     notes: {

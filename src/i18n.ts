@@ -57,6 +57,13 @@ type Dict = {
   versionHistory: string;
   settingsAgents: string;
   settingsAgentsHint: string;
+  settingsAgentModels: string;
+  settingsAgentModelsHint: string;
+  agentModel: string;
+  agentEffort: string;
+  optionDefault: string;
+  cursorModelHint: string;
+  opencodeModelHint: string;
   language: string;
   languageHint: string;
   appearance: string;
@@ -69,6 +76,7 @@ type Dict = {
   githubSignedInAs: string;
   githubSignIn: string;
   githubSignOut: string;
+  githubOpenProfile: string;
   accountMenu: string;
   openSettings: string;
   authSignedIn: string;
@@ -104,6 +112,30 @@ type Dict = {
   agentHistoryEmpty: string;
   agentHistoryDelete: string;
   agentHistoryDeleteConfirm: string;
+  orchestrator: string;
+  orchestratorHint: string;
+  orchestratorEmpty: string;
+  orchestratorYou: string;
+  orchestratorDispatched: string;
+  orchestratorAgentsList: string;
+  orchestratorCompleted: string;
+  orchestratorSeePanels: string;
+  orchestratorWhoAnswered: string;
+  orchestratorWhoFailed: string;
+  orchestratorWhoUnavailable: string;
+  orchestratorWaiting: string;
+  orchestratorAgentPanels: string;
+  orchestratorExpandPanel: string;
+  orchestratorCollapsePanel: string;
+  orchestratorStatusReady: string;
+  orchestratorStatusRunning: string;
+  orchestratorStatusError: string;
+  orchestratorStatusUnavailable: string;
+  orchestratorStatusNeedsAuth: string;
+  orchestratorStatusDone: string;
+  orchestratorFinalAnswer: string;
+  orchestratorAgentReply: string;
+  orchestratorAgentError: string;
 };
 
 const en: Dict = {
@@ -159,6 +191,13 @@ const en: Dict = {
   settingsAgents: "Agents",
   settingsAgentsHint:
     "Sign in with your own Claude, Codex, and Cursor accounts. Green on a column means that agent is ready.",
+  settingsAgentModels: "Models & effort",
+  settingsAgentModelsHint: "Optional per-engine overrides. Leave on Default to use each CLI's own default.",
+  agentModel: "Model",
+  agentEffort: "Effort",
+  optionDefault: "Default",
+  cursorModelHint: "Cursor has no separate effort setting — it's part of the model name, e.g. claude-opus-4-8-thinking-high.",
+  opencodeModelHint: "Only free OpenCode Zen models are listed — a paid one can never run by accident.",
   language: "Language",
   languageHint: "Interface language for the app.",
   appearance: "Appearance",
@@ -171,6 +210,7 @@ const en: Dict = {
   githubSignedInAs: "GitHub",
   githubSignIn: "Sign in to GitHub",
   githubSignOut: "Sign out of GitHub",
+  githubOpenProfile: "Open GitHub profile",
   accountMenu: "GitHub account",
   openSettings: "Settings",
   authSignedIn: "Signed in",
@@ -196,7 +236,7 @@ const en: Dict = {
   waiting: "Waiting for a reply…",
   promptPlaceholder:
     "Paste a fragment or pick a chapter on the left. You can write as usual with the agent — for example “prose/style: liven up this dialogue” plus the text.",
-  send: "Send to Claude + Codex + Cursor",
+  send: "Send to Orchestrator",
   clearPrompt: "Clear text",
   waitingAgents: "Waiting for agents…",
   loadChapterFailed: "[failed to load chapter: {error}]",
@@ -208,6 +248,30 @@ const en: Dict = {
   agentHistoryEmpty: "No saved conversations yet.",
   agentHistoryDelete: "Delete conversation",
   agentHistoryDeleteConfirm: "Delete this conversation? This can't be undone.",
+  orchestrator: "Orchestrator",
+  orchestratorHint: "You talk to the Orchestrator; it runs the connected agents and collects their results.",
+  orchestratorEmpty: "Write a request below. The Orchestrator will pass it to the available agents.",
+  orchestratorYou: "You",
+  orchestratorDispatched: "Request sent to agents.",
+  orchestratorAgentsList: "Started: {agents}",
+  orchestratorCompleted: "Work finished. Answers are available in the agent panels below.",
+  orchestratorSeePanels: "Open a panel below for the full reply or error.",
+  orchestratorWhoAnswered: "Answered: {agents}",
+  orchestratorWhoFailed: "Failed: {agents}",
+  orchestratorWhoUnavailable: "Unavailable: {agents}",
+  orchestratorWaiting: "Waiting for a reply…",
+  orchestratorAgentPanels: "Agents",
+  orchestratorExpandPanel: "Expand panel",
+  orchestratorCollapsePanel: "Collapse panel",
+  orchestratorStatusReady: "Ready",
+  orchestratorStatusRunning: "Running",
+  orchestratorStatusError: "Error",
+  orchestratorStatusUnavailable: "Unavailable",
+  orchestratorStatusNeedsAuth: "Needs sign-in",
+  orchestratorStatusDone: "Done",
+  orchestratorFinalAnswer: "Final reply",
+  orchestratorAgentReply: "Agent reply",
+  orchestratorAgentError: "Agent error",
 };
 
 const ru: Dict = {
@@ -264,6 +328,13 @@ const ru: Dict = {
   settingsAgents: "Агенты",
   settingsAgentsHint:
     "Вход через ваши аккаунты Claude, Codex и Cursor. Зелёная лампочка над колонкой значит, что агент готов.",
+  settingsAgentModels: "Модели и уровни",
+  settingsAgentModelsHint: "Необязательные настройки на каждый движок. Оставь «По умолчанию», чтобы CLI выбирал сам.",
+  agentModel: "Модель",
+  agentEffort: "Уровень рассуждения",
+  optionDefault: "По умолчанию",
+  cursorModelHint: "У Cursor нет отдельного уровня — он зашит в имя модели, например claude-opus-4-8-thinking-high.",
+  opencodeModelHint: "В списке только бесплатные модели OpenCode Zen — платная случайно не запустится.",
   language: "Язык",
   languageHint: "Язык интерфейса приложения.",
   appearance: "Оформление",
@@ -276,6 +347,7 @@ const ru: Dict = {
   githubSignedInAs: "GitHub",
   githubSignIn: "Войти в GitHub",
   githubSignOut: "Выйти из GitHub",
+  githubOpenProfile: "Открыть профиль на GitHub",
   accountMenu: "Аккаунт GitHub",
   openSettings: "Настройки",
   authSignedIn: "Вход выполнен",
@@ -301,7 +373,7 @@ const ru: Dict = {
   waiting: "Ждём ответ…",
   promptPlaceholder:
     "Вставь фрагмент или выбери главу слева. Можно писать как обычно с агентом — например «проза/стиль: оживи этот диалог» плюс текст.",
-  send: "Отправить Claude + Codex + Cursor",
+  send: "Отправить Оркестратору",
   clearPrompt: "Очистить текст",
   waitingAgents: "Ждём агентов…",
   loadChapterFailed: "[не удалось загрузить главу: {error}]",
@@ -313,6 +385,32 @@ const ru: Dict = {
   agentHistoryEmpty: "Пока нет сохранённых обсуждений.",
   agentHistoryDelete: "Удалить обсуждение",
   agentHistoryDeleteConfirm: "Удалить это обсуждение? Отменить будет нельзя.",
+  orchestrator: "Оркестратор",
+  orchestratorHint:
+    "Вы общаетесь с Оркестратором; он запускает подключённых агентов и собирает их результаты.",
+  orchestratorEmpty:
+    "Напишите запрос ниже. Оркестратор передаст его доступным агентам.",
+  orchestratorYou: "Вы",
+  orchestratorDispatched: "Запрос передан агентам.",
+  orchestratorAgentsList: "Запущены: {agents}",
+  orchestratorCompleted: "Работа завершена. Ответы доступны в панелях агентов ниже.",
+  orchestratorSeePanels: "Откройте панель ниже, чтобы увидеть полный ответ или ошибку.",
+  orchestratorWhoAnswered: "Ответили: {agents}",
+  orchestratorWhoFailed: "Завершились ошибкой: {agents}",
+  orchestratorWhoUnavailable: "Недоступны: {agents}",
+  orchestratorWaiting: "Ожидание ответа…",
+  orchestratorAgentPanels: "Агенты",
+  orchestratorExpandPanel: "Раскрыть панель",
+  orchestratorCollapsePanel: "Свернуть панель",
+  orchestratorStatusReady: "Готов",
+  orchestratorStatusRunning: "Работает",
+  orchestratorStatusError: "Ошибка",
+  orchestratorStatusUnavailable: "Недоступен",
+  orchestratorStatusNeedsAuth: "Нужна авторизация",
+  orchestratorStatusDone: "Готово",
+  orchestratorFinalAnswer: "Итоговый ответ",
+  orchestratorAgentReply: "Ответ агента",
+  orchestratorAgentError: "Ошибка агента",
 };
 
 const uk: Dict = {
@@ -369,6 +467,13 @@ const uk: Dict = {
   settingsAgents: "Агенти",
   settingsAgentsHint:
     "Вхід через ваші акаунти Claude, Codex і Cursor. Зелена лампочка над колонкою означає, що агент готовий.",
+  settingsAgentModels: "Моделі та рівні",
+  settingsAgentModelsHint: "Необов'язкові налаштування для кожного рушія. Залиш «За замовчуванням», щоб CLI обирав сам.",
+  agentModel: "Модель",
+  agentEffort: "Рівень міркування",
+  optionDefault: "За замовчуванням",
+  cursorModelHint: "У Cursor немає окремого рівня — він зашитий в назву моделі, наприклад claude-opus-4-8-thinking-high.",
+  opencodeModelHint: "У списку лише безкоштовні моделі OpenCode Zen — платна випадково не запуститься.",
   language: "Мова",
   languageHint: "Мова інтерфейсу програми.",
   appearance: "Оформлення",
@@ -381,6 +486,7 @@ const uk: Dict = {
   githubSignedInAs: "GitHub",
   githubSignIn: "Увійти в GitHub",
   githubSignOut: "Вийти з GitHub",
+  githubOpenProfile: "Відкрити профіль на GitHub",
   accountMenu: "Акаунт GitHub",
   openSettings: "Налаштування",
   authSignedIn: "Вхід виконано",
@@ -406,7 +512,7 @@ const uk: Dict = {
   waiting: "Чекаємо відповідь…",
   promptPlaceholder:
     "Встав фрагмент або обери розділ зліва. Можна писати як звичайно з агентом — наприклад «проза/стиль: оживи цей діалог» плюс текст.",
-  send: "Надіслати Claude + Codex + Cursor",
+  send: "Надіслати Оркестратору",
   clearPrompt: "Очистити текст",
   waitingAgents: "Чекаємо агентів…",
   loadChapterFailed: "[не вдалося завантажити розділ: {error}]",
@@ -418,6 +524,32 @@ const uk: Dict = {
   agentHistoryEmpty: "Поки немає збережених обговорень.",
   agentHistoryDelete: "Видалити обговорення",
   agentHistoryDeleteConfirm: "Видалити це обговорення? Скасувати буде неможливо.",
+  orchestrator: "Оркестратор",
+  orchestratorHint:
+    "Ви спілкуєтеся з Оркестратором; він запускає підключених агентів і збирає їхні результати.",
+  orchestratorEmpty:
+    "Напишіть запит нижче. Оркестратор передасть його доступним агентам.",
+  orchestratorYou: "Ви",
+  orchestratorDispatched: "Запит передано агентам.",
+  orchestratorAgentsList: "Запущено: {agents}",
+  orchestratorCompleted: "Роботу завершено. Відповіді доступні в панелях агентів нижче.",
+  orchestratorSeePanels: "Відкрийте панель нижче, щоб побачити повну відповідь або помилку.",
+  orchestratorWhoAnswered: "Відповіли: {agents}",
+  orchestratorWhoFailed: "Завершилися помилкою: {agents}",
+  orchestratorWhoUnavailable: "Недоступні: {agents}",
+  orchestratorWaiting: "Очікування відповіді…",
+  orchestratorAgentPanels: "Агенти",
+  orchestratorExpandPanel: "Розгорнути панель",
+  orchestratorCollapsePanel: "Згорнути панель",
+  orchestratorStatusReady: "Готовий",
+  orchestratorStatusRunning: "Працює",
+  orchestratorStatusError: "Помилка",
+  orchestratorStatusUnavailable: "Недоступний",
+  orchestratorStatusNeedsAuth: "Потрібна авторизація",
+  orchestratorStatusDone: "Готово",
+  orchestratorFinalAnswer: "Підсумкова відповідь",
+  orchestratorAgentReply: "Відповідь агента",
+  orchestratorAgentError: "Помилка агента",
 };
 
 const cs: Dict = {
@@ -474,6 +606,13 @@ const cs: Dict = {
   settingsAgents: "Agenti",
   settingsAgentsHint:
     "Přihlášení přes vaše účty Claude, Codex a Cursor. Zelená kontrolka nad sloupcem znamená, že je agent připraven.",
+  settingsAgentModels: "Modely a úroveň",
+  settingsAgentModelsHint: "Volitelné nastavení pro každý engine. Ponechte na Výchozí, aby si CLI zvolil sám.",
+  agentModel: "Model",
+  agentEffort: "Úroveň uvažování",
+  optionDefault: "Výchozí",
+  cursorModelHint: "Cursor nemá samostatnou úroveň — je součástí názvu modelu, např. claude-opus-4-8-thinking-high.",
+  opencodeModelHint: "V seznamu jsou jen bezplatné modely OpenCode Zen — placený se nikdy nespustí omylem.",
   language: "Jazyk",
   languageHint: "Jazyk rozhraní aplikace.",
   appearance: "Vzhled",
@@ -486,6 +625,7 @@ const cs: Dict = {
   githubSignedInAs: "GitHub",
   githubSignIn: "Přihlásit se na GitHub",
   githubSignOut: "Odhlásit se z GitHubu",
+  githubOpenProfile: "Otevřít profil na GitHubu",
   accountMenu: "Účet GitHub",
   openSettings: "Nastavení",
   authSignedIn: "Přihlášeno",
@@ -511,7 +651,7 @@ const cs: Dict = {
   waiting: "Čekám na odpověď…",
   promptPlaceholder:
     "Vlož fragment nebo vyber kapitolu vlevo. Můžeš psát jako obvykle s agentem — například „próza/styl: oživ tento dialog“ plus text.",
-  send: "Odeslat Claude + Codex + Cursor",
+  send: "Odeslat Orchestrátorovi",
   clearPrompt: "Vymazat text",
   waitingAgents: "Čekám na agenty…",
   loadChapterFailed: "[kapitolu se nepodařilo načíst: {error}]",
@@ -523,6 +663,32 @@ const cs: Dict = {
   agentHistoryEmpty: "Zatím žádné uložené konverzace.",
   agentHistoryDelete: "Smazat konverzaci",
   agentHistoryDeleteConfirm: "Smazat tuto konverzaci? Nelze vrátit zpět.",
+  orchestrator: "Orchestrátor",
+  orchestratorHint:
+    "Mluvíte s Orchestrátorem; ten spouští připojené agenty a sbírá jejich výsledky.",
+  orchestratorEmpty:
+    "Napište požadavek níže. Orchestrátor ho předá dostupným agentům.",
+  orchestratorYou: "Vy",
+  orchestratorDispatched: "Požadavek byl předán agentům.",
+  orchestratorAgentsList: "Spuštěno: {agents}",
+  orchestratorCompleted: "Práce dokončena. Odpovědi jsou v panelech agentů níže.",
+  orchestratorSeePanels: "Otevřete panel níže pro celou odpověď nebo chybu.",
+  orchestratorWhoAnswered: "Odpověděli: {agents}",
+  orchestratorWhoFailed: "Skončili chybou: {agents}",
+  orchestratorWhoUnavailable: "Nedostupní: {agents}",
+  orchestratorWaiting: "Čekám na odpověď…",
+  orchestratorAgentPanels: "Agenti",
+  orchestratorExpandPanel: "Rozbalit panel",
+  orchestratorCollapsePanel: "Sbalit panel",
+  orchestratorStatusReady: "Připraven",
+  orchestratorStatusRunning: "Běží",
+  orchestratorStatusError: "Chyba",
+  orchestratorStatusUnavailable: "Nedostupný",
+  orchestratorStatusNeedsAuth: "Vyžaduje přihlášení",
+  orchestratorStatusDone: "Hotovo",
+  orchestratorFinalAnswer: "Finální odpověď",
+  orchestratorAgentReply: "Odpověď agenta",
+  orchestratorAgentError: "Chyba agenta",
 };
 
 const dictionaries: Record<Locale, Dict> = { en, ru, uk, cs };
