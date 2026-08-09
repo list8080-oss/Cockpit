@@ -10,7 +10,18 @@ export interface EngineThread {
   sessionId: string | null;
 }
 
-export type OrchestratorMessageKind = "user" | "dispatched" | "completed";
+export type OrchestratorMessageKind =
+  | "user"
+  | "dispatched"
+  | "completed"
+  /** Real synthesis of agent replies (Orchestrator phase 2). */
+  | "synthesis"
+  /** Failed synthesis call — `text` holds the error reason. */
+  | "synthesis_error"
+  /** Full-access Orchestrator agent reply (phase 3; may have written files). */
+  | "agent_full_access"
+  /** Failed full-access agent call — `text` holds the error reason. */
+  | "agent_full_access_error";
 
 export type OrchestratorAgentId = "claude" | "codex" | "cursor" | "opencode";
 

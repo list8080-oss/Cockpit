@@ -136,6 +136,23 @@ type Dict = {
   orchestratorFinalAnswer: string;
   orchestratorAgentReply: string;
   orchestratorAgentError: string;
+  orchestratorSynthesize: string;
+  orchestratorSynthesizing: string;
+  orchestratorSynthesisIntro: string;
+  orchestratorSynthesisNeedTwo: string;
+  orchestratorSynthesisError: string;
+  orchestratorModeLabel: string;
+  orchestratorModeNormal: string;
+  orchestratorModeFullAccess: string;
+  orchestratorFullAccessWarningTitle: string;
+  orchestratorFullAccessWarningBody: string;
+  orchestratorFullAccessConfirm: string;
+  orchestratorFullAccessCancel: string;
+  orchestratorFullAccessBanner: string;
+  orchestratorSendFullAccess: string;
+  orchestratorFullAccessWaiting: string;
+  orchestratorFullAccessIntro: string;
+  orchestratorFullAccessError: string;
 };
 
 const en: Dict = {
@@ -272,6 +289,26 @@ const en: Dict = {
   orchestratorFinalAnswer: "Final reply",
   orchestratorAgentReply: "Agent reply",
   orchestratorAgentError: "Agent error",
+  orchestratorSynthesize: "Make a conclusion",
+  orchestratorSynthesizing: "Analyzing replies…",
+  orchestratorSynthesisIntro: "Conclusion from the agent replies:",
+  orchestratorSynthesisNeedTwo:
+    "Need at least two successful agent replies before a comparison can be made.",
+  orchestratorSynthesisError: "Could not make a conclusion: {error}",
+  orchestratorModeLabel: "Mode",
+  orchestratorModeNormal: "Normal",
+  orchestratorModeFullAccess: "Full access",
+  orchestratorFullAccessWarningTitle: "Enable full access?",
+  orchestratorFullAccessWarningBody:
+    "In Full access mode the Orchestrator runs a real Claude Code agent session. It can change manuscript files and run shell commands on this computer — not read-only. Only continue if you trust this request.",
+  orchestratorFullAccessConfirm: "Enable full access",
+  orchestratorFullAccessCancel: "Cancel",
+  orchestratorFullAccessBanner:
+    "Full access is on — the Orchestrator can edit manuscript files and run commands on this computer.",
+  orchestratorSendFullAccess: "Send with full access",
+  orchestratorFullAccessWaiting: "Full-access agent is working…",
+  orchestratorFullAccessIntro: "Full-access agent:",
+  orchestratorFullAccessError: "Full-access agent failed: {error}",
 };
 
 const ru: Dict = {
@@ -411,6 +448,26 @@ const ru: Dict = {
   orchestratorFinalAnswer: "Итоговый ответ",
   orchestratorAgentReply: "Ответ агента",
   orchestratorAgentError: "Ошибка агента",
+  orchestratorSynthesize: "Сделать вывод",
+  orchestratorSynthesizing: "Анализирую ответы…",
+  orchestratorSynthesisIntro: "Вывод по ответам агентов:",
+  orchestratorSynthesisNeedTwo:
+    "Нужны ответы хотя бы двух агентов, иначе сравнивать нечего.",
+  orchestratorSynthesisError: "Не удалось сделать вывод: {error}",
+  orchestratorModeLabel: "Режим",
+  orchestratorModeNormal: "Обычный",
+  orchestratorModeFullAccess: "Полный доступ",
+  orchestratorFullAccessWarningTitle: "Включить полный доступ?",
+  orchestratorFullAccessWarningBody:
+    "В режиме «Полный доступ» Оркестратор запускает настоящую агентную сессию Claude Code. Он может менять файлы рукописи и выполнять команды на этом компьютере — это уже не read-only. Продолжайте только если доверяете этому запросу.",
+  orchestratorFullAccessConfirm: "Включить полный доступ",
+  orchestratorFullAccessCancel: "Отмена",
+  orchestratorFullAccessBanner:
+    "Включён полный доступ — Оркестратор может править файлы рукописи и выполнять команды на этом компьютере.",
+  orchestratorSendFullAccess: "Отправить с полным доступом",
+  orchestratorFullAccessWaiting: "Агент с полным доступом работает…",
+  orchestratorFullAccessIntro: "Агент с полным доступом:",
+  orchestratorFullAccessError: "Агент с полным доступом завершился ошибкой: {error}",
 };
 
 const uk: Dict = {
@@ -550,6 +607,26 @@ const uk: Dict = {
   orchestratorFinalAnswer: "Підсумкова відповідь",
   orchestratorAgentReply: "Відповідь агента",
   orchestratorAgentError: "Помилка агента",
+  orchestratorSynthesize: "Зробити висновок",
+  orchestratorSynthesizing: "Аналізую відповіді…",
+  orchestratorSynthesisIntro: "Висновок за відповідями агентів:",
+  orchestratorSynthesisNeedTwo:
+    "Потрібні відповіді щонайменше двох агентів, інакше порівнювати нічого.",
+  orchestratorSynthesisError: "Не вдалося зробити висновок: {error}",
+  orchestratorModeLabel: "Режим",
+  orchestratorModeNormal: "Звичайний",
+  orchestratorModeFullAccess: "Повний доступ",
+  orchestratorFullAccessWarningTitle: "Увімкнути повний доступ?",
+  orchestratorFullAccessWarningBody:
+    "У режимі «Повний доступ» Оркестратор запускає справжню агентну сесію Claude Code. Він може змінювати файли рукопису й виконувати команди на цьому комп’ютері — це вже не read-only. Продовжуйте лише якщо довіряєте цьому запиту.",
+  orchestratorFullAccessConfirm: "Увімкнути повний доступ",
+  orchestratorFullAccessCancel: "Скасувати",
+  orchestratorFullAccessBanner:
+    "Увімкнено повний доступ — Оркестратор може редагувати файли рукопису й виконувати команди на цьому комп’ютері.",
+  orchestratorSendFullAccess: "Надіслати з повним доступом",
+  orchestratorFullAccessWaiting: "Агент із повним доступом працює…",
+  orchestratorFullAccessIntro: "Агент із повним доступом:",
+  orchestratorFullAccessError: "Агент із повним доступом завершився помилкою: {error}",
 };
 
 const cs: Dict = {
@@ -689,6 +766,26 @@ const cs: Dict = {
   orchestratorFinalAnswer: "Finální odpověď",
   orchestratorAgentReply: "Odpověď agenta",
   orchestratorAgentError: "Chyba agenta",
+  orchestratorSynthesize: "Udělat závěr",
+  orchestratorSynthesizing: "Analyzuji odpovědi…",
+  orchestratorSynthesisIntro: "Závěr z odpovědí agentů:",
+  orchestratorSynthesisNeedTwo:
+    "Ke srovnání jsou potřeba úspěšné odpovědi alespoň dvou agentů.",
+  orchestratorSynthesisError: "Závěr se nepodařilo udělat: {error}",
+  orchestratorModeLabel: "Režim",
+  orchestratorModeNormal: "Běžný",
+  orchestratorModeFullAccess: "Plný přístup",
+  orchestratorFullAccessWarningTitle: "Zapnout plný přístup?",
+  orchestratorFullAccessWarningBody:
+    "V režimu Plný přístup Orchestrátor spouští skutečnou agentní relaci Claude Code. Může měnit soubory rukopisu a spouštět příkazy na tomto počítači — už to není jen pro čtení. Pokračujte jen pokud tomuto požadavku důvěřujete.",
+  orchestratorFullAccessConfirm: "Zapnout plný přístup",
+  orchestratorFullAccessCancel: "Zrušit",
+  orchestratorFullAccessBanner:
+    "Plný přístup je zapnutý — Orchestrátor může upravovat soubory rukopisu a spouštět příkazy na tomto počítači.",
+  orchestratorSendFullAccess: "Odeslat s plným přístupem",
+  orchestratorFullAccessWaiting: "Agent s plným přístupem pracuje…",
+  orchestratorFullAccessIntro: "Agent s plným přístupem:",
+  orchestratorFullAccessError: "Agent s plným přístupem selhal: {error}",
 };
 
 const dictionaries: Record<Locale, Dict> = { en, ru, uk, cs };

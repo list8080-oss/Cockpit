@@ -165,6 +165,70 @@ pub async fn run_claude(
     Err(format!("claude exited with {}: {}", output.status, stderr.trim()))
 }
 
+/// Orchestrator "Full access" mode — the sole intentional exception to this
+/// project's read-only engine policy. Unlike `run_claude` (and the other
+/// engines), this path is allowed to write manuscript files and run shell
+/// commands: it passes `--dangerously-skip-permissions` so headless `-p`
+/// turns can use Claude Code's normal tool set without a TTY prompt.
+///
+/// Flag name verified empirically against the installed CLI (`claude --help`
+/// / `claude -p --help`, @anthropic-ai/claude-code 2.1.226):
+/// `--dangerously-skip-permissions` ("Bypass all permission checks").
+/// Resume uses the same `-r` / `--resume` as `run_claude`. Do not reuse this
+/// for the Claude column or for Orchestrator synthesis — those stay read-only.
+#[tauri::command]
+pub async fn run_orchestrator_agent(
+    prompt: String,
+    session_id: Option<String>,
+    model: String,
+    effort: String,
+) -> Result<EngineReply, String> {
+    let cwd = manuscript_root()?;
+    let mut cmd = Command::new(claude_bin());
+    cmd.current_dir(&cwd)
+        .stdin(Stdio::null())
+        .arg("-p")
+        .arg("--dangerously-skip-permissions");
+    if let Some(sid) = &session_id {
+        cmd.arg("-r").arg(sid);
+    }
+    if !model.is_empty() {
+        cmd.arg("--model").arg(&model);
+    }
+    if !effort.is_empty() {
+        cmd.arg("--effort").arg(&effort);
+    }
+    let output = cmd
+        .arg(&prompt)
+        .arg("--output-format")
+        .arg("json")
+        .output()
+        .await
+        .map_err(|e| format!("failed to run claude (orchestrator agent): {e}"))?;
+
+    // Same stdout-first error parsing as `run_claude`: non-zero exits often
+    // still carry a human-readable reason in the JSON `result` field.
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if let Ok(json) = serde_json::from_str::<Value>(stdout.trim()) {
+        let is_error = json.get("is_error").and_then(Value::as_bool).unwrap_or(false);
+        if let Some(result) = json.get("result").and_then(Value::as_str) {
+            if is_error {
+                return Err(result.to_string());
+            }
+            let text = require_nonempty(result.to_string(), "claude (orchestrator agent)")?;
+            let new_session_id = json.get("session_id").and_then(Value::as_str).map(str::to_string);
+            return Ok(EngineReply { text, session_id: new_session_id });
+        }
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    Err(format!(
+        "claude (orchestrator agent) exited with {}: {}",
+        output.status,
+        stderr.trim()
+    ))
+}
+
 /// `--mode plan` is Cursor's read-only planning mode (analyze, propose a
 /// plan, no edits, no shell) — same safety posture as `ask` but with more
 /// room to reason before answering, matching the other two engines here,

@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.27",
+    date: "2026-08-09",
+    notes: {
+      en: "Orchestrator: a \"Make a conclusion\" button now asks Claude to actually compare the agents' replies and give a verdict. New \"Full access\" mode (off by default, requires confirmation, never persisted) lets the Orchestrator run a real Claude Code agent session that can edit manuscript files and run shell commands on this computer — a deliberate, clearly-marked exception to this app's normal read-only behavior.",
+      ru: "Оркестратор: кнопка «Сделать вывод» теперь реально просит Claude сравнить ответы агентов и дать заключение. Новый режим «Полный доступ» (по умолчанию выключен, требует подтверждения, никогда не сохраняется) позволяет Оркестратору запускать настоящую агентную сессию Claude Code, которая может править файлы рукописи и выполнять команды на этом компьютере — осознанное, явно помеченное исключение из обычного read-only поведения приложения.",
+      uk: "Оркестратор: кнопка «Зробити висновок» тепер справді просить Claude порівняти відповіді агентів і дати висновок. Новий режим «Повний доступ» (вимкнений за замовчуванням, потребує підтвердження, ніколи не зберігається) дозволяє Оркестратору запускати справжню агентну сесію Claude Code, яка може редагувати файли рукопису й виконувати команди на цьому комп'ютері — свідомий, явно позначений виняток зі звичайної read-only поведінки застосунку.",
+      cs: "Orchestrátor: tlačítko „Udělat závěr“ nyní skutečně požádá Claude o porovnání odpovědí agentů a vynesení verdiktu. Nový režim „Plný přístup“ (ve výchozím stavu vypnutý, vyžaduje potvrzení, nikdy se neukládá) umožňuje Orchestrátoru spustit skutečnou agentní relaci Claude Code, která může upravovat soubory rukopisu a spouštět příkazy na tomto počítači — záměrná, jasně označená výjimka z běžného read-only chování aplikace.",
+    },
+  },
+  {
     version: "0.3.26",
     date: "2026-08-09",
     notes: {

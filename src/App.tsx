@@ -38,12 +38,20 @@ import {
 import {
   AgentPanels,
   OrchestratorChat,
+  buildSynthesisPrompt,
+  canRunSynthesis,
+  createAgentFullAccessErrorMessage,
+  createAgentFullAccessMessage,
   createCompletedMessage,
   createDispatchedMessage,
+  createSynthesisErrorMessage,
+  createSynthesisMessage,
   createUserMessage,
+  lastAssistantText,
   legacyMessagesFromConversation,
   runOrchestratorFanout,
   summarizeFanoutResults,
+  type AgentReplySnapshot,
 } from "./orchestrator";
 import "./App.css";
 
@@ -1402,6 +1410,12 @@ export default function App() {
   );
   const [expandedAgentPanel, setExpandedAgentPanel] =
     useState<OrchestratorAgentId | null>(null);
+  /** Orchestrator "Full access" — session memory only; never localStorage. */
+  const [fullAccessMode, setFullAccessMode] = useState(false);
+  const [orchestratorAgentSessionId, setOrchestratorAgentSessionId] = useState<
+    string | null
+  >(null);
+  const [orchestratorAgentBusy, setOrchestratorAgentBusy] = useState(false);
   const [auths, setAuths] = useState<AuthStatus[]>([]);
   const [authLoading, setAuthLoading] = useState(true);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
@@ -1735,6 +1749,14 @@ export default function App() {
   // CLI session can then race, and one of the two replies gets lost. These
   // refs make each send/reply a no-op while its own request is in flight.
   const sendBusyRef = useRef(false);
+  const synthesizeBusyRef = useRef(false);
+  const [synthesizing, setSynthesizing] = useState(false);
+
+  const setFullAccessModeSafe = (enabled: boolean) => {
+    setFullAccessMode(enabled);
+    // MVP: toggling off (or re-enabling later) starts a fresh agent session.
+    setOrchestratorAgentSessionId(null);
+  };
   const claudeBusyRef = useRef(false);
   const codexBusyRef = useRef(false);
   const cursorBusyRef = useRef(false);
@@ -1818,15 +1840,13 @@ export default function App() {
     else setOpencode(err);
   };
 
-  const send = () => {
-    if (!prompt.trim() || sendBusyRef.current) return;
-    sendBusyRef.current = true;
-    const userText = prompt;
+  const ensureConversationForSend = (
+    userText: string,
+    seedMessages: OrchestratorMessage[],
+  ): string => {
     const followUp = !!activeConversationId;
     const id = followUp ? activeConversationId! : crypto.randomUUID();
     const now = Date.now();
-    const userMessage = createUserMessage(userText);
-    const dispatchedMessage = createDispatchedMessage();
 
     if (!followUp) {
       const conversation: AgentConversation = {
@@ -1839,9 +1859,7 @@ export default function App() {
         codex: emptyEngineThread(),
         cursor: emptyEngineThread(),
         opencode: emptyEngineThread(),
-        orchestrator: {
-          messages: [userMessage, dispatchedMessage],
-        },
+        orchestrator: { messages: seedMessages },
       };
       setConversations((prev) => {
         const next = [conversation, ...prev];
@@ -1850,7 +1868,7 @@ export default function App() {
       });
       setActiveConversationId(id);
       persistActiveConversationId(id);
-      setOrchestratorMessages([userMessage, dispatchedMessage]);
+      setOrchestratorMessages(seedMessages);
       setClaudeSessionId(null);
       setCodexThreadId(null);
       setCursorSessionId(null);
@@ -1860,14 +1878,68 @@ export default function App() {
       setCursorHistory([]);
       setOpencodeHistory([]);
     } else {
-      const messages = [...orchestratorMessages, userMessage, dispatchedMessage];
-      setOrchestratorMessages(messages);
+      setOrchestratorMessages(seedMessages);
       upsertConversation(id, (c) => ({
         ...c,
         updatedAt: Date.now(),
-        orchestrator: { messages },
+        orchestrator: { messages: seedMessages },
       }));
     }
+    return id;
+  };
+
+  const sendFullAccess = () => {
+    if (!prompt.trim() || sendBusyRef.current || synthesizeBusyRef.current) return;
+    sendBusyRef.current = true;
+    const userText = prompt;
+    const userMessage = createUserMessage(userText);
+    const seedMessages = [...orchestratorMessages, userMessage];
+    const id = ensureConversationForSend(userText, seedMessages);
+    const resumeSessionId = orchestratorAgentSessionId;
+
+    setPrompt("");
+    setOrchestratorAgentBusy(true);
+
+    invoke<EngineReply>("run_orchestrator_agent", {
+      prompt: userText,
+      sessionId: resumeSessionId,
+      model: claudeModel,
+      effort: claudeEffort,
+    })
+      .then((reply) => {
+        if (isStillActive(id)) {
+          setOrchestratorAgentSessionId(reply.sessionId);
+        }
+        appendOrchestratorMessage(id, createAgentFullAccessMessage(reply.text));
+      })
+      .catch((e) => {
+        appendOrchestratorMessage(
+          id,
+          createAgentFullAccessErrorMessage(String(e)),
+        );
+      })
+      .finally(() => {
+        sendBusyRef.current = false;
+        if (isStillActive(id)) setOrchestratorAgentBusy(false);
+        else setOrchestratorAgentBusy(false);
+      });
+  };
+
+  const send = () => {
+    if (!prompt.trim() || sendBusyRef.current) return;
+    if (fullAccessMode) {
+      sendFullAccess();
+      return;
+    }
+    sendBusyRef.current = true;
+    const userText = prompt;
+    const followUp = !!activeConversationId;
+    const userMessage = createUserMessage(userText);
+    const dispatchedMessage = createDispatchedMessage();
+    const seedMessages = followUp
+      ? [...orchestratorMessages, userMessage, dispatchedMessage]
+      : [userMessage, dispatchedMessage];
+    const id = ensureConversationForSend(userText, seedMessages);
 
     setPrompt("");
     setClaudeReply("");
@@ -1933,6 +2005,101 @@ export default function App() {
       })
       .finally(() => {
         sendBusyRef.current = false;
+      });
+  };
+
+  const synthesisAgentSnapshots = (): AgentReplySnapshot[] => [
+    {
+      id: "claude",
+      replyText: lastAssistantText(claudeHistory),
+      state: claude,
+    },
+    {
+      id: "codex",
+      replyText: lastAssistantText(codexHistory),
+      state: codex,
+    },
+    {
+      id: "cursor",
+      replyText: lastAssistantText(cursorHistory),
+      state: cursor,
+    },
+    {
+      id: "opencode",
+      replyText: lastAssistantText(opencodeHistory),
+      state: opencode,
+    },
+  ];
+
+  const lastUserRoundText = (): string => {
+    for (let i = orchestratorMessages.length - 1; i >= 0; i -= 1) {
+      const msg = orchestratorMessages[i];
+      if (msg.kind === "user" && msg.text.trim()) return msg.text;
+    }
+    return conversations.find((c) => c.id === activeConversationId)?.prompt ?? "";
+  };
+
+  const appendOrchestratorMessage = (
+    conversationId: string,
+    message: OrchestratorMessage,
+  ) => {
+    upsertConversation(conversationId, (c) => {
+      const existing = c.orchestrator?.messages ?? [];
+      if (existing.some((m) => m.id === message.id)) return c;
+      return {
+        ...c,
+        updatedAt: Date.now(),
+        orchestrator: { messages: [...existing, message] },
+      };
+    });
+    if (!isStillActive(conversationId)) return;
+    setOrchestratorMessages((prev) =>
+      prev.some((m) => m.id === message.id) ? prev : [...prev, message],
+    );
+  };
+
+  const synthesize = () => {
+    if (
+      !activeConversationId ||
+      fullAccessMode ||
+      busy ||
+      synthesizeBusyRef.current ||
+      sendBusyRef.current
+    ) {
+      return;
+    }
+    const agents = synthesisAgentSnapshots();
+    if (!canRunSynthesis(agents)) return;
+
+    const conversationId = activeConversationId;
+    const sourceText = lastUserRoundText();
+    const promptText = buildSynthesisPrompt({ sourceText, agents });
+
+    synthesizeBusyRef.current = true;
+    setSynthesizing(true);
+
+    invoke<EngineReply>("run_claude", {
+      prompt: promptText,
+      sessionId: null,
+      model: claudeModel,
+      effort: claudeEffort,
+    })
+      .then((reply) => {
+        appendOrchestratorMessage(
+          conversationId,
+          createSynthesisMessage(reply.text),
+        );
+      })
+      .catch((e) => {
+        appendOrchestratorMessage(
+          conversationId,
+          createSynthesisErrorMessage(String(e)),
+        );
+      })
+      .finally(() => {
+        synthesizeBusyRef.current = false;
+        if (isStillActive(conversationId)) setSynthesizing(false);
+        else setSynthesizing(false);
       });
   };
 
@@ -2133,6 +2300,9 @@ export default function App() {
         : legacyMessagesFromConversation(conversation.prompt),
     );
     setExpandedAgentPanel(null);
+    setFullAccessMode(false);
+    setOrchestratorAgentSessionId(null);
+    setOrchestratorAgentBusy(false);
     setWorkspaceMode("agents");
     setView("workspace");
   };
@@ -2158,6 +2328,11 @@ export default function App() {
     setOpencode({ status: "idle" });
     setOrchestratorMessages([]);
     setExpandedAgentPanel(null);
+    setSynthesizing(false);
+    synthesizeBusyRef.current = false;
+    setFullAccessMode(false);
+    setOrchestratorAgentSessionId(null);
+    setOrchestratorAgentBusy(false);
   };
 
   const deleteConversation = (id: string) => {
@@ -2174,10 +2349,18 @@ export default function App() {
   };
 
   const busy =
+    orchestratorAgentBusy ||
     claude.status === "running" ||
     codex.status === "running" ||
     cursor.status === "running" ||
     opencode.status === "running";
+
+  const canSynthesize =
+    !fullAccessMode &&
+    !busy &&
+    !synthesizing &&
+    !!activeConversationId &&
+    canRunSynthesis(synthesisAgentSnapshots());
 
   useEffect(() => {
     try {
@@ -2617,6 +2800,11 @@ export default function App() {
                 onDraftChange={setPrompt}
                 onSend={send}
                 busy={busy}
+                canSynthesize={canSynthesize}
+                synthesizing={synthesizing}
+                onSynthesize={synthesize}
+                fullAccessMode={fullAccessMode}
+                onFullAccessModeChange={setFullAccessModeSafe}
               />
             </div>
           )}

@@ -50,6 +50,48 @@ export function createCompletedMessage(input: {
   };
 }
 
+export function createSynthesisMessage(text: string): OrchestratorMessage {
+  return {
+    id: newId(),
+    role: "orchestrator",
+    kind: "synthesis",
+    createdAt: Date.now(),
+    text,
+  };
+}
+
+export function createSynthesisErrorMessage(error: string): OrchestratorMessage {
+  return {
+    id: newId(),
+    role: "orchestrator",
+    kind: "synthesis_error",
+    createdAt: Date.now(),
+    text: error,
+  };
+}
+
+export function createAgentFullAccessMessage(text: string): OrchestratorMessage {
+  return {
+    id: newId(),
+    role: "orchestrator",
+    kind: "agent_full_access",
+    createdAt: Date.now(),
+    text,
+  };
+}
+
+export function createAgentFullAccessErrorMessage(
+  error: string,
+): OrchestratorMessage {
+  return {
+    id: newId(),
+    role: "orchestrator",
+    kind: "agent_full_access_error",
+    createdAt: Date.now(),
+    text: error,
+  };
+}
+
 const AGENT_LABEL: Record<OrchestratorAgentId, string> = {
   claude: "Claude",
   codex: "Codex",
@@ -103,6 +145,14 @@ export function formatOrchestratorMessage(
       lines.push(t(locale, "orchestratorSeePanels"));
       return lines.join("\n");
     }
+    case "synthesis":
+      return `${t(locale, "orchestratorSynthesisIntro")}\n\n${message.text}`;
+    case "synthesis_error":
+      return t(locale, "orchestratorSynthesisError", { error: message.text });
+    case "agent_full_access":
+      return `${t(locale, "orchestratorFullAccessIntro")}\n\n${message.text}`;
+    case "agent_full_access_error":
+      return t(locale, "orchestratorFullAccessError", { error: message.text });
     default:
       return message.text;
   }
