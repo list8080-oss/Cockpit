@@ -2302,8 +2302,17 @@ export default function App() {
     );
   }
 
+  const showOrchestratorChrome = workspaceMode === "agents";
+
   return (
-    <div className="app">
+    <div className={showOrchestratorChrome ? "app app-orchestrator" : "app"}>
+      {showOrchestratorChrome && (
+        <header className="orchestrator-banner">
+          <h1 className="orchestrator-title">{t(locale, "orchestrator")}</h1>
+          <p className="orchestrator-subtitle muted">{t(locale, "orchestratorHint")}</p>
+        </header>
+      )}
+      <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-panels">
           <section
@@ -2609,148 +2618,160 @@ export default function App() {
                 onSend={send}
                 busy={busy}
               />
-              <AgentPanels
-                locale={locale}
-                expandedId={expandedAgentPanel}
-                onToggle={(id) =>
-                  setExpandedAgentPanel((current) => (current === id ? null : id))
-                }
-                panels={[
-                  {
-                    id: "claude",
-                    state: claude,
-                    auth: authById("claude"),
-                    authLoading,
-                    body: (
-                      <Variant
-                        label="Claude"
-                        state={claude}
-                        history={claudeHistory}
-                        locale={locale}
-                        auth={authById("claude")}
-                        authLoading={authLoading}
-                        sessionId={claudeSessionId}
-                        replyValue={claudeReply}
-                        onReplyChange={setClaudeReply}
-                        onReplySend={continueClaude}
-                        modelMenu={
-                          <AgentModelMenu
-                            locale={locale}
-                            model={claudeModel}
-                            onModelChange={setClaudeModel}
-                            modelOptions={CLAUDE_MODEL_OPTIONS}
-                            effort={claudeEffort}
-                            onEffortChange={setClaudeEffort}
-                            effortOptions={CLAUDE_EFFORT_OPTIONS}
-                          />
-                        }
-                      />
-                    ),
-                  },
-                  {
-                    id: "codex",
-                    state: codex,
-                    auth: authById("codex"),
-                    authLoading,
-                    body: (
-                      <Variant
-                        label="Codex (Sol)"
-                        state={codex}
-                        history={codexHistory}
-                        locale={locale}
-                        auth={authById("codex")}
-                        authLoading={authLoading}
-                        limits={codexLimits}
-                        limitsLoading={codexLimitsLoading}
-                        onRefreshLimits={() => {
-                          void refreshCodexLimits();
-                        }}
-                        sessionId={codexThreadId}
-                        replyValue={codexReply}
-                        onReplyChange={setCodexReply}
-                        onReplySend={continueCodex}
-                        modelMenu={
-                          <AgentModelMenu
-                            locale={locale}
-                            model={codexModel}
-                            onModelChange={setCodexModel}
-                            modelOptions={CODEX_MODEL_OPTIONS}
-                            effort={codexEffort}
-                            onEffortChange={setCodexEffort}
-                            effortOptions={CODEX_EFFORT_OPTIONS}
-                          />
-                        }
-                      />
-                    ),
-                  },
-                  {
-                    id: "cursor",
-                    state: cursor,
-                    auth: authById("cursor"),
-                    authLoading,
-                    body: (
-                      <Variant
-                        label="Cursor (plan)"
-                        state={cursor}
-                        history={cursorHistory}
-                        locale={locale}
-                        auth={authById("cursor")}
-                        authLoading={authLoading}
-                        sessionId={cursorSessionId}
-                        replyValue={cursorReply}
-                        onReplyChange={setCursorReply}
-                        onReplySend={continueCursor}
-                        modelMenu={
-                          <AgentModelMenu
-                            locale={locale}
-                            model={cursorModel}
-                            onModelChange={setCursorModel}
-                            modelOptions={cursorModelOptions}
-                          />
-                        }
-                      />
-                    ),
-                  },
-                  {
-                    id: "opencode",
-                    state: opencode,
-                    auth: authById("opencode"),
-                    authLoading,
-                    body: (
-                      <Variant
-                        label="OpenCode (plan)"
-                        state={opencode}
-                        history={opencodeHistory}
-                        locale={locale}
-                        auth={authById("opencode")}
-                        authLoading={authLoading}
-                        sessionId={opencodeSessionId}
-                        replyValue={opencodeReply}
-                        onReplyChange={setOpencodeReply}
-                        onReplySend={continueOpencode}
-                        modelMenu={
-                          <AgentModelMenu
-                            locale={locale}
-                            model={opencodeModel}
-                            onModelChange={setOpencodeModel}
-                            modelOptions={opencodeModelOptions}
-                            effort={opencodeEffort}
-                            onEffortChange={setOpencodeEffort}
-                            effortOptions={OPENCODE_EFFORT_OPTIONS}
-                          />
-                        }
-                      />
-                    ),
-                  },
-                ]}
-              />
             </div>
           )}
         </div>
-        <div className="main-footer">
-          <UpdateBar locale={locale} />
-        </div>
+        {!showOrchestratorChrome && (
+          <div className="main-footer">
+            <UpdateBar locale={locale} />
+          </div>
+        )}
       </main>
+      </div>
+      {showOrchestratorChrome && (
+        <>
+          <section className="orchestrator-agents-dock">
+            <AgentPanels
+              locale={locale}
+              expandedId={expandedAgentPanel}
+              onToggle={(id) =>
+                setExpandedAgentPanel((current) => (current === id ? null : id))
+              }
+              panels={[
+                {
+                  id: "claude",
+                  state: claude,
+                  auth: authById("claude"),
+                  authLoading,
+                  body: (
+                    <Variant
+                      label="Claude"
+                      state={claude}
+                      history={claudeHistory}
+                      locale={locale}
+                      auth={authById("claude")}
+                      authLoading={authLoading}
+                      sessionId={claudeSessionId}
+                      replyValue={claudeReply}
+                      onReplyChange={setClaudeReply}
+                      onReplySend={continueClaude}
+                      modelMenu={
+                        <AgentModelMenu
+                          locale={locale}
+                          model={claudeModel}
+                          onModelChange={setClaudeModel}
+                          modelOptions={CLAUDE_MODEL_OPTIONS}
+                          effort={claudeEffort}
+                          onEffortChange={setClaudeEffort}
+                          effortOptions={CLAUDE_EFFORT_OPTIONS}
+                        />
+                      }
+                    />
+                  ),
+                },
+                {
+                  id: "codex",
+                  state: codex,
+                  auth: authById("codex"),
+                  authLoading,
+                  body: (
+                    <Variant
+                      label="Codex (Sol)"
+                      state={codex}
+                      history={codexHistory}
+                      locale={locale}
+                      auth={authById("codex")}
+                      authLoading={authLoading}
+                      limits={codexLimits}
+                      limitsLoading={codexLimitsLoading}
+                      onRefreshLimits={() => {
+                        void refreshCodexLimits();
+                      }}
+                      sessionId={codexThreadId}
+                      replyValue={codexReply}
+                      onReplyChange={setCodexReply}
+                      onReplySend={continueCodex}
+                      modelMenu={
+                        <AgentModelMenu
+                          locale={locale}
+                          model={codexModel}
+                          onModelChange={setCodexModel}
+                          modelOptions={CODEX_MODEL_OPTIONS}
+                          effort={codexEffort}
+                          onEffortChange={setCodexEffort}
+                          effortOptions={CODEX_EFFORT_OPTIONS}
+                        />
+                      }
+                    />
+                  ),
+                },
+                {
+                  id: "cursor",
+                  state: cursor,
+                  auth: authById("cursor"),
+                  authLoading,
+                  body: (
+                    <Variant
+                      label="Cursor (plan)"
+                      state={cursor}
+                      history={cursorHistory}
+                      locale={locale}
+                      auth={authById("cursor")}
+                      authLoading={authLoading}
+                      sessionId={cursorSessionId}
+                      replyValue={cursorReply}
+                      onReplyChange={setCursorReply}
+                      onReplySend={continueCursor}
+                      modelMenu={
+                        <AgentModelMenu
+                          locale={locale}
+                          model={cursorModel}
+                          onModelChange={setCursorModel}
+                          modelOptions={cursorModelOptions}
+                        />
+                      }
+                    />
+                  ),
+                },
+                {
+                  id: "opencode",
+                  state: opencode,
+                  auth: authById("opencode"),
+                  authLoading,
+                  body: (
+                    <Variant
+                      label="OpenCode (plan)"
+                      state={opencode}
+                      history={opencodeHistory}
+                      locale={locale}
+                      auth={authById("opencode")}
+                      authLoading={authLoading}
+                      sessionId={opencodeSessionId}
+                      replyValue={opencodeReply}
+                      onReplyChange={setOpencodeReply}
+                      onReplySend={continueOpencode}
+                      modelMenu={
+                        <AgentModelMenu
+                          locale={locale}
+                          model={opencodeModel}
+                          onModelChange={setOpencodeModel}
+                          modelOptions={opencodeModelOptions}
+                          effort={opencodeEffort}
+                          onEffortChange={setOpencodeEffort}
+                          effortOptions={OPENCODE_EFFORT_OPTIONS}
+                        />
+                      }
+                    />
+                  ),
+                },
+              ]}
+            />
+          </section>
+          <div className="orchestrator-app-footer">
+            <UpdateBar locale={locale} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

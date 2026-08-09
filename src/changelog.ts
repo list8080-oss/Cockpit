@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.26",
+    date: "2026-08-09",
+    notes: {
+      en: "Orchestrator layout polish: full-width title banner, agents shown as a horizontal row below a roomier main chat instead of a squeezed column.",
+      ru: "Доработка раскладки Оркестратора: заголовок стал полноширинным баннером, агенты показаны горизонтальным рядом под более просторным главным чатом вместо сжатой колонки.",
+      uk: "Доопрацювання розкладки Оркестратора: заголовок став повношириним банером, агенти показані горизонтальним рядом під просторнішим головним чатом замість стиснутої колонки.",
+      cs: "Vylepšení rozvržení Orchestrátoru: nadpis je nyní banner přes celou šířku, agenti jsou zobrazeni v horizontální řadě pod prostornějším hlavním chatem místo stísněného sloupce.",
+    },
+  },
+  {
     version: "0.3.25",
     date: "2026-08-09",
     notes: {

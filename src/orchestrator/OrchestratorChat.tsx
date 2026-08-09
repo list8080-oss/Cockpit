@@ -26,11 +26,6 @@ export function OrchestratorChat({
 
   return (
     <div className="orchestrator-chat">
-      <div className="orchestrator-chat-head">
-        <h2 className="orchestrator-title">{t(locale, "orchestrator")}</h2>
-        <p className="orchestrator-subtitle muted">{t(locale, "orchestratorHint")}</p>
-      </div>
-
       <div className="orchestrator-transcript" role="log" aria-live="polite">
         {messages.length === 0 && !busy && (
           <div className="orchestrator-empty muted">{t(locale, "orchestratorEmpty")}</div>

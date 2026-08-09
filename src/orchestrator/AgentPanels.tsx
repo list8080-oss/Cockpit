@@ -42,6 +42,8 @@ export function AgentPanels({
   expandedId: OrchestratorAgentId | null;
   onToggle: (id: OrchestratorAgentId) => void;
 }) {
+  const expanded = panels.find((panel) => panel.id === expandedId) ?? null;
+
   return (
     <div className="agent-panels">
       <div className="agent-panels-label muted">{t(locale, "orchestratorAgentPanels")}</div>
@@ -53,37 +55,46 @@ export function AgentPanels({
             panel.state,
             panel.authLoading,
           );
-          const expanded = expandedId === panel.id;
+          const isOpen = expandedId === panel.id;
           return (
-            <div
+            <button
               key={panel.id}
+              type="button"
               className={
-                expanded ? "agent-panel agent-panel-expanded" : "agent-panel"
+                isOpen ? "agent-panel-card agent-panel-card-active" : "agent-panel-card"
+              }
+              onClick={() => onToggle(panel.id)}
+              aria-expanded={isOpen}
+              title={
+                isOpen
+                  ? t(locale, "orchestratorCollapsePanel")
+                  : t(locale, "orchestratorExpandPanel")
               }
             >
-              <button
-                type="button"
-                className="agent-panel-toggle"
-                onClick={() => onToggle(panel.id)}
-                aria-expanded={expanded}
-                title={
-                  expanded
-                    ? t(locale, "orchestratorCollapsePanel")
-                    : t(locale, "orchestratorExpandPanel")
-                }
-              >
-                <span className={lampClass(lamp)} aria-hidden />
+              <span className={lampClass(lamp)} aria-hidden />
+              <span className="agent-panel-card-text">
                 <span className="agent-panel-name">{agentDisplayName(panel.id)}</span>
                 <span className="agent-panel-status">{t(locale, statusKey)}</span>
-                <span className="agent-panel-chevron" aria-hidden>
-                  {expanded ? "▾" : "▸"}
-                </span>
-              </button>
-              {expanded && <div className="agent-panel-body">{panel.body}</div>}
-            </div>
+              </span>
+            </button>
           );
         })}
       </div>
+      {expanded && (
+        <div className="agent-panel-detail">
+          <div className="agent-panel-detail-head">
+            <span className="agent-panel-name">{agentDisplayName(expanded.id)}</span>
+            <button
+              type="button"
+              className="agent-panel-detail-close"
+              onClick={() => onToggle(expanded.id)}
+            >
+              {t(locale, "orchestratorCollapsePanel")}
+            </button>
+          </div>
+          <div className="agent-panel-body">{expanded.body}</div>
+        </div>
+      )}
     </div>
   );
 }
