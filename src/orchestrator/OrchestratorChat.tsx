@@ -12,6 +12,28 @@ import type { OrchestratorContext } from "./runFanout";
 import { roleLabel, rolesForProfile } from "../roles";
 import { profileLabel, type ProjectProfile } from "../profiles";
 
+function diffLineClass(line: string): string {
+  if (line.startsWith("+++") || line.startsWith("---")) return "orchestrator-diff-line";
+  if (line.startsWith("+")) return "orchestrator-diff-line orchestrator-diff-line-add";
+  if (line.startsWith("-")) return "orchestrator-diff-line orchestrator-diff-line-del";
+  if (line.startsWith("@@")) return "orchestrator-diff-line orchestrator-diff-line-hunk";
+  return "orchestrator-diff-line";
+}
+
+function DiffLines({ diff }: { diff: string }) {
+  const lines = diff.split("\n");
+  return (
+    <pre className="orchestrator-proposal-diff">
+      {lines.map((line, i) => (
+        <span key={i} className={diffLineClass(line)}>
+          {line}
+          {i < lines.length - 1 ? "\n" : ""}
+        </span>
+      ))}
+    </pre>
+  );
+}
+
 function proposalStatusFor(
   message: OrchestratorMessage,
   path: string,
@@ -379,7 +401,7 @@ export function OrchestratorChat({
                   {(message.proposalChanges ?? []).map((change) => (
                     <div key={`${message.id}:${change.path}`} className="orchestrator-proposal-file">
                       <div className="orchestrator-proposal-path">{change.path}</div>
-                      <pre className="orchestrator-proposal-diff">{change.diff}</pre>
+                      <DiffLines diff={change.diff} />
                       <ProposalFileActions
                         locale={locale}
                         messageId={message.id}

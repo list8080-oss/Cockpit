@@ -1,5 +1,5 @@
-//! Local storage for the Loomdraft-based writing editor (images under an
-//! app-data "project" directory). Does not touch the manuscript repo.
+//! Local storage for the writing editor (images under an app-data
+//! "project" directory). Does not touch the manuscript repo.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::path::{Path, PathBuf};

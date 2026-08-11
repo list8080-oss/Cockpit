@@ -13,9 +13,9 @@ import { VersionHistory } from "./VersionHistory";
 import { parseHeadings } from "../utils/headings";
 import { countWords, countChars } from "../utils/wordCount";
 import { useCodeMirror, type CursorPosition } from "../editor/useCodeMirror";
-import { loomdraftTheme, manuscriptTheme, misspelledStyle } from "../editor/theme";
+import { editorBaseTheme, manuscriptTheme, misspelledStyle } from "../editor/theme";
 import { spellCheckExtension } from "../editor/spellCheckExtension";
-import { loomdraftKeymap } from "../editor/keymaps";
+import { editorKeymap } from "../editor/keymaps";
 import {
   manifestFacet,
   projectPathFacet,
@@ -84,14 +84,14 @@ export function Editor({
   const [showHistory, setShowHistory] = useState(false);
   const [spellCheck, setSpellCheck] = useState(() => {
     try {
-      return localStorage.getItem("loomdraft-spellcheck") === "true";
+      return localStorage.getItem("writing-editor-spellcheck") === "true";
     } catch {
       return false;
     }
   });
   const [manuscriptMode, setManuscriptMode] = useState(() => {
     try {
-      return localStorage.getItem("loomdraft-manuscript-mode") === "true";
+      return localStorage.getItem("writing-editor-manuscript-mode") === "true";
     } catch {
       return false;
     }
@@ -101,7 +101,7 @@ export function Editor({
   const [cursorPos, setCursorPos] = useState<CursorPosition>({ line: 1, col: 1 });
   const [wordGoal, setWordGoal] = useState<number | null>(() => {
     try {
-      const stored = localStorage.getItem(`loomdraft-goal:${doc.id}`);
+      const stored = localStorage.getItem(`writing-editor-goal:${doc.id}`);
       return stored ? Number(stored) : null;
     } catch {
       return null;
@@ -258,7 +258,7 @@ export function Editor({
     setSelectionText("");
     setShowGoalInput(false);
     try {
-      const stored = localStorage.getItem(`loomdraft-goal:${doc.id}`);
+      const stored = localStorage.getItem(`writing-editor-goal:${doc.id}`);
       setWordGoal(stored ? Number(stored) : null);
     } catch {
       setWordGoal(null);
@@ -281,13 +281,13 @@ export function Editor({
 
   const extensions = useMemo(() => {
     const exts = [
-      loomdraftTheme,
+      editorBaseTheme,
       history({ newGroupDelay: UNDO_GROUP_DELAY_MS }),
       keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
       search(),
       markdown(),
       placeholder("Start writing\u2026 Use [[Node Title]] to link to any document."),
-      loomdraftKeymap({
+      editorKeymap({
         onSave: () => keymapCallbacksRef.current.onSave(),
         onToggleDistractionFree: () => keymapCallbacksRef.current.onToggleDistractionFree(),
         onToggleOutline: () => keymapCallbacksRef.current.onToggleOutline(),
@@ -403,7 +403,7 @@ export function Editor({
       ),
     });
     try {
-      localStorage.setItem("loomdraft-spellcheck", String(spellCheck));
+      localStorage.setItem("writing-editor-spellcheck", String(spellCheck));
     } catch {
       /* noop */
     }
@@ -417,7 +417,7 @@ export function Editor({
       effects: manuscriptCompartment.current.reconfigure(manuscriptMode ? manuscriptTheme : []),
     });
     try {
-      localStorage.setItem("loomdraft-manuscript-mode", String(manuscriptMode));
+      localStorage.setItem("writing-editor-manuscript-mode", String(manuscriptMode));
     } catch {
       /* noop */
     }
@@ -893,14 +893,14 @@ export function Editor({
                       if (val > 0) {
                         setWordGoal(val);
                         try {
-                          localStorage.setItem(`loomdraft-goal:${doc.id}`, String(val));
+                          localStorage.setItem(`writing-editor-goal:${doc.id}`, String(val));
                         } catch {
                           /* ignore */
                         }
                       } else {
                         setWordGoal(null);
                         try {
-                          localStorage.removeItem(`loomdraft-goal:${doc.id}`);
+                          localStorage.removeItem(`writing-editor-goal:${doc.id}`);
                         } catch {
                           /* ignore */
                         }

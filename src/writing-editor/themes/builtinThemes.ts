@@ -5,7 +5,7 @@ import type { ThemeDefinition, ThemeMetadata } from "./themeTypes";
 const dark: ThemeDefinition = {
   name: "Dark",
   id: "dark",
-  author: "Loomdraft",
+  author: "InPrincipio",
   version: 1,
   appearance: "dark",
   colors: {
@@ -36,7 +36,7 @@ const dark: ThemeDefinition = {
 const light: ThemeDefinition = {
   name: "Light",
   id: "light",
-  author: "Loomdraft",
+  author: "InPrincipio",
   version: 1,
   appearance: "light",
   colors: {
@@ -67,7 +67,7 @@ const light: ThemeDefinition = {
 const midnightJazz: ThemeDefinition = {
   name: "Midnight Jazz",
   id: "midnight-jazz",
-  author: "Loomdraft",
+  author: "InPrincipio",
   version: 1,
   appearance: "dark",
   colors: {
@@ -98,7 +98,7 @@ const midnightJazz: ThemeDefinition = {
 const forestCanopy: ThemeDefinition = {
   name: "Forest Canopy",
   id: "forest-canopy",
-  author: "Loomdraft",
+  author: "InPrincipio",
   version: 1,
   appearance: "dark",
   colors: {
@@ -129,7 +129,7 @@ const forestCanopy: ThemeDefinition = {
 const sunsetDrift: ThemeDefinition = {
   name: "Sunset Drift",
   id: "sunset-drift",
-  author: "Loomdraft",
+  author: "InPrincipio",
   version: 1,
   appearance: "dark",
   colors: {
@@ -160,7 +160,7 @@ const sunsetDrift: ThemeDefinition = {
 const arcticFog: ThemeDefinition = {
   name: "Arctic Fog",
   id: "arctic-fog",
-  author: "Loomdraft",
+  author: "InPrincipio",
   version: 1,
   appearance: "light",
   colors: {
@@ -191,7 +191,7 @@ const arcticFog: ThemeDefinition = {
 const sepiaStudy: ThemeDefinition = {
   name: "Sepia Study",
   id: "sepia-study",
-  author: "Loomdraft",
+  author: "InPrincipio",
   version: 1,
   appearance: "light",
   colors: {

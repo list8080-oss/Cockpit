@@ -1329,6 +1329,39 @@ body,
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
 }
 
+[data-theme="night"] .engine-lamp-on {
+  background: #4caf50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.25);
+}
+
+[data-theme="night"] .engine-lamp-off {
+  background: #e57373;
+  box-shadow: 0 0 0 2px rgba(229, 115, 115, 0.22);
+}
+
+[data-theme="night"] .error-text {
+  color: #f87171;
+}
+
+[data-theme="night"] .badge-running {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fbbf24;
+}
+
+[data-theme="night"] .badge-error {
+  background: rgba(248, 113, 113, 0.18);
+  color: #f87171;
+}
+
+[data-theme="night"] .orchestrator-proposal-btn-apply {
+  border-color: rgba(96, 165, 250, 0.5);
+  color: #60a5fa;
+}
+
+[data-theme="night"] .orchestrator-proposal-status-error {
+  color: #f87171;
+}
+
 [data-theme="night"] .account-dropdown {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
@@ -1710,6 +1743,34 @@ body,
   max-height: 280px;
   overflow-y: auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.orchestrator-diff-line {
+  display: block;
+}
+
+.orchestrator-diff-line-add {
+  background: rgba(46, 125, 50, 0.12);
+  color: #1b5e20;
+}
+
+.orchestrator-diff-line-del {
+  background: rgba(192, 57, 43, 0.12);
+  color: #922b21;
+}
+
+.orchestrator-diff-line-hunk {
+  color: var(--color-muted);
+}
+
+[data-theme="night"] .orchestrator-diff-line-add {
+  background: rgba(76, 175, 80, 0.18);
+  color: #81c784;
+}
+
+[data-theme="night"] .orchestrator-diff-line-del {
+  background: rgba(239, 83, 80, 0.18);
+  color: #e57373;
 }
 
 .orchestrator-proposal-actions {

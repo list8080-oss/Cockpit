@@ -29,8 +29,6 @@ type Dict = {
   appleNotesOnlyMac: string;
   loadAppleNoteFailed: string;
   editor: string;
-  editorPlaceholder: string;
-  editorHint: string;
   backToAgents: string;
   limitFiveHour: string;
   limitWeekly: string;
@@ -223,8 +221,6 @@ const en: Dict = {
   appleNotesOnlyMac: "Apple Notes works only on Mac.",
   loadAppleNoteFailed: "[failed to load note: {error}]",
   editor: "Editor",
-  editorPlaceholder: "Write in the Loomdraft editor — draft autosaves locally.",
-  editorHint: "Loomdraft writing editor: markdown, outline, history, images. Draft saves locally.",
   backToAgents: "Agents",
   limitFiveHour: "5h",
   limitWeekly: "week",
@@ -428,9 +424,6 @@ const ru: Dict = {
   appleNotesOnlyMac: "Заметки Apple работают только на Mac.",
   loadAppleNoteFailed: "[не удалось загрузить заметку: {error}]",
   editor: "Редактор",
-  editorPlaceholder: "Пишите в редакторе Loomdraft — черновик автосохраняется локально.",
-  editorHint:
-    "Редактор Loomdraft: markdown, оглавление, история, картинки. Черновик сохраняется локально.",
   backToAgents: "Агенты",
   limitFiveHour: "5ч",
   limitWeekly: "нед.",
@@ -636,9 +629,6 @@ const uk: Dict = {
   appleNotesOnlyMac: "Нотатки Apple працюють лише на Mac.",
   loadAppleNoteFailed: "[не вдалося завантажити нотатку: {error}]",
   editor: "Редактор",
-  editorPlaceholder: "Пишіть у редакторі Loomdraft — чернетка автозберігається локально.",
-  editorHint:
-    "Редактор Loomdraft: markdown, зміст, історія, зображення. Чернетка зберігається локально.",
   backToAgents: "Агенти",
   limitFiveHour: "5 год",
   limitWeekly: "тижд.",
@@ -844,9 +834,6 @@ const cs: Dict = {
   appleNotesOnlyMac: "Poznámky Apple fungují jen na Macu.",
   loadAppleNoteFailed: "[poznámku se nepodařilo načíst: {error}]",
   editor: "Editor",
-  editorPlaceholder: "Pište v editoru Loomdraft — koncept se automaticky ukládá lokálně.",
-  editorHint:
-    "Editor Loomdraft: markdown, osnovu, historii, obrázky. Koncept se ukládá lokálně.",
   backToAgents: "Agenti",
   limitFiveHour: "5 h",
   limitWeekly: "týden",

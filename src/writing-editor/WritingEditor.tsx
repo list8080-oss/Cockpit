@@ -31,7 +31,7 @@ export function WritingEditor({
   onBack: () => void;
   backLabel: string;
   title: string;
-  /** InPrincipio appearance: normal | night | book → pick Loomdraft syntax theme */
+  /** InPrincipio appearance: normal | night | book → pick a built-in syntax theme */
   themeId?: "normal" | "night" | "book";
   locale: Locale;
 }) {

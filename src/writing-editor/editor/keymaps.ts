@@ -10,7 +10,7 @@ export interface KeymapCallbacks {
   onToggleSoftWrap: () => void;
 }
 
-export function loomdraftKeymap(callbacks: KeymapCallbacks): Extension {
+export function editorKeymap(callbacks: KeymapCallbacks): Extension {
   return keymap.of([
     {
       key: "Mod-s",

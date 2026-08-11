@@ -20,7 +20,7 @@ export const misspelledStyle = EditorView.theme({
   },
 });
 
-export const loomdraftTheme = EditorView.theme({
+export const editorBaseTheme = EditorView.theme({
   "&": {
     backgroundColor: "var(--bg)",
     color: "var(--text)",

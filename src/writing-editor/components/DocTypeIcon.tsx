@@ -1,4 +1,4 @@
-/** Minimal stand-in for Loomdraft's Sidebar DocTypeIcon. */
+/** Minimal doc-type icon for the writing editor's file/version pickers. */
 export function DocTypeIcon({
   docType,
   size = 14,
