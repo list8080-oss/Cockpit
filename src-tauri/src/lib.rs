@@ -31,9 +31,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             manuscript::list_chapters,
             manuscript::read_chapter,
-            manuscript::get_manuscript_path,
-            manuscript::set_manuscript_path,
-            manuscript::clear_manuscript_path,
             engines::run_claude,
             engines::run_orchestrator_agent,
             engines::run_orchestrator_propose,

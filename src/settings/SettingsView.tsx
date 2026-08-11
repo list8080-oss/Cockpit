@@ -22,12 +22,11 @@ import {
   CODEX_EFFORT_OPTIONS,
   OPENCODE_EFFORT_OPTIONS,
 } from "../agentSettings";
+import { profileLabel, type ProjectProfile } from "../profiles";
 
 export type SettingsSection =
   | "general"
-  | "manuscript"
-  | "development"
-  | "free_project"
+  | "projects"
   | "dictionaries"
   | "updates"
   | "agents";
@@ -67,20 +66,12 @@ export function SettingsView({
   onRefreshAuth,
   onSignIn,
   onSignOut,
-  manuscriptPath,
-  onChooseManuscriptFolder,
-  onChooseManuscriptFile,
-  onDisconnectManuscript,
-  manuscriptMessage,
-  developmentPath,
-  developmentMessage,
-  onChooseDevelopmentFolder,
-  onDisconnectDevelopment,
-  freeProjectPath,
-  freeProjectMessage,
-  onChooseFreeProjectFolder,
-  onChooseFreeProjectFile,
-  onDisconnectFreeProject,
+  availableProfiles,
+  projectPaths,
+  projectMessages,
+  onChooseProjectFolder,
+  onChooseProjectFile,
+  onDisconnectProject,
   dictionaries,
   dictionaryBusy,
   onDownloadDictionary,
@@ -113,20 +104,12 @@ export function SettingsView({
   onRefreshAuth: () => void;
   onSignIn: (provider: string) => void;
   onSignOut: (provider: string) => void;
-  manuscriptPath: string | null;
-  onChooseManuscriptFolder: () => void;
-  onChooseManuscriptFile: () => void;
-  onDisconnectManuscript: () => void;
-  manuscriptMessage: string | null;
-  developmentPath: string | null;
-  developmentMessage: string | null;
-  onChooseDevelopmentFolder: () => void;
-  onDisconnectDevelopment: () => void;
-  freeProjectPath: string | null;
-  freeProjectMessage: string | null;
-  onChooseFreeProjectFolder: () => void;
-  onChooseFreeProjectFile: () => void;
-  onDisconnectFreeProject: () => void;
+  availableProfiles: ProjectProfile[];
+  projectPaths: Record<string, string | null>;
+  projectMessages: Record<string, string | null>;
+  onChooseProjectFolder: (profileId: string) => void;
+  onChooseProjectFile: (profileId: string) => void;
+  onDisconnectProject: (profileId: string) => void;
   dictionaries: DictionaryStatus[];
   dictionaryBusy: string | null;
   claudeModel: string;
@@ -159,9 +142,7 @@ export function SettingsView({
 
   const navItems: { id: SettingsSection; label: string }[] = [
     { id: "general", label: t(locale, "settingsGeneral") },
-    { id: "manuscript", label: t(locale, "settingsManuscript") },
-    { id: "development", label: t(locale, "settingsDevelopment") },
-    { id: "free_project", label: t(locale, "settingsFreeProject") },
+    { id: "projects", label: t(locale, "settingsProjects") },
     { id: "dictionaries", label: t(locale, "settingsDictionaries") },
     { id: "updates", label: t(locale, "settingsUpdates") },
     { id: "agents", label: t(locale, "settingsAgents") },
@@ -241,131 +222,51 @@ export function SettingsView({
           </section>
         )}
 
-        {section === "manuscript" && (
+        {section === "projects" && (
           <section className="settings-section">
-            <h2>{t(locale, "settingsManuscript")}</h2>
+            <h2>{t(locale, "settingsProjects")}</h2>
             <p className="settings-section-hint">
-              {t(locale, "settingsManuscriptHint")}
+              {t(locale, "settingsProjectsHint")}
             </p>
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-label">{t(locale, "manuscriptPath")}</div>
-                <div className="settings-hint">
-                  {manuscriptPath || t(locale, "manuscriptNotSet")}
+            {availableProfiles.map((profile) => (
+              <div className="settings-row" key={profile.id}>
+                <div className="settings-row-text">
+                  <div className="settings-label">{profileLabel(locale, profile.id)}</div>
+                  <div className="settings-hint">
+                    {t(locale, "projectPathLabel")}:{" "}
+                    {projectPaths[profile.id] || t(locale, "projectPathNotSet")}
+                  </div>
+                  {projectMessages[profile.id] && (
+                    <div className="settings-hint">{projectMessages[profile.id]}</div>
+                  )}
                 </div>
-                {manuscriptMessage && (
-                  <div className="settings-hint">{manuscriptMessage}</div>
-                )}
-              </div>
-              <div className="settings-row-actions">
-                <button
-                  type="button"
-                  className="auth-action-btn"
-                  onClick={onChooseManuscriptFolder}
-                >
-                  {t(locale, "chooseFolder")}
-                </button>
-                <button
-                  type="button"
-                  className="auth-action-btn"
-                  onClick={onChooseManuscriptFile}
-                >
-                  {t(locale, "chooseFile")}
-                </button>
-                {manuscriptPath && (
+                <div className="settings-row-actions">
                   <button
                     type="button"
                     className="auth-action-btn"
-                    onClick={onDisconnectManuscript}
+                    onClick={() => onChooseProjectFolder(profile.id)}
                   >
-                    {t(locale, "projectDisconnect")}
+                    {t(locale, "chooseFolder")}
                   </button>
-                )}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {section === "development" && (
-          <section className="settings-section">
-            <h2>{t(locale, "settingsDevelopment")}</h2>
-            <p className="settings-section-hint">
-              {t(locale, "settingsDevelopmentHint")}
-            </p>
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-label">{t(locale, "developmentPath")}</div>
-                <div className="settings-hint">
-                  {developmentPath || t(locale, "manuscriptNotSet")}
-                </div>
-                {developmentMessage && (
-                  <div className="settings-hint">{developmentMessage}</div>
-                )}
-              </div>
-              <div className="settings-row-actions">
-                <button
-                  type="button"
-                  className="auth-action-btn"
-                  onClick={onChooseDevelopmentFolder}
-                >
-                  {t(locale, "chooseFolder")}
-                </button>
-                {developmentPath && (
                   <button
                     type="button"
                     className="auth-action-btn"
-                    onClick={onDisconnectDevelopment}
+                    onClick={() => onChooseProjectFile(profile.id)}
                   >
-                    {t(locale, "projectDisconnect")}
+                    {t(locale, "chooseFile")}
                   </button>
-                )}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {section === "free_project" && (
-          <section className="settings-section">
-            <h2>{t(locale, "settingsFreeProject")}</h2>
-            <p className="settings-section-hint">
-              {t(locale, "settingsFreeProjectHint")}
-            </p>
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-label">{t(locale, "freeProjectPath")}</div>
-                <div className="settings-hint">
-                  {freeProjectPath || t(locale, "manuscriptNotSet")}
+                  {projectPaths[profile.id] && (
+                    <button
+                      type="button"
+                      className="auth-action-btn"
+                      onClick={() => onDisconnectProject(profile.id)}
+                    >
+                      {t(locale, "projectDisconnect")}
+                    </button>
+                  )}
                 </div>
-                {freeProjectMessage && (
-                  <div className="settings-hint">{freeProjectMessage}</div>
-                )}
               </div>
-              <div className="settings-row-actions">
-                <button
-                  type="button"
-                  className="auth-action-btn"
-                  onClick={onChooseFreeProjectFolder}
-                >
-                  {t(locale, "chooseFolder")}
-                </button>
-                <button
-                  type="button"
-                  className="auth-action-btn"
-                  onClick={onChooseFreeProjectFile}
-                >
-                  {t(locale, "chooseFile")}
-                </button>
-                {freeProjectPath && (
-                  <button
-                    type="button"
-                    className="auth-action-btn"
-                    onClick={onDisconnectFreeProject}
-                  >
-                    {t(locale, "projectDisconnect")}
-                  </button>
-                )}
-              </div>
-            </div>
+            ))}
           </section>
         )}
 

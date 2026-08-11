@@ -63,6 +63,10 @@ pub fn get_project_path(profile_id: String) -> Option<String> {
     project_path_for(&profile_id)
 }
 
+/// Accepts either a folder (e.g. chapters as separate files, for the
+/// manuscript profile) or a single file (the whole project in one document)
+/// — same connection, the rest of the app tells them apart by checking the
+/// path itself.
 #[tauri::command]
 pub fn set_project_path(profile_id: String, path: String) -> Result<(), String> {
     if !list_profiles().iter().any(|p| p.id == profile_id) {
@@ -77,6 +81,9 @@ pub fn set_project_path(profile_id: String, path: String) -> Result<(), String> 
     crate::config::save(&cfg)
 }
 
+/// Disconnects the project (forgets the path) without touching anything on
+/// disk — purely so a stale connection doesn't get in the way of a different
+/// one later.
 #[tauri::command]
 pub fn clear_project_path(profile_id: String) -> Result<(), String> {
     let mut cfg = crate::config::load();
@@ -166,6 +173,10 @@ mod tests {
 
     #[test]
     fn active_profile_defaults_to_manuscript() {
+        // Reads the real config otherwise — on a machine that has already
+        // picked a different active profile, that's not this test's default
+        // to assert. Sandbox to an empty config to test the real default.
+        let _sandbox = ConfigSandbox::new("active-profile-default");
         assert_eq!(active_profile_id(), "manuscript");
     }
 

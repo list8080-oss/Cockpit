@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.2",
+    date: "2026-08-11",
+    notes: {
+      en: "Settings: the three separate \"Manuscript\" / \"Development\" / \"Free project\" sections are now one \"Projects\" section listing every profile with its own connected path — clearer, and it scales to future profiles without adding new settings pages each time.",
+      ru: "Настройки: три отдельных раздела «Рукопись» / «Разработка» / «Свободный проект» теперь один раздел «Проекты» со списком всех профилей и их подключёнными путями — понятнее, и не потребует новой страницы настроек при каждом будущем профиле.",
+      uk: "Налаштування: три окремі розділи «Рукопис» / «Розробка» / «Вільний проєкт» тепер один розділ «Проєкти» зі списком усіх профілів та їхніми підключеними шляхами — зрозуміліше, і не потребуватиме нової сторінки налаштувань під кожен майбутній профіль.",
+      cs: "Nastavení: tři samostatné sekce „Rukopis“ / „Vývoj“ / „Volný projekt“ jsou nyní jedna sekce „Projekty“ se seznamem všech profilů a jejich připojenými cestami — přehlednější a nevyžaduje novou stránku nastavení pro každý budoucí profil.",
+    },
+  },
+  {
     version: "0.4.1",
     date: "2026-08-11",
     notes: {

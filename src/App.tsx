@@ -100,12 +100,8 @@ export default function App() {
   const [appleLoading, setAppleLoading] = useState(false);
   const [appleError, setAppleError] = useState<string | null>(null);
   const [appleConnected, setAppleConnected] = useState(false);
-  const [manuscriptPath, setManuscriptPath] = useState<string | null>(null);
-  const [manuscriptMessage, setManuscriptMessage] = useState<string | null>(null);
-  const [developmentPath, setDevelopmentPath] = useState<string | null>(null);
-  const [developmentMessage, setDevelopmentMessage] = useState<string | null>(null);
-  const [freeProjectPath, setFreeProjectPath] = useState<string | null>(null);
-  const [freeProjectMessage, setFreeProjectMessage] = useState<string | null>(null);
+  const [projectPaths, setProjectPaths] = useState<Record<string, string | null>>({});
+  const [projectMessages, setProjectMessages] = useState<Record<string, string | null>>({});
   const [auths, setAuths] = useState<AuthStatus[]>([]);
   const [authLoading, setAuthLoading] = useState(true);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
@@ -362,17 +358,23 @@ export default function App() {
 
   useEffect(() => {
     loadChapters();
-    invoke<string | null>("get_manuscript_path").then(setManuscriptPath);
-    invoke<string | null>("get_project_path", { profileId: "development" }).then(
-      setDevelopmentPath,
-    );
-    invoke<string | null>("get_project_path", { profileId: "free_project" }).then(
-      setFreeProjectPath,
-    );
     void refreshAuth();
     void refreshCodexLimits();
     loadDictionaries();
   }, []);
+
+  useEffect(() => {
+    if (availableProfiles.length === 0) return;
+    Promise.all(
+      availableProfiles.map((p) =>
+        invoke<string | null>("get_project_path", { profileId: p.id }).then(
+          (path) => [p.id, path] as const,
+        ),
+      ),
+    ).then((entries) => {
+      setProjectPaths(Object.fromEntries(entries));
+    });
+  }, [availableProfiles]);
 
   const downloadDictionary = async (lang: string) => {
     setDictionaryBusy(lang);
@@ -398,108 +400,33 @@ export default function App() {
     }
   };
 
-  const chooseManuscriptFolder = async () => {
-    setManuscriptMessage(null);
-    const selected = await openFolderDialog({ directory: true, multiple: false });
+  const chooseProjectPath = async (profileId: string, directory: boolean) => {
+    setProjectMessages((m) => ({ ...m, [profileId]: null }));
+    const selected = await openFolderDialog({ directory, multiple: false });
     if (!selected || Array.isArray(selected)) return;
     try {
-      await invoke("set_manuscript_path", { path: selected });
-      setManuscriptPath(selected);
-      loadChapters();
+      await invoke("set_project_path", { profileId, path: selected });
+      setProjectPaths((p) => ({ ...p, [profileId]: selected }));
       refreshActiveProfileProjectPath();
+      if (profileId === "manuscript") loadChapters();
     } catch (e) {
-      setManuscriptMessage(String(e));
+      setProjectMessages((m) => ({ ...m, [profileId]: String(e) }));
     }
   };
 
-  const chooseManuscriptFile = async () => {
-    setManuscriptMessage(null);
-    const selected = await openFolderDialog({ directory: false, multiple: false });
-    if (!selected || Array.isArray(selected)) return;
-    try {
-      await invoke("set_manuscript_path", { path: selected });
-      setManuscriptPath(selected);
-      loadChapters();
-      refreshActiveProfileProjectPath();
-    } catch (e) {
-      setManuscriptMessage(String(e));
-    }
-  };
-
-  const disconnectManuscript = async () => {
+  const disconnectProjectPath = async (profileId: string) => {
     if (!window.confirm(t(locale, "projectDisconnectConfirm"))) return;
-    setManuscriptMessage(null);
+    setProjectMessages((m) => ({ ...m, [profileId]: null }));
     try {
-      await invoke("clear_manuscript_path");
-      setManuscriptPath(null);
-      setChapters([]);
-      setChaptersError(null);
+      await invoke("clear_project_path", { profileId });
+      setProjectPaths((p) => ({ ...p, [profileId]: null }));
       refreshActiveProfileProjectPath();
+      if (profileId === "manuscript") {
+        setChapters([]);
+        setChaptersError(null);
+      }
     } catch (e) {
-      setManuscriptMessage(String(e));
-    }
-  };
-
-  const chooseDevelopmentFolder = async () => {
-    setDevelopmentMessage(null);
-    const selected = await openFolderDialog({ directory: true, multiple: false });
-    if (!selected || Array.isArray(selected)) return;
-    try {
-      await invoke("set_project_path", { profileId: "development", path: selected });
-      setDevelopmentPath(selected);
-      refreshActiveProfileProjectPath();
-    } catch (e) {
-      setDevelopmentMessage(String(e));
-    }
-  };
-
-  const disconnectDevelopment = async () => {
-    if (!window.confirm(t(locale, "projectDisconnectConfirm"))) return;
-    setDevelopmentMessage(null);
-    try {
-      await invoke("clear_project_path", { profileId: "development" });
-      setDevelopmentPath(null);
-      refreshActiveProfileProjectPath();
-    } catch (e) {
-      setDevelopmentMessage(String(e));
-    }
-  };
-
-  const chooseFreeProjectFolder = async () => {
-    setFreeProjectMessage(null);
-    const selected = await openFolderDialog({ directory: true, multiple: false });
-    if (!selected || Array.isArray(selected)) return;
-    try {
-      await invoke("set_project_path", { profileId: "free_project", path: selected });
-      setFreeProjectPath(selected);
-      refreshActiveProfileProjectPath();
-    } catch (e) {
-      setFreeProjectMessage(String(e));
-    }
-  };
-
-  const chooseFreeProjectFile = async () => {
-    setFreeProjectMessage(null);
-    const selected = await openFolderDialog({ directory: false, multiple: false });
-    if (!selected || Array.isArray(selected)) return;
-    try {
-      await invoke("set_project_path", { profileId: "free_project", path: selected });
-      setFreeProjectPath(selected);
-      refreshActiveProfileProjectPath();
-    } catch (e) {
-      setFreeProjectMessage(String(e));
-    }
-  };
-
-  const disconnectFreeProject = async () => {
-    if (!window.confirm(t(locale, "projectDisconnectConfirm"))) return;
-    setFreeProjectMessage(null);
-    try {
-      await invoke("clear_project_path", { profileId: "free_project" });
-      setFreeProjectPath(null);
-      refreshActiveProfileProjectPath();
-    } catch (e) {
-      setFreeProjectMessage(String(e));
+      setProjectMessages((m) => ({ ...m, [profileId]: String(e) }));
     }
   };
 
@@ -660,35 +587,17 @@ export default function App() {
           onSignOut={(provider) => {
             void signOut(provider);
           }}
-          manuscriptPath={manuscriptPath}
-          onChooseManuscriptFolder={() => {
-            void chooseManuscriptFolder();
+          availableProfiles={availableProfiles}
+          projectPaths={projectPaths}
+          projectMessages={projectMessages}
+          onChooseProjectFolder={(profileId) => {
+            void chooseProjectPath(profileId, true);
           }}
-          onChooseManuscriptFile={() => {
-            void chooseManuscriptFile();
+          onChooseProjectFile={(profileId) => {
+            void chooseProjectPath(profileId, false);
           }}
-          onDisconnectManuscript={() => {
-            void disconnectManuscript();
-          }}
-          manuscriptMessage={manuscriptMessage}
-          developmentPath={developmentPath}
-          developmentMessage={developmentMessage}
-          onChooseDevelopmentFolder={() => {
-            void chooseDevelopmentFolder();
-          }}
-          onDisconnectDevelopment={() => {
-            void disconnectDevelopment();
-          }}
-          freeProjectPath={freeProjectPath}
-          freeProjectMessage={freeProjectMessage}
-          onChooseFreeProjectFolder={() => {
-            void chooseFreeProjectFolder();
-          }}
-          onChooseFreeProjectFile={() => {
-            void chooseFreeProjectFile();
-          }}
-          onDisconnectFreeProject={() => {
-            void disconnectFreeProject();
+          onDisconnectProject={(profileId) => {
+            void disconnectProjectPath(profileId);
           }}
           dictionaries={dictionaries}
           dictionaryBusy={dictionaryBusy}
@@ -775,17 +684,17 @@ export default function App() {
             </button>
             {openPanel === "notes" && (
               <div className="sidebar-panel-body">
-                {!manuscriptPath ? (
+                {!projectPaths["manuscript"] ? (
                   <>
                     <p className="panel-hint">{t(locale, "projectConnectHint")}</p>
-                    {manuscriptMessage && (
-                      <p className="error-text">{manuscriptMessage}</p>
+                    {projectMessages["manuscript"] && (
+                      <p className="error-text">{projectMessages["manuscript"]}</p>
                     )}
                     <button
                       type="button"
                       className="apple-notes-connect-btn"
                       onClick={() => {
-                        void chooseManuscriptFolder();
+                        void chooseProjectPath("manuscript", true);
                       }}
                     >
                       {t(locale, "chooseFolder")}
@@ -794,7 +703,7 @@ export default function App() {
                       type="button"
                       className="apple-notes-connect-btn"
                       onClick={() => {
-                        void chooseManuscriptFile();
+                        void chooseProjectPath("manuscript", false);
                       }}
                     >
                       {t(locale, "chooseFile")}
@@ -803,14 +712,17 @@ export default function App() {
                 ) : (
                   <>
                     <div className="apple-notes-toolbar">
-                      <span className="apple-notes-toolbar-label" title={manuscriptPath}>
-                        {manuscriptPath}
+                      <span
+                        className="apple-notes-toolbar-label"
+                        title={projectPaths["manuscript"] ?? undefined}
+                      >
+                        {projectPaths["manuscript"]}
                       </span>
                       <button
                         type="button"
                         className="apple-notes-link-btn"
                         onClick={() => {
-                          void disconnectManuscript();
+                          void disconnectProjectPath("manuscript");
                         }}
                       >
                         {t(locale, "projectDisconnect")}

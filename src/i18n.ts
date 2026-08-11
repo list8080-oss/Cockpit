@@ -40,16 +40,10 @@ type Dict = {
   settings: string;
   settingsNav: string;
   settingsGeneral: string;
-  settingsManuscript: string;
-  settingsManuscriptHint: string;
-  settingsDevelopment: string;
-  settingsDevelopmentHint: string;
-  developmentPath: string;
-  settingsFreeProject: string;
-  settingsFreeProjectHint: string;
-  freeProjectPath: string;
-  manuscriptPath: string;
-  manuscriptNotSet: string;
+  settingsProjects: string;
+  settingsProjectsHint: string;
+  projectPathLabel: string;
+  projectPathNotSet: string;
   settingsDictionaries: string;
   settingsDictionariesHint: string;
   dictionaryInstalled: string;
@@ -240,18 +234,11 @@ const en: Dict = {
   settings: "Settings",
   settingsNav: "Settings sections",
   settingsGeneral: "General",
-  settingsManuscript: "Project",
-  settingsManuscriptHint: "Connect a folder (chapters as separate files) or a single file (the whole manuscript in one document).",
-  settingsDevelopment: "Development",
-  settingsDevelopmentHint:
-    "Connect the folder of your development project (e.g. a Godot project) — used when the \"Development\" profile is active in the Orchestrator.",
-  developmentPath: "Project folder",
-  settingsFreeProject: "Free project",
-  settingsFreeProjectHint:
-    "Connect any folder or file that doesn't fit \"Manuscript\" or \"Development\" — used when the \"Free project\" profile is active in the Orchestrator, with no assumptions or preset roles.",
-  freeProjectPath: "Project folder or file",
-  manuscriptPath: "Path",
-  manuscriptNotSet: "Not connected",
+  settingsProjects: "Projects",
+  settingsProjectsHint:
+    "Each profile can have its own connected folder or file — the Orchestrator uses whichever one is active. Manuscript accepts a folder of chapter files or a single file; the others, any folder or file.",
+  projectPathLabel: "Path",
+  projectPathNotSet: "Not connected",
   chooseFolder: "Choose folder…",
   settingsDictionaries: "Dictionaries",
   settingsDictionariesHint:
@@ -453,18 +440,11 @@ const ru: Dict = {
   settings: "Настройки",
   settingsNav: "Разделы настроек",
   settingsGeneral: "Общие",
-  settingsManuscript: "Проект",
-  settingsManuscriptHint: "Подключи папку (главы отдельными файлами) или один файл (вся рукопись целиком).",
-  settingsDevelopment: "Разработка",
-  settingsDevelopmentHint:
-    "Подключите папку с проектом разработки (например, проект Godot) — используется, когда в Оркестраторе активен профиль «Разработка».",
-  developmentPath: "Папка проекта",
-  settingsFreeProject: "Свободный проект",
-  settingsFreeProjectHint:
-    "Подключите любую папку или файл, которые не подходят под «Рукопись» или «Разработку» — используется, когда в Оркестраторе активен профиль «Свободный проект», без предположений и заготовленных ролей.",
-  freeProjectPath: "Папка или файл проекта",
-  manuscriptPath: "Путь",
-  manuscriptNotSet: "Не подключён",
+  settingsProjects: "Проекты",
+  settingsProjectsHint:
+    "У каждого профиля может быть свой подключённый путь — Оркестратор использует тот, что активен сейчас. «Рукопись» принимает папку с главами или один файл; остальные — любую папку или файл.",
+  projectPathLabel: "Путь",
+  projectPathNotSet: "Не подключён",
   chooseFolder: "Выбрать папку…",
   settingsDictionaries: "Словари",
   settingsDictionariesHint:
@@ -668,18 +648,11 @@ const uk: Dict = {
   settings: "Налаштування",
   settingsNav: "Розділи налаштувань",
   settingsGeneral: "Загальні",
-  settingsManuscript: "Проєкт",
-  settingsManuscriptHint: "Підключи теку (розділи окремими файлами) або один файл (весь рукопис цілком).",
-  settingsDevelopment: "Розробка",
-  settingsDevelopmentHint:
-    "Підключіть папку проєкту розробки (наприклад, проєкт Godot) — використовується, коли в Оркестраторі активний профіль «Розробка».",
-  developmentPath: "Папка проєкту",
-  settingsFreeProject: "Вільний проект",
-  settingsFreeProjectHint:
-    "Підключіть будь-яку папку чи файл, які не підходять під «Рукопис» або «Розробку» — використовується, коли в Оркестраторі активний профіль «Вільний проект», без припущень і заготовлених ролей.",
-  freeProjectPath: "Папка чи файл проєкту",
-  manuscriptPath: "Шлях",
-  manuscriptNotSet: "Не підключено",
+  settingsProjects: "Проєкти",
+  settingsProjectsHint:
+    "У кожного профілю може бути свій підключений шлях — Оркестратор використовує той, що активний зараз. «Рукопис» приймає теку з розділами або один файл; решта — будь-яку теку чи файл.",
+  projectPathLabel: "Шлях",
+  projectPathNotSet: "Не підключено",
   chooseFolder: "Обрати теку…",
   settingsDictionaries: "Словники",
   settingsDictionariesHint:
@@ -883,18 +856,11 @@ const cs: Dict = {
   settings: "Nastavení",
   settingsNav: "Sekce nastavení",
   settingsGeneral: "Obecné",
-  settingsManuscript: "Projekt",
-  settingsManuscriptHint: "Připojte složku (kapitoly jako samostatné soubory) nebo jeden soubor (celý rukopis v jednom dokumentu).",
-  settingsDevelopment: "Vývoj",
-  settingsDevelopmentHint:
-    "Připojte složku vývojového projektu (např. projekt Godot) — použije se, když je v Orchestrátoru aktivní profil „Vývoj“.",
-  developmentPath: "Složka projektu",
-  settingsFreeProject: "Volný projekt",
-  settingsFreeProjectHint:
-    "Připojte libovolnou složku nebo soubor, které nezapadají do „Rukopis\" ani „Vývoj\" — použije se, když je v Orchestrátoru aktivní profil „Volný projekt\", bez předpokladů a přednastavených rolí.",
-  freeProjectPath: "Složka nebo soubor projektu",
-  manuscriptPath: "Cesta",
-  manuscriptNotSet: "Nepřipojeno",
+  settingsProjects: "Projekty",
+  settingsProjectsHint:
+    "Každý profil může mít vlastní připojenou cestu — Orchestrátor použije tu, která je právě aktivní. „Rukopis“ přijímá složku s kapitolami nebo jeden soubor; ostatní libovolnou složku nebo soubor.",
+  projectPathLabel: "Cesta",
+  projectPathNotSet: "Nepřipojeno",
   chooseFolder: "Vybrat složku…",
   settingsDictionaries: "Slovníky",
   settingsDictionariesHint:

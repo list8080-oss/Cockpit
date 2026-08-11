@@ -65,27 +65,6 @@ fn chapters_dir(root: &std::path::Path) -> PathBuf {
 }
 
 #[tauri::command]
-pub fn get_manuscript_path() -> Option<String> {
-    crate::profiles::project_path_for("manuscript")
-}
-
-/// Accepts either a folder (chapters as separate files inside it) or a
-/// single file (the whole manuscript in one document) — same connection,
-/// the rest of the app tells them apart by checking the path itself.
-#[tauri::command]
-pub fn set_manuscript_path(path: String) -> Result<(), String> {
-    crate::profiles::set_project_path("manuscript".into(), path)
-}
-
-/// Disconnects the project (forgets the path) without touching anything on
-/// disk — purely so a stale connection doesn't get in the way of a different
-/// one later.
-#[tauri::command]
-pub fn clear_manuscript_path() -> Result<(), String> {
-    crate::profiles::clear_project_path("manuscript".into())
-}
-
-#[tauri::command]
 pub fn list_chapters() -> Result<Vec<ChapterInfo>, String> {
     let root = configured_path()?;
     if root.is_file() {
@@ -138,20 +117,22 @@ pub fn read_chapter(file: String) -> Result<String, String> {
 mod tests {
     use super::*;
 
-    // Whether a manuscript happens to be connected on the machine running
-    // `cargo test` is not something a test should depend on — these compare
-    // `agent_workdir`'s routing against calling the same underlying
-    // resolver directly, so they hold either way (Ok or Err) instead of
-    // requiring a real project connection to pass.
+    // Whether a project happens to be connected, and which profile happens
+    // to be active, on the machine running `cargo test` is not something a
+    // test should depend on — this compares `agent_workdir`'s routing
+    // against resolving THE SAME active profile directly (not a hardcoded
+    // one), so it holds either way (Ok or Err, whichever profile is active)
+    // instead of requiring a specific real connection to pass.
 
     #[test]
     fn project_context_routes_through_active_profile() {
         let via_context = agent_workdir("project");
-        let via_profile = crate::profiles::resolve_profile_workdir("manuscript");
+        let via_profile =
+            crate::profiles::resolve_profile_workdir(&crate::profiles::active_profile_id());
         match (via_context, via_profile) {
             (Ok(a), Ok(b)) => assert_eq!(a, b),
             (Err(a), Err(b)) => assert_eq!(a, b),
-            other => panic!("agent_workdir(\"project\") and resolve_profile_workdir(\"manuscript\") disagree: {other:?}"),
+            other => panic!("agent_workdir(\"project\") and resolve_profile_workdir(active_profile_id()) disagree: {other:?}"),
         }
     }
 
