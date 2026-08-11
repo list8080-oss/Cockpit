@@ -543,3 +543,160 @@ fn shell_quote(s: &str) -> String {
     }
     format!("'{}'", s.replace('\'', "'\\''"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -- extract_email ------------------------------------------------------
+
+    #[test]
+    fn extract_email_finds_plain_address() {
+        assert_eq!(extract_email("logged in as dev@example.com"), Some("dev@example.com".into()));
+    }
+
+    #[test]
+    fn extract_email_strips_surrounding_punctuation() {
+        assert_eq!(
+            extract_email("account: <dev@example.com>, active"),
+            Some("dev@example.com".into())
+        );
+    }
+
+    #[test]
+    fn extract_email_returns_none_when_absent() {
+        assert_eq!(extract_email("Logged in, no address shown"), None);
+    }
+
+    #[test]
+    fn extract_email_rejects_at_without_dot() {
+        // Looks email-ish but isn't a full address (no TLD) — should not match.
+        assert_eq!(extract_email("mentions user@localhost only"), None);
+    }
+
+    #[test]
+    fn extract_email_picks_first_match() {
+        assert_eq!(
+            extract_email("primary a@example.com secondary b@example.com"),
+            Some("a@example.com".into())
+        );
+    }
+
+    // -- strip_ansi -----------------------------------------------------------
+
+    #[test]
+    fn strip_ansi_removes_color_codes() {
+        assert_eq!(strip_ansi("\u{1b}[32mOK\u{1b}[0m"), "OK");
+    }
+
+    #[test]
+    fn strip_ansi_leaves_plain_text_untouched() {
+        assert_eq!(strip_ansi("2 credentials found"), "2 credentials found");
+    }
+
+    #[test]
+    fn strip_ansi_handles_multiple_sequences_inline() {
+        assert_eq!(
+            strip_ansi("\u{1b}[1m\u{1b}[32mCredentials\u{1b}[0m: 2"),
+            "Credentials: 2"
+        );
+    }
+
+    // -- AuthProvider id round-trip -------------------------------------------
+
+    #[test]
+    fn provider_id_round_trips_for_all_variants() {
+        for provider in [
+            AuthProvider::Claude,
+            AuthProvider::Codex,
+            AuthProvider::Cursor,
+            AuthProvider::Opencode,
+            AuthProvider::Github,
+        ] {
+            assert_eq!(AuthProvider::from_id(provider.as_str()), Some(provider));
+        }
+    }
+
+    #[test]
+    fn provider_from_id_rejects_unknown() {
+        assert_eq!(AuthProvider::from_id("bogus"), None);
+        assert_eq!(AuthProvider::from_id(""), None);
+    }
+
+    // -- provider_bins_and_args -------------------------------------------------
+    // Locks in the exact CLI invocation contract per provider/action so a
+    // future edit can't silently change e.g. login into logout args.
+
+    #[test]
+    fn provider_args_cover_login_and_logout_for_every_provider() {
+        let (_, args) = provider_bins_and_args(AuthProvider::Claude, false);
+        assert_eq!(args, vec!["auth", "login"]);
+        let (_, args) = provider_bins_and_args(AuthProvider::Claude, true);
+        assert_eq!(args, vec!["auth", "logout"]);
+
+        let (_, args) = provider_bins_and_args(AuthProvider::Codex, false);
+        assert_eq!(args, vec!["login"]);
+        let (_, args) = provider_bins_and_args(AuthProvider::Codex, true);
+        assert_eq!(args, vec!["logout"]);
+
+        let (_, args) = provider_bins_and_args(AuthProvider::Cursor, false);
+        assert_eq!(args, vec!["login"]);
+        let (_, args) = provider_bins_and_args(AuthProvider::Cursor, true);
+        assert_eq!(args, vec!["logout"]);
+
+        let (_, args) = provider_bins_and_args(AuthProvider::Opencode, false);
+        assert_eq!(args, vec!["auth", "login"]);
+        let (_, args) = provider_bins_and_args(AuthProvider::Opencode, true);
+        assert_eq!(args, vec!["auth", "logout"]);
+
+        let (_, args) = provider_bins_and_args(AuthProvider::Github, false);
+        assert_eq!(args, vec!["auth", "login", "-p", "https", "-w"]);
+        let (_, args) = provider_bins_and_args(AuthProvider::Github, true);
+        assert_eq!(args, vec!["auth", "logout"]);
+    }
+
+    // -- bin_exists -----------------------------------------------------------
+
+    #[test]
+    fn bin_exists_false_for_bogus_absolute_path() {
+        assert!(!bin_exists("/definitely/not/a/real/binary/path-xyz"));
+    }
+
+    // -- shell_quote ------------------------------------------------------------
+    // Feeds into an AppleScript `do script` shell command line (start_auth_flow)
+    // — worth locking down against injection via CLI args/binary paths.
+
+    #[test]
+    fn shell_quote_leaves_safe_tokens_unquoted() {
+        assert_eq!(shell_quote("auth"), "auth");
+        assert_eq!(shell_quote("/usr/local/bin/gh"), "/usr/local/bin/gh");
+        assert_eq!(shell_quote("-p"), "-p");
+    }
+
+    #[test]
+    fn shell_quote_wraps_empty_string() {
+        assert_eq!(shell_quote(""), "''");
+    }
+
+    #[test]
+    fn shell_quote_wraps_strings_with_spaces() {
+        assert_eq!(shell_quote("two words"), "'two words'");
+    }
+
+    #[test]
+    fn shell_quote_escapes_embedded_single_quotes() {
+        assert_eq!(shell_quote("it's"), "'it'\\''s'");
+    }
+
+    #[test]
+    fn shell_quote_neutralizes_shell_metacharacters() {
+        // Single-quoting disables all shell expansion (`;`, `$()`, backticks,
+        // `&&`) as long as embedded `'` are escaped — verify the output stays
+        // wrapped in a single unbroken quoted token for each dangerous input.
+        for dangerous in ["; rm -rf /", "$(whoami)", "`id`", "a && b", "a | b"] {
+            let quoted = shell_quote(dangerous);
+            assert!(quoted.starts_with('\''), "expected leading quote for {dangerous:?}: {quoted}");
+            assert!(quoted.ends_with('\''), "expected trailing quote for {dangerous:?}: {quoted}");
+        }
+    }
+}

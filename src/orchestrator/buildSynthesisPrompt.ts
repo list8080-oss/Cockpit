@@ -1,4 +1,4 @@
-import type { ConversationTurn, OrchestratorAgentId } from "../conversations";
+import type { ConversationTurn, OrchestratorAgentId, OrchestratorMessage } from "../conversations";
 import { ORCHESTRATOR_AGENT_IDS } from "../conversations";
 import { agentDisplayName } from "./messages";
 import type { AgentRunState } from "./types";
@@ -36,6 +36,24 @@ export function successfulSynthesisAgents(
 /** At least two successful replies are required before synthesis is useful. */
 export function canRunSynthesis(agents: AgentReplySnapshot[]): boolean {
   return successfulSynthesisAgents(agents).length >= 2;
+}
+
+/**
+ * The most recent user request in the current round of the Orchestrator
+ * transcript — what synthesis should treat as "the question everyone
+ * answered". Falls back to the conversation's original prompt (passed in by
+ * the caller) when the transcript has no `"user"` message yet, e.g. right
+ * after opening a conversation from History before sending anything new.
+ */
+export function lastUserRoundText(
+  orchestratorMessages: OrchestratorMessage[],
+  fallbackPrompt: string,
+): string {
+  for (let i = orchestratorMessages.length - 1; i >= 0; i -= 1) {
+    const msg = orchestratorMessages[i];
+    if (msg.kind === "user" && msg.text.trim()) return msg.text;
+  }
+  return fallbackPrompt;
 }
 
 /**

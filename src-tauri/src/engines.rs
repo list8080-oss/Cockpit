@@ -110,6 +110,26 @@ pub async fn run_claude(
     }
     let output = cmd
         .arg(&prompt)
+        // Unlike the other three engines, `claude -p` has full tool access
+        // (including Write/Edit/Bash) by default with no confirmation prompt
+        // in headless mode — verified empirically, it will write files
+        // unprompted if asked to. `--disallowedTools` denies write-capable
+        // tools while leaving Read/Grep/Glob available, matching the
+        // read-only guarantee `run_codex`'s `-s read-only` and `run_cursor`'s
+        // `--mode plan` already give. Deliberately not `--permission-mode
+        // plan`: that also shifts the model into "present a plan" framing
+        // (used on purpose in `run_orchestrator_plan`), which would be a
+        // regression for ordinary chat/fan-out replies here.
+        //
+        // MUST come after `.arg(&prompt)`, not before: `--disallowedTools`
+        // is a variadic Commander.js option (`<tools...>`) that greedily
+        // consumes every following bare (non-`--flag`) argv token — placed
+        // before the prompt, it silently swallows the prompt text itself
+        // into the tools list, leaving `-p` with no prompt at all ("Input
+        // must be provided either through stdin or as a prompt argument").
+        // Confirmed empirically; regressed exactly this way once already.
+        .arg("--disallowedTools")
+        .arg("Bash,Write,Edit,NotebookEdit")
         .arg("--output-format")
         .arg("json")
         .output()
@@ -141,8 +161,9 @@ pub async fn run_claude(
 
 /// Orchestrator agent modes ("Full access" / "Plan") — the intentional
 /// exceptions to this project's read-only engine policy for the Orchestrator
-/// column. Unlike `run_claude` (and the other engines), these paths talk to a
-/// real Claude Code agent session with tools:
+/// column, allowed to write files and run mutating shell commands (unlike
+/// `run_claude` above and the other three engines, all explicitly restricted
+/// to read-only tool access):
 ///
 /// - `"full"` (default): `--dangerously-skip-permissions` so headless `-p`
 ///   turns can write files and run shell commands without a TTY prompt.
@@ -225,6 +246,74 @@ fn truncate_for_chat(s: &str) -> String {
     }
 }
 
+/// Shared NDJSON walk for `--output-format stream-json --verbose`, used by
+/// both `run_orchestrator_agent` and `run_orchestrator_propose`: tracks each
+/// Bash `tool_use` against its later `tool_result` and, for calls to a
+/// sibling CLI, records it as a `DelegatedCall`. `"result"` event lines are
+/// handed back to the caller unparsed, since each mode's final-reply shape
+/// differs (plain text vs. proposal JSON schema) — only the delegated-call
+/// bookkeeping was actually identical between the two.
+fn extract_delegated_calls(stdout: &str) -> (Vec<DelegatedCall>, Vec<Value>) {
+    let mut pending_bash: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut delegated_calls: Vec<DelegatedCall> = Vec::new();
+    let mut result_events: Vec<Value> = Vec::new();
+
+    for line in stdout.lines() {
+        let Ok(event) = serde_json::from_str::<Value>(line) else { continue };
+        match event.get("type").and_then(Value::as_str) {
+            Some("assistant") => {
+                if let Some(blocks) = event.pointer("/message/content").and_then(Value::as_array) {
+                    for block in blocks {
+                        if block.get("type").and_then(Value::as_str) == Some("tool_use")
+                            && block.get("name").and_then(Value::as_str) == Some("Bash")
+                        {
+                            if let (Some(id), Some(command)) = (
+                                block.get("id").and_then(Value::as_str),
+                                block.pointer("/input/command").and_then(Value::as_str),
+                            ) {
+                                pending_bash.insert(id.to_string(), command.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+            Some("user") => {
+                if let Some(blocks) = event.pointer("/message/content").and_then(Value::as_array) {
+                    for block in blocks {
+                        if block.get("type").and_then(Value::as_str) != Some("tool_result") {
+                            continue;
+                        }
+                        let Some(tool_use_id) = block.get("tool_use_id").and_then(Value::as_str) else {
+                            continue;
+                        };
+                        let Some(command) = pending_bash.remove(tool_use_id) else { continue };
+                        let Some(bin) = command_binary_name(&command) else { continue };
+                        if !SIBLING_CLI_BINARIES.contains(&bin) {
+                            continue;
+                        }
+                        let output_text = match block.get("content") {
+                            Some(Value::String(s)) => s.clone(),
+                            Some(other) => other.to_string(),
+                            None => String::new(),
+                        };
+                        let is_error = block.get("is_error").and_then(Value::as_bool).unwrap_or(false);
+                        delegated_calls.push(DelegatedCall {
+                            agent: bin.to_string(),
+                            command,
+                            output: truncate_for_chat(&output_text),
+                            is_error,
+                        });
+                    }
+                }
+            }
+            Some("result") => result_events.push(event),
+            _ => {}
+        }
+    }
+
+    (delegated_calls, result_events)
+}
+
 #[tauri::command]
 pub async fn run_orchestrator_agent(
     prompt: String,
@@ -301,66 +390,13 @@ pub async fn run_orchestrator_agent(
         .map_err(|e| format!("failed to run claude (orchestrator agent): {e}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut pending_bash: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-    let mut delegated_calls: Vec<DelegatedCall> = Vec::new();
+    let (delegated_calls, result_events) = extract_delegated_calls(&stdout);
     let mut final_result: Option<(bool, String, Option<String>)> = None; // (is_error, text, session_id)
-
-    for line in stdout.lines() {
-        let Ok(event) = serde_json::from_str::<Value>(line) else { continue };
-        match event.get("type").and_then(Value::as_str) {
-            Some("assistant") => {
-                if let Some(blocks) = event.pointer("/message/content").and_then(Value::as_array) {
-                    for block in blocks {
-                        if block.get("type").and_then(Value::as_str) == Some("tool_use")
-                            && block.get("name").and_then(Value::as_str) == Some("Bash")
-                        {
-                            if let (Some(id), Some(command)) = (
-                                block.get("id").and_then(Value::as_str),
-                                block.pointer("/input/command").and_then(Value::as_str),
-                            ) {
-                                pending_bash.insert(id.to_string(), command.to_string());
-                            }
-                        }
-                    }
-                }
-            }
-            Some("user") => {
-                if let Some(blocks) = event.pointer("/message/content").and_then(Value::as_array) {
-                    for block in blocks {
-                        if block.get("type").and_then(Value::as_str) != Some("tool_result") {
-                            continue;
-                        }
-                        let Some(tool_use_id) = block.get("tool_use_id").and_then(Value::as_str) else {
-                            continue;
-                        };
-                        let Some(command) = pending_bash.remove(tool_use_id) else { continue };
-                        let Some(bin) = command_binary_name(&command) else { continue };
-                        if !SIBLING_CLI_BINARIES.contains(&bin) {
-                            continue;
-                        }
-                        let output_text = match block.get("content") {
-                            Some(Value::String(s)) => s.clone(),
-                            Some(other) => other.to_string(),
-                            None => String::new(),
-                        };
-                        let is_error = block.get("is_error").and_then(Value::as_bool).unwrap_or(false);
-                        delegated_calls.push(DelegatedCall {
-                            agent: bin.to_string(),
-                            command,
-                            output: truncate_for_chat(&output_text),
-                            is_error,
-                        });
-                    }
-                }
-            }
-            Some("result") => {
-                let is_error = event.get("is_error").and_then(Value::as_bool).unwrap_or(false);
-                if let Some(result) = event.get("result").and_then(Value::as_str) {
-                    let sid = event.get("session_id").and_then(Value::as_str).map(str::to_string);
-                    final_result = Some((is_error, result.to_string(), sid));
-                }
-            }
-            _ => {}
+    for event in &result_events {
+        let is_error = event.get("is_error").and_then(Value::as_bool).unwrap_or(false);
+        if let Some(result) = event.get("result").and_then(Value::as_str) {
+            let sid = event.get("session_id").and_then(Value::as_str).map(str::to_string);
+            final_result = Some((is_error, result.to_string(), sid));
         }
     }
 
@@ -528,103 +564,35 @@ pub async fn run_orchestrator_propose(
         .map_err(|e| format!("failed to run claude (orchestrator propose): {e}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut pending_bash: std::collections::HashMap<String, String> =
-        std::collections::HashMap::new();
-    let mut delegated_calls: Vec<DelegatedCall> = Vec::new();
+    let (delegated_calls, result_events) = extract_delegated_calls(&stdout);
     let mut final_error: Option<(String, Option<String>)> = None;
     let mut final_ok: Option<(ProposalStructuredOutput, Option<String>)> = None;
-
-    for line in stdout.lines() {
-        let Ok(event) = serde_json::from_str::<Value>(line) else {
+    for event in &result_events {
+        let is_error = event
+            .get("is_error")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let sid = event
+            .get("session_id")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        if is_error {
+            let text = event
+                .get("result")
+                .and_then(Value::as_str)
+                .unwrap_or("orchestrator propose failed")
+                .to_string();
+            final_error = Some((text, sid));
             continue;
+        }
+        let Some(so_value) = event.get("structured_output") else {
+            return Err("orchestrator propose: missing/invalid structured_output".into());
         };
-        match event.get("type").and_then(Value::as_str) {
-            Some("assistant") => {
-                if let Some(blocks) = event.pointer("/message/content").and_then(Value::as_array) {
-                    for block in blocks {
-                        if block.get("type").and_then(Value::as_str) == Some("tool_use")
-                            && block.get("name").and_then(Value::as_str) == Some("Bash")
-                        {
-                            if let (Some(id), Some(command)) = (
-                                block.get("id").and_then(Value::as_str),
-                                block.pointer("/input/command").and_then(Value::as_str),
-                            ) {
-                                pending_bash.insert(id.to_string(), command.to_string());
-                            }
-                        }
-                    }
-                }
+        match serde_json::from_value::<ProposalStructuredOutput>(so_value.clone()) {
+            Ok(parsed) => final_ok = Some((parsed, sid)),
+            Err(_) => {
+                return Err("orchestrator propose: missing/invalid structured_output".into());
             }
-            Some("user") => {
-                if let Some(blocks) = event.pointer("/message/content").and_then(Value::as_array) {
-                    for block in blocks {
-                        if block.get("type").and_then(Value::as_str) != Some("tool_result") {
-                            continue;
-                        }
-                        let Some(tool_use_id) = block.get("tool_use_id").and_then(Value::as_str)
-                        else {
-                            continue;
-                        };
-                        let Some(command) = pending_bash.remove(tool_use_id) else {
-                            continue;
-                        };
-                        let Some(bin) = command_binary_name(&command) else {
-                            continue;
-                        };
-                        if !SIBLING_CLI_BINARIES.contains(&bin) {
-                            continue;
-                        }
-                        let output_text = match block.get("content") {
-                            Some(Value::String(s)) => s.clone(),
-                            Some(other) => other.to_string(),
-                            None => String::new(),
-                        };
-                        let is_error = block
-                            .get("is_error")
-                            .and_then(Value::as_bool)
-                            .unwrap_or(false);
-                        delegated_calls.push(DelegatedCall {
-                            agent: bin.to_string(),
-                            command,
-                            output: truncate_for_chat(&output_text),
-                            is_error,
-                        });
-                    }
-                }
-            }
-            Some("result") => {
-                let is_error = event
-                    .get("is_error")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false);
-                let sid = event
-                    .get("session_id")
-                    .and_then(Value::as_str)
-                    .map(str::to_string);
-                if is_error {
-                    let text = event
-                        .get("result")
-                        .and_then(Value::as_str)
-                        .unwrap_or("orchestrator propose failed")
-                        .to_string();
-                    final_error = Some((text, sid));
-                    continue;
-                }
-                let Some(so_value) = event.get("structured_output") else {
-                    return Err(
-                        "orchestrator propose: missing/invalid structured_output".into(),
-                    );
-                };
-                match serde_json::from_value::<ProposalStructuredOutput>(so_value.clone()) {
-                    Ok(parsed) => final_ok = Some((parsed, sid)),
-                    Err(_) => {
-                        return Err(
-                            "orchestrator propose: missing/invalid structured_output".into(),
-                        );
-                    }
-                }
-            }
-            _ => {}
         }
     }
 
@@ -715,20 +683,26 @@ fn journal_file_path() -> Result<PathBuf, String> {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-struct JournalEntry {
-    id: String,
-    kind: String,
+pub struct JournalEntry {
+    pub id: String,
+    pub kind: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    context: Option<String>,
+    pub context: Option<String>,
+    /// Active profile id at apply time (`"manuscript"`/`"development"`/
+    /// `"free_project"`) — only set for `context == "project"` entries.
+    /// `context == "free"` has no profile; older entries written before this
+    /// field existed simply won't have it (`#[serde(default)]`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    path: Option<String>,
+    pub profile_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    old_content: Option<String>,
+    pub path: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    new_content: Option<String>,
+    pub old_content: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    rolled_back_id: Option<String>,
-    timestamp: String,
+    pub new_content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rolled_back_id: Option<String>,
+    pub timestamp: String,
 }
 
 fn read_journal_entries(journal: &Path) -> Result<Vec<JournalEntry>, String> {
@@ -825,10 +799,12 @@ fn apply_change_with_journal(
         .map_err(|e| format!("failed to write {}: {e}", resolved.display()))?;
 
     let journal_id = next_journal_id();
+    let profile_id = if ctx == "project" { Some(crate::profiles::active_profile_id()) } else { None };
     let entry = JournalEntry {
         id: journal_id.clone(),
         kind: "apply".into(),
         context: Some(ctx),
+        profile_id,
         path: Some(request.path),
         old_content: request.old_content,
         new_content: Some(request.new_content),
@@ -907,6 +883,7 @@ fn rollback_change_with_journal(journal_id: &str, journal: &Path) -> Result<(), 
         id: next_journal_id(),
         kind: "rollback".into(),
         context: None,
+        profile_id: None,
         path: None,
         old_content: None,
         new_content: None,
@@ -921,6 +898,17 @@ fn rollback_change_with_journal(journal_id: &str, journal: &Path) -> Result<(), 
 pub async fn rollback_orchestrator_change(journal_id: String) -> Result<(), String> {
     let journal = journal_file_path()?;
     rollback_change_with_journal(&journal_id, &journal)
+}
+
+/// Every apply/rollback entry ever recorded, across every conversation and
+/// profile — the frontend derives display rows (pairing each apply with its
+/// rollback, if any) and filters by profile itself; this just hands back the
+/// raw log. Not paginated: a single user's realistic lifetime volume of
+/// applied changes is small enough that this isn't worth the complexity yet.
+#[tauri::command]
+pub fn list_orchestrator_journal() -> Result<Vec<JournalEntry>, String> {
+    let journal = journal_file_path()?;
+    read_journal_entries(&journal)
 }
 
 /// `--mode plan` is Cursor's read-only planning mode (analyze, propose a
@@ -1187,9 +1175,9 @@ pub async fn run_opencode(
 #[cfg(test)]
 mod propose_path_tests {
     use super::{
-        apply_change_with_journal, file_diff_from_proposal, read_journal_entries,
-        resolve_orchestrator_relative_path, rollback_change_with_journal, ApplyChangeRequest,
-        ProposedFileChange,
+        apply_change_with_journal, file_diff_from_proposal, list_orchestrator_journal,
+        read_journal_entries, resolve_orchestrator_relative_path, rollback_change_with_journal,
+        ApplyChangeRequest, ProposedFileChange,
     };
     use crate::test_env_lock::ENV_LOCK;
     use std::path::PathBuf;
@@ -1465,5 +1453,91 @@ mod propose_path_tests {
         let journal = sandbox.journal_path();
         let err = rollback_change_with_journal("no-such-id", &journal).unwrap_err();
         assert_eq!(err, "unknown journal entry");
+    }
+
+    #[test]
+    fn free_context_entries_have_no_profile_id() {
+        let sandbox = FreeSandbox::new("profile-free");
+        let file = sandbox.free_cwd().join("scene.txt");
+        std::fs::write(&file, "old\n").unwrap();
+        let journal = sandbox.journal_path();
+        apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("free".into()),
+                path: "scene.txt".into(),
+                old_content: Some("old\n".into()),
+                new_content: "new\n".into(),
+            },
+            &journal,
+        )
+        .unwrap();
+        let entries = read_journal_entries(&journal).unwrap();
+        assert_eq!(entries[0].profile_id, None);
+    }
+
+    #[test]
+    fn project_context_entries_get_the_active_profile_id() {
+        let sandbox = FreeSandbox::new("profile-project");
+        let config_root = temp_dir("profile-project-config");
+        std::env::set_var("YAR_COCKPIT_CONFIG_DIR", &config_root);
+        let project_dir = temp_dir("profile-project-connected");
+        crate::profiles::set_active_profile_id("development".into()).unwrap();
+        crate::profiles::set_project_path(
+            "development".into(),
+            project_dir.to_string_lossy().to_string(),
+        )
+        .unwrap();
+
+        let file = project_dir.join("scene.txt");
+        std::fs::write(&file, "old\n").unwrap();
+        let journal = sandbox.journal_path();
+        apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("project".into()),
+                path: "scene.txt".into(),
+                old_content: Some("old\n".into()),
+                new_content: "new\n".into(),
+            },
+            &journal,
+        )
+        .unwrap();
+        let entries = read_journal_entries(&journal).unwrap();
+        assert_eq!(entries[0].profile_id.as_deref(), Some("development"));
+
+        std::env::remove_var("YAR_COCKPIT_CONFIG_DIR");
+        let _ = std::fs::remove_dir_all(&config_root);
+        let _ = std::fs::remove_dir_all(&project_dir);
+    }
+
+    #[test]
+    fn list_orchestrator_journal_reads_back_apply_and_rollback_entries() {
+        let sandbox = FreeSandbox::new("list-journal");
+        let file = sandbox.free_cwd().join("scene.txt");
+        std::fs::write(&file, "old\n").unwrap();
+        let journal = sandbox.journal_path();
+        let applied = apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("free".into()),
+                path: "scene.txt".into(),
+                old_content: Some("old\n".into()),
+                new_content: "new\n".into(),
+            },
+            &journal,
+        )
+        .unwrap();
+        rollback_change_with_journal(&applied.journal_id, &journal).unwrap();
+
+        let entries = list_orchestrator_journal().unwrap();
+        assert_eq!(entries.len(), 2);
+        assert!(entries.iter().any(|e| e.kind == "apply" && e.id == applied.journal_id));
+        assert!(entries
+            .iter()
+            .any(|e| e.kind == "rollback" && e.rolled_back_id.as_deref() == Some(applied.journal_id.as_str())));
+    }
+
+    #[test]
+    fn list_orchestrator_journal_is_empty_when_nothing_applied_yet() {
+        let _sandbox = FreeSandbox::new("list-journal-empty");
+        assert!(list_orchestrator_journal().unwrap().is_empty());
     }
 }

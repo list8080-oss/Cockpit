@@ -9,6 +9,7 @@ mod editor_project;
 mod engines;
 mod manuscript;
 mod profiles;
+mod transcripts;
 mod version_history;
 
 /// Shared across different modules' tests that set process-global env vars
@@ -38,6 +39,7 @@ pub fn run() {
             engines::run_orchestrator_propose,
             engines::apply_orchestrator_change,
             engines::rollback_orchestrator_change,
+            engines::list_orchestrator_journal,
             engines::run_codex,
             engines::run_cursor,
             engines::run_opencode,
@@ -75,6 +77,8 @@ pub fn run() {
             profiles::get_project_path,
             profiles::set_project_path,
             profiles::clear_project_path,
+            transcripts::save_conversation_transcript,
+            transcripts::open_transcripts_dir,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -3,8 +3,18 @@ import {
   buildSynthesisPrompt,
   canRunSynthesis,
   lastAssistantText,
+  lastUserRoundText,
   type AgentReplySnapshot,
 } from "./buildSynthesisPrompt";
+import type { OrchestratorMessage } from "../conversations";
+
+function userMsg(text: string): OrchestratorMessage {
+  return { id: crypto.randomUUID(), role: "user", kind: "user", createdAt: Date.now(), text };
+}
+
+function otherMsg(kind: OrchestratorMessage["kind"], text = ""): OrchestratorMessage {
+  return { id: crypto.randomUUID(), role: "orchestrator", kind, createdAt: Date.now(), text };
+}
 
 function snap(
   id: AgentReplySnapshot["id"],
@@ -59,6 +69,27 @@ describe("lastAssistantText", () => {
       ]),
     ).toBe("keep");
     expect(lastAssistantText([{ role: "user", text: "only" }])).toBeNull();
+  });
+});
+
+describe("lastUserRoundText", () => {
+  it("returns the most recent user message's text", () => {
+    const messages = [userMsg("first"), otherMsg("dispatched"), userMsg("second")];
+    expect(lastUserRoundText(messages, "fallback")).toBe("second");
+  });
+
+  it("skips whitespace-only user messages", () => {
+    const messages = [userMsg("real question"), userMsg("   ")];
+    expect(lastUserRoundText(messages, "fallback")).toBe("real question");
+  });
+
+  it("falls back to the given prompt when there is no user message yet", () => {
+    const messages = [otherMsg("dispatched"), otherMsg("completed")];
+    expect(lastUserRoundText(messages, "original prompt")).toBe("original prompt");
+  });
+
+  it("falls back for an empty transcript", () => {
+    expect(lastUserRoundText([], "original prompt")).toBe("original prompt");
   });
 });
 

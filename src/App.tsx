@@ -31,15 +31,15 @@ import {
   type AgentOption,
 } from "./agentSettings";
 import type { AuthStatus, CodexLimits } from "./authTypes";
-import { profileLabel } from "./profiles";
 import { UpdateBar } from "./updates/UpdateBar";
 import { GithubChip } from "./sidebar/GithubChip";
 import { AgentModelMenu, Variant } from "./agents/Variant";
 import { SettingsView, type DictionaryStatus } from "./settings/SettingsView";
+import type { WorkspaceMode } from "./workspaceMode";
+import { SimpleChat, useSimpleChat } from "./simple-chat";
 import "./App.css";
 
 type View = "workspace" | "settings";
-type WorkspaceMode = "agents" | "editor";
 type SidebarPanelId = "notes" | "appleNotes" | "history" | null;
 
 const SIDEBAR_PANEL_STORAGE_KEY = "yar-cockpit.sidebarPanel";
@@ -77,7 +77,7 @@ export default function App() {
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
   const [theme, setTheme] = useState<Theme>(() => detectTheme());
   const [view, setView] = useState<View>("workspace");
-  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("agents");
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("simpleChat");
   const [openPanel, setOpenPanel] = useState<SidebarPanelId>(loadSidebarPanel);
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [chaptersError, setChaptersError] = useState<string | null>(null);
@@ -269,6 +269,72 @@ export default function App() {
     setWorkspaceMode,
     setView,
   });
+
+  const {
+    engine: simpleChatEngine,
+    history: simpleChatHistory,
+    draft: simpleChatDraft,
+    setDraft: setSimpleChatDraft,
+    busy: simpleChatBusy,
+    pickEngine: pickSimpleChatEngine,
+    newChat: newSimpleChat,
+    send: sendSimpleChat,
+  } = useSimpleChat({
+    claudeModel,
+    claudeEffort,
+    codexModel,
+    codexEffort,
+    cursorModel,
+    opencodeModel,
+    opencodeEffort,
+  });
+
+  // Same per-engine model/effort menu the Orchestrator's agent panels use —
+  // Simple Chat shares the same global settings, just shows the one for
+  // whichever engine this conversation is bound to.
+  const simpleChatModelMenu =
+    simpleChatEngine === "claude" ? (
+      <AgentModelMenu
+        locale={locale}
+        model={claudeModel}
+        onModelChange={setClaudeModel}
+        modelOptions={CLAUDE_MODEL_OPTIONS}
+        effort={claudeEffort}
+        onEffortChange={setClaudeEffort}
+        effortOptions={CLAUDE_EFFORT_OPTIONS}
+        dropdownDirection="up"
+      />
+    ) : simpleChatEngine === "codex" ? (
+      <AgentModelMenu
+        locale={locale}
+        model={codexModel}
+        onModelChange={setCodexModel}
+        modelOptions={CODEX_MODEL_OPTIONS}
+        effort={codexEffort}
+        onEffortChange={setCodexEffort}
+        effortOptions={CODEX_EFFORT_OPTIONS}
+        dropdownDirection="up"
+      />
+    ) : simpleChatEngine === "cursor" ? (
+      <AgentModelMenu
+        locale={locale}
+        model={cursorModel}
+        onModelChange={setCursorModel}
+        modelOptions={cursorModelOptions}
+        dropdownDirection="up"
+      />
+    ) : simpleChatEngine === "opencode" ? (
+      <AgentModelMenu
+        locale={locale}
+        model={opencodeModel}
+        onModelChange={setOpencodeModel}
+        modelOptions={opencodeModelOptions}
+        effort={opencodeEffort}
+        onEffortChange={setOpencodeEffort}
+        effortOptions={OPENCODE_EFFORT_OPTIONS}
+        dropdownDirection="up"
+      />
+    ) : null;
 
   const refreshAuth = async () => {
     setAuthLoading(true);
@@ -527,6 +593,17 @@ export default function App() {
     setOpenPanel("notes");
   };
 
+  const openSimpleChatMode = () => {
+    setWorkspaceMode("simpleChat");
+    setOpenPanel(null);
+  };
+
+  const openChatArchive = () => {
+    invoke("open_transcripts_dir").catch((e) => {
+      console.error("failed to open chat archive folder", e);
+    });
+  };
+
   if (view === "settings") {
     return (
       <div className="app">
@@ -535,6 +612,7 @@ export default function App() {
           onLocaleChange={setLocale}
           theme={theme}
           onThemeChange={setTheme}
+          onOpenChatArchive={openChatArchive}
           onBack={() => setView("workspace")}
           agentAuths={
             agentAuths.length > 0
@@ -578,6 +656,25 @@ export default function App() {
           onDisconnectProject={(profileId) => {
             void disconnectProjectPath(profileId);
           }}
+          orchestratorContext={orchestratorContext}
+          onOrchestratorContextChange={setOrchestratorContextSafe}
+          activeProfileId={activeProfile?.id ?? null}
+          onActiveProfileChange={setActiveProfileId}
+          profileSwitchError={profileSwitchError}
+          orchestratorBusy={busy}
+          orchestratorSynthesizing={synthesizing}
+          fullAccessMode={fullAccessMode}
+          onFullAccessModeChange={setFullAccessModeSafe}
+          planMode={planMode}
+          onPlanModeChange={setPlanModeSafe}
+          proposeMode={proposeMode}
+          onProposeModeChange={setProposeModeSafe}
+          selectedAgents={selectedAgents}
+          onToggleAgent={toggleSelectedAgent}
+          selectedRoles={selectedRoles}
+          onAgentRoleChange={setAgentRole}
+          structuredResultMode={structuredResultMode}
+          onStructuredResultModeChange={setStructuredResultModeSafe}
           dictionaries={dictionaries}
           dictionaryBusy={dictionaryBusy}
           onDownloadDictionary={(lang) => {
@@ -643,6 +740,46 @@ export default function App() {
       <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-panels">
+          <section
+            className={
+              workspaceMode === "simpleChat"
+                ? "sidebar-panel sidebar-panel-mode-active"
+                : "sidebar-panel"
+            }
+          >
+            <button
+              type="button"
+              className="sidebar-panel-toggle"
+              aria-pressed={workspaceMode === "simpleChat"}
+              onClick={openSimpleChatMode}
+            >
+              <span className="sidebar-panel-chevron" aria-hidden="true">
+                {workspaceMode === "simpleChat" ? "●" : "○"}
+              </span>
+              <span>{t(locale, "simpleChatSidebarLabel")}</span>
+            </button>
+          </section>
+
+          <section
+            className={
+              workspaceMode === "agents"
+                ? "sidebar-panel sidebar-panel-mode-active"
+                : "sidebar-panel"
+            }
+          >
+            <button
+              type="button"
+              className="sidebar-panel-toggle"
+              aria-pressed={workspaceMode === "agents"}
+              onClick={openAgentsMode}
+            >
+              <span className="sidebar-panel-chevron" aria-hidden="true">
+                {workspaceMode === "agents" ? "●" : "○"}
+              </span>
+              <span>{t(locale, "orchestratorSidebarPanel")}</span>
+            </button>
+          </section>
+
           <section
             className={
               openPanel === "notes"
@@ -937,6 +1074,19 @@ export default function App() {
               themeId={theme}
               locale={locale}
             />
+          ) : workspaceMode === "simpleChat" ? (
+            <SimpleChat
+              locale={locale}
+              engine={simpleChatEngine}
+              history={simpleChatHistory}
+              draft={simpleChatDraft}
+              onDraftChange={setSimpleChatDraft}
+              busy={simpleChatBusy}
+              onPickEngine={pickSimpleChatEngine}
+              onNewChat={newSimpleChat}
+              onSend={sendSimpleChat}
+              modelMenu={simpleChatModelMenu}
+            />
           ) : (
             <div className="orchestrator-workspace">
               <AgentPanels
@@ -959,27 +1109,11 @@ export default function App() {
                     synthesizing={synthesizing}
                     onSynthesize={synthesize}
                     fullAccessMode={fullAccessMode}
-                    onFullAccessModeChange={setFullAccessModeSafe}
                     planMode={planMode}
-                    onPlanModeChange={setPlanModeSafe}
                     proposeMode={proposeMode}
-                    onProposeModeChange={setProposeModeSafe}
                     context={orchestratorContext}
-                    onContextChange={setOrchestratorContextSafe}
                     selectedAgents={selectedAgents}
-                    onToggleAgent={toggleSelectedAgent}
-                    activeProfileId={activeProfile?.id ?? null}
-                    availableProfiles={availableProfiles}
-                    onProfileChange={setActiveProfileId}
-                    profileSwitchError={profileSwitchError}
-                    selectedRoles={selectedRoles}
-                    onAgentRoleChange={setAgentRole}
-                    structuredResultMode={structuredResultMode}
-                    onStructuredResultModeChange={setStructuredResultModeSafe}
                     projectConnected={!!activeProfileProjectPath}
-                    projectProfileLabel={
-                      activeProfile ? profileLabel(locale, activeProfile.id) : null
-                    }
                     onApplyProposalChange={applyProposalChange}
                     onRejectProposalChange={rejectProposalChange}
                     onRollbackProposalChange={rollbackProposalChange}

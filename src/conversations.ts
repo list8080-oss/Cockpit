@@ -3,6 +3,8 @@
 export interface ConversationTurn {
   role: "user" | "assistant";
   text: string;
+  /** Optional — absent on turns saved before this field existed. */
+  createdAt?: number;
 }
 
 export interface EngineThread {
@@ -119,6 +121,21 @@ export const CONVERSATIONS_STORAGE_KEY = "yar-cockpit.agentConversations";
 export const ACTIVE_CONVERSATION_STORAGE_KEY = "yar-cockpit.activeConversationId";
 export const MAX_STORED_CONVERSATIONS = 100;
 
+/**
+ * Bumped whenever the stored shape of `AgentConversation` changes in a way
+ * that isn't just an additive optional field (those are handled by the
+ * backfill below regardless of version). `loadConversations` always accepts
+ * both the pre-versioning bare-array format still sitting in existing
+ * users' localStorage and the current envelope, so this alone never breaks
+ * old data — real reshapes still need their own migration step added here.
+ */
+export const CONVERSATIONS_SCHEMA_VERSION = 1;
+
+interface ConversationsEnvelope {
+  version: number;
+  conversations: unknown[];
+}
+
 export function emptyEngineThread(): EngineThread {
   return { history: [], sessionId: null };
 }
@@ -132,18 +149,30 @@ export function emptyOrchestratorThread(): OrchestratorThread {
   };
 }
 
+// Backfill fields added in later versions so older history still loads.
+function backfillConversation(c: any): AgentConversation {
+  return {
+    ...c,
+    opencode: c.opencode ?? emptyEngineThread(),
+    orchestrator: c.orchestrator ?? emptyOrchestratorThread(),
+  };
+}
+
 export function loadConversations(): AgentConversation[] {
   try {
     const raw = localStorage.getItem(CONVERSATIONS_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    // Backfill fields added in later versions so older history still loads.
-    return parsed.map((c) => ({
-      ...c,
-      opencode: c.opencode ?? emptyEngineThread(),
-      orchestrator: c.orchestrator ?? emptyOrchestratorThread(),
-    }));
+    // Pre-versioning format: a bare array, written by every build before
+    // the envelope was introduced.
+    if (Array.isArray(parsed)) {
+      return parsed.map(backfillConversation);
+    }
+    // Versioned envelope.
+    if (parsed && typeof parsed === "object" && Array.isArray((parsed as ConversationsEnvelope).conversations)) {
+      return (parsed as ConversationsEnvelope).conversations.map(backfillConversation);
+    }
+    return [];
   } catch {
     return [];
   }
@@ -151,10 +180,11 @@ export function loadConversations(): AgentConversation[] {
 
 export function persistConversations(list: AgentConversation[]) {
   try {
-    localStorage.setItem(
-      CONVERSATIONS_STORAGE_KEY,
-      JSON.stringify(list.slice(0, MAX_STORED_CONVERSATIONS)),
-    );
+    const envelope: ConversationsEnvelope = {
+      version: CONVERSATIONS_SCHEMA_VERSION,
+      conversations: list.slice(0, MAX_STORED_CONVERSATIONS),
+    };
+    localStorage.setItem(CONVERSATIONS_STORAGE_KEY, JSON.stringify(envelope));
   } catch {
     /* ignore (e.g. storage quota) */
   }

@@ -42,6 +42,7 @@ export function AgentModelMenu({
   effort,
   onEffortChange,
   effortOptions,
+  dropdownDirection = "down",
 }: {
   locale: Locale;
   model: string;
@@ -50,6 +51,10 @@ export function AgentModelMenu({
   effort?: string;
   onEffortChange?: (value: string) => void;
   effortOptions?: AgentOption[];
+  /** "up" for chips anchored near the bottom of a clipped container (e.g.
+   * Simple Chat's composer) — opening "down" there renders past the visible
+   * edge and gets clipped invisibly. Agent panels stay "down" (default). */
+  dropdownDirection?: "down" | "up";
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -86,7 +91,14 @@ export function AgentModelMenu({
         {chipLabel}
       </button>
       {open && (
-        <div className="account-dropdown model-menu-dropdown" role="menu">
+        <div
+          className={
+            dropdownDirection === "up"
+              ? "account-dropdown model-menu-dropdown model-menu-dropdown-up"
+              : "account-dropdown model-menu-dropdown"
+          }
+          role="menu"
+        >
           <div className="account-dropdown-note">{t(locale, "agentModel")}</div>
           <button
             type="button"

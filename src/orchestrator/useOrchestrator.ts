@@ -17,7 +17,6 @@ import {
 } from "../conversations";
 import { ORCHESTRATOR_AGENT_IDS, type EngineReply } from "./types";
 import {
-  agentDisplayName,
   createAgentFullAccessErrorMessage,
   createAgentFullAccessMessage,
   createAgentPlanErrorMessage,
@@ -30,7 +29,6 @@ import {
   createSynthesisErrorMessage,
   createSynthesisMessage,
   createUserMessage,
-  formatOrchestratorMessage,
   legacyMessagesFromConversation,
 } from "./messages";
 import {
@@ -44,11 +42,15 @@ import {
   buildSynthesisPrompt,
   canRunSynthesis,
   lastAssistantText,
+  lastUserRoundText,
   type AgentReplySnapshot,
 } from "./buildSynthesisPrompt";
+import { buildFullAccessContext } from "./fullAccessContext";
+import { saveTranscript, serializeOrchestratorTranscript, transcriptFileId } from "../transcripts";
 import type { VariantState } from "../agents/Variant";
 import type { ProjectProfile } from "../profiles";
 import type { FileDiff } from "../conversations";
+import type { WorkspaceMode } from "../workspaceMode";
 
 const ORCHESTRATOR_CONTEXT_KEY = "yar-cockpit.orchestratorContext";
 
@@ -69,7 +71,8 @@ function persistOrchestratorContext(value: OrchestratorContext) {
   }
 }
 
-export type OrchestratorWorkspaceMode = "agents" | "editor";
+/** @deprecated use `WorkspaceMode` from "../workspaceMode" directly. */
+export type OrchestratorWorkspaceMode = WorkspaceMode;
 export type OrchestratorView = "workspace" | "settings";
 
 export interface UseOrchestratorDeps {
@@ -316,15 +319,34 @@ export function useOrchestrator({
   const cursorBusyRef = useRef(false);
   const opencodeBusyRef = useRef(false);
 
-  const upsertConversation = (id: string, updater: (c: AgentConversation) => AgentConversation) => {
+  const upsertConversation = (
+    id: string,
+    updater: (c: AgentConversation) => AgentConversation,
+  ): AgentConversation | undefined => {
+    let result: AgentConversation | undefined;
     setConversations((prev) => {
       const idx = prev.findIndex((c) => c.id === id);
       if (idx === -1) return prev;
       const next = [...prev];
       next[idx] = updater(prev[idx]);
+      result = next[idx];
       persistConversations(next);
       return next;
     });
+    return result;
+  };
+
+  /** Archives the current transcript to disk as Markdown — best-effort, see
+   * `saveTranscript`. Called after every turn that changes the visible
+   * Orchestrator transcript. */
+  const archiveTranscript = (conversation: AgentConversation) => {
+    const bucket = conversation.orchestrator?.context ?? orchestratorContext;
+    void saveTranscript(
+      bucket,
+      "orchestrator",
+      transcriptFileId(conversation.id, conversation.createdAt),
+      serializeOrchestratorTranscript(conversation, locale, activeProfileProjectPath),
+    );
   };
 
   const setOrchestratorContextSafe = (next: OrchestratorContext) => {
@@ -381,16 +403,17 @@ export function useOrchestrator({
     if (result.ok) {
       const reply = result.reply;
       const { mainText, structured } = parseStructuredTail(reply.text);
+      const now = Date.now();
       setStructuredResults((prev) => ({ ...prev, [agent]: structured }));
       upsertConversation(conversationId, (c) => {
         const thread = c[agent];
         const history: ConversationTurn[] = followUp
           ? [
               ...thread.history,
-              { role: "user", text: userText },
-              { role: "assistant", text: mainText },
+              { role: "user", text: userText, createdAt: now },
+              { role: "assistant", text: mainText, createdAt: now },
             ]
-          : [{ role: "assistant", text: mainText }];
+          : [{ role: "assistant", text: mainText, createdAt: now }];
         return {
           ...c,
           updatedAt: Date.now(),
@@ -400,11 +423,11 @@ export function useOrchestrator({
       if (!isStillActive(conversationId)) return;
       const appendFollowUp = (h: ConversationTurn[]) => [
         ...h,
-        { role: "user" as const, text: userText },
-        { role: "assistant" as const, text: mainText },
+        { role: "user" as const, text: userText, createdAt: now },
+        { role: "assistant" as const, text: mainText, createdAt: now },
       ];
       const firstTurn: ConversationTurn[] = [
-        { role: "assistant", text: mainText },
+        { role: "assistant", text: mainText, createdAt: now },
       ];
       if (agent === "claude") {
         setClaudeSessionId(reply.sessionId);
@@ -505,7 +528,13 @@ export function useOrchestrator({
     const userMessage = createUserMessage(userText);
     const seedMessages = [...orchestratorMessages, userMessage];
     const resumeSessionId = orchestratorAgentSessionId;
-    const contextPrelude = resumeSessionId ? "" : buildFullAccessContext();
+    const contextPrelude = resumeSessionId
+      ? ""
+      : buildFullAccessContext({
+          orchestratorMessages,
+          locale,
+          agents: synthesisAgentSnapshots(),
+        });
     const id = ensureConversationForSend(userText, seedMessages);
 
     setPrompt("");
@@ -562,7 +591,13 @@ export function useOrchestrator({
     const userMessage = createUserMessage(userText);
     const seedMessages = [...orchestratorMessages, userMessage];
     const resumeSessionId = orchestratorPlanSessionId;
-    const contextPrelude = resumeSessionId ? "" : buildFullAccessContext();
+    const contextPrelude = resumeSessionId
+      ? ""
+      : buildFullAccessContext({
+          orchestratorMessages,
+          locale,
+          agents: synthesisAgentSnapshots(),
+        });
     const id = ensureConversationForSend(userText, seedMessages);
 
     setPrompt("");
@@ -606,7 +641,13 @@ export function useOrchestrator({
     const userMessage = createUserMessage(userText);
     const seedMessages = [...orchestratorMessages, userMessage];
     const resumeSessionId = orchestratorProposeSessionId;
-    const contextPrelude = resumeSessionId ? "" : buildFullAccessContext();
+    const contextPrelude = resumeSessionId
+      ? ""
+      : buildFullAccessContext({
+          orchestratorMessages,
+          locale,
+          agents: synthesisAgentSnapshots(),
+        });
     const id = ensureConversationForSend(userText, seedMessages);
 
     setPrompt("");
@@ -745,7 +786,7 @@ export function useOrchestrator({
         setOrchestratorMessages((prev) =>
           prev.some((m) => m.id === completed.id) ? prev : [...prev, completed],
         );
-        upsertConversation(id, (c) => {
+        const updated = upsertConversation(id, (c) => {
           const existing = c.orchestrator?.messages ?? [];
           if (existing.some((m) => m.id === completed.id)) return c;
           return {
@@ -759,6 +800,7 @@ export function useOrchestrator({
             },
           };
         });
+        if (updated) archiveTranscript(updated);
       })
       .finally(() => {
         sendBusyRef.current = false;
@@ -792,58 +834,11 @@ export function useOrchestrator({
     },
   ];
 
-  const lastUserRoundText = (): string => {
-    for (let i = orchestratorMessages.length - 1; i >= 0; i -= 1) {
-      const msg = orchestratorMessages[i];
-      if (msg.kind === "user" && msg.text.trim()) return msg.text;
-    }
-    return conversations.find((c) => c.id === activeConversationId)?.prompt ?? "";
-  };
-
-  /**
-   * A brand-new "Full access" session starts with zero context by default —
-   * `run_orchestrator_agent` only ever sees the literal text typed into the
-   * composer, nothing else. Since InPrincipio's chat transcript is deliberately
-   * terse (status lines, not full replies — see phase 1/2), prepend the
-   * actual conversation so far plus each agent's full last reply on the
-   * FIRST message of a new full-access session, so it isn't flying blind.
-   * Once a session exists, resume (`-r`) already carries this forward.
-   */
-  const buildFullAccessContext = (): string => {
-    const parts: string[] = [];
-    if (orchestratorMessages.length > 0) {
-      parts.push("Context — this Orchestrator conversation so far:");
-      parts.push("");
-      for (const m of orchestratorMessages) {
-        const who = m.role === "user" ? "User" : "Orchestrator";
-        parts.push(`[${who}] ${formatOrchestratorMessage(m, locale)}`);
-      }
-      parts.push("");
-    }
-    const agents = synthesisAgentSnapshots();
-    const answered = agents.filter((a) => a.replyText && a.state.status === "done");
-    if (answered.length > 0) {
-      parts.push("Full text of each agent's reply (the transcript above only shows status):");
-      parts.push("");
-      for (const agentId of ORCHESTRATOR_AGENT_IDS) {
-        const snap = agents.find((a) => a.id === agentId);
-        if (snap?.replyText && snap.state.status === "done") {
-          parts.push(`### ${agentDisplayName(agentId)}`);
-          parts.push(snap.replyText.trim());
-          parts.push("");
-        }
-      }
-    }
-    if (parts.length === 0) return "";
-    parts.push("## New request");
-    return parts.join("\n");
-  };
-
   const appendOrchestratorMessage = (
     conversationId: string,
     message: OrchestratorMessage,
   ) => {
-    upsertConversation(conversationId, (c) => {
+    const updated = upsertConversation(conversationId, (c) => {
       const existing = c.orchestrator?.messages ?? [];
       if (existing.some((m) => m.id === message.id)) return c;
       return {
@@ -858,6 +853,7 @@ export function useOrchestrator({
         },
       };
     });
+    if (updated) archiveTranscript(updated);
     if (!isStillActive(conversationId)) return;
     setOrchestratorMessages((prev) =>
       prev.some((m) => m.id === message.id) ? prev : [...prev, message],
@@ -997,7 +993,10 @@ export function useOrchestrator({
     if (!canRunSynthesis(agents)) return;
 
     const conversationId = activeConversationId;
-    const sourceText = lastUserRoundText();
+    const sourceText = lastUserRoundText(
+      orchestratorMessages,
+      conversations.find((c) => c.id === activeConversationId)?.prompt ?? "",
+    );
     const promptText = buildSynthesisPrompt({ sourceText, agents });
 
     synthesizeBusyRef.current = true;
@@ -1036,7 +1035,7 @@ export function useOrchestrator({
     const conversationId = activeConversationId;
     setClaude({ status: "running" });
     setClaudeReply("");
-    const withUserTurn: ConversationTurn[] = [...claudeHistory, { role: "user", text }];
+    const withUserTurn: ConversationTurn[] = [...claudeHistory, { role: "user", text, createdAt: Date.now() }];
     setClaudeHistory(withUserTurn);
     upsertConversation(conversationId, (c) => ({
       ...c,
@@ -1051,17 +1050,19 @@ export function useOrchestrator({
       context: orchestratorContext,
     })
       .then((reply) => {
-        upsertConversation(conversationId, (c) => ({
+        const replyTurn: ConversationTurn = { role: "assistant", text: reply.text, createdAt: Date.now() };
+        const updated = upsertConversation(conversationId, (c) => ({
           ...c,
           updatedAt: Date.now(),
           claude: {
-            history: [...c.claude.history, { role: "assistant", text: reply.text }],
+            history: [...c.claude.history, replyTurn],
             sessionId: reply.sessionId,
           },
         }));
+        if (updated) archiveTranscript(updated);
         if (!isStillActive(conversationId)) return;
         setClaudeSessionId(reply.sessionId);
-        setClaudeHistory((h) => [...h, { role: "assistant", text: reply.text }]);
+        setClaudeHistory((h) => [...h, replyTurn]);
         setClaude({ status: "done" });
       })
       .catch((e) => {
@@ -1088,7 +1089,7 @@ export function useOrchestrator({
     const conversationId = activeConversationId;
     setCodex({ status: "running" });
     setCodexReply("");
-    const withUserTurn: ConversationTurn[] = [...codexHistory, { role: "user", text }];
+    const withUserTurn: ConversationTurn[] = [...codexHistory, { role: "user", text, createdAt: Date.now() }];
     setCodexHistory(withUserTurn);
     upsertConversation(conversationId, (c) => ({
       ...c,
@@ -1103,17 +1104,19 @@ export function useOrchestrator({
       context: orchestratorContext,
     })
       .then((reply) => {
-        upsertConversation(conversationId, (c) => ({
+        const replyTurn: ConversationTurn = { role: "assistant", text: reply.text, createdAt: Date.now() };
+        const updated = upsertConversation(conversationId, (c) => ({
           ...c,
           updatedAt: Date.now(),
           codex: {
-            history: [...c.codex.history, { role: "assistant", text: reply.text }],
+            history: [...c.codex.history, replyTurn],
             sessionId: reply.sessionId,
           },
         }));
+        if (updated) archiveTranscript(updated);
         if (isStillActive(conversationId)) {
           setCodexThreadId(reply.sessionId);
-          setCodexHistory((h) => [...h, { role: "assistant", text: reply.text }]);
+          setCodexHistory((h) => [...h, replyTurn]);
           setCodex({ status: "done" });
         }
         void refreshCodexLimits();
@@ -1143,7 +1146,7 @@ export function useOrchestrator({
     const conversationId = activeConversationId;
     setCursor({ status: "running" });
     setCursorReply("");
-    const withUserTurn: ConversationTurn[] = [...cursorHistory, { role: "user", text }];
+    const withUserTurn: ConversationTurn[] = [...cursorHistory, { role: "user", text, createdAt: Date.now() }];
     setCursorHistory(withUserTurn);
     upsertConversation(conversationId, (c) => ({
       ...c,
@@ -1157,17 +1160,19 @@ export function useOrchestrator({
       context: orchestratorContext,
     })
       .then((reply) => {
-        upsertConversation(conversationId, (c) => ({
+        const replyTurn: ConversationTurn = { role: "assistant", text: reply.text, createdAt: Date.now() };
+        const updated = upsertConversation(conversationId, (c) => ({
           ...c,
           updatedAt: Date.now(),
           cursor: {
-            history: [...c.cursor.history, { role: "assistant", text: reply.text }],
+            history: [...c.cursor.history, replyTurn],
             sessionId: reply.sessionId,
           },
         }));
+        if (updated) archiveTranscript(updated);
         if (!isStillActive(conversationId)) return;
         setCursorSessionId(reply.sessionId);
-        setCursorHistory((h) => [...h, { role: "assistant", text: reply.text }]);
+        setCursorHistory((h) => [...h, replyTurn]);
         setCursor({ status: "done" });
       })
       .catch((e) => {
@@ -1194,7 +1199,7 @@ export function useOrchestrator({
     const conversationId = activeConversationId;
     setOpencode({ status: "running" });
     setOpencodeReply("");
-    const withUserTurn: ConversationTurn[] = [...opencodeHistory, { role: "user", text }];
+    const withUserTurn: ConversationTurn[] = [...opencodeHistory, { role: "user", text, createdAt: Date.now() }];
     setOpencodeHistory(withUserTurn);
     upsertConversation(conversationId, (c) => ({
       ...c,
@@ -1209,17 +1214,19 @@ export function useOrchestrator({
       context: orchestratorContext,
     })
       .then((reply) => {
-        upsertConversation(conversationId, (c) => ({
+        const replyTurn: ConversationTurn = { role: "assistant", text: reply.text, createdAt: Date.now() };
+        const updated = upsertConversation(conversationId, (c) => ({
           ...c,
           updatedAt: Date.now(),
           opencode: {
-            history: [...c.opencode.history, { role: "assistant", text: reply.text }],
+            history: [...c.opencode.history, replyTurn],
             sessionId: reply.sessionId,
           },
         }));
+        if (updated) archiveTranscript(updated);
         if (!isStillActive(conversationId)) return;
         setOpencodeSessionId(reply.sessionId);
-        setOpencodeHistory((h) => [...h, { role: "assistant", text: reply.text }]);
+        setOpencodeHistory((h) => [...h, replyTurn]);
         setOpencode({ status: "done" });
       })
       .catch((e) => {

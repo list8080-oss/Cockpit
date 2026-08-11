@@ -30,6 +30,7 @@ type Dict = {
   loadAppleNoteFailed: string;
   editor: string;
   backToAgents: string;
+  simpleChatSidebarLabel: string;
   limitFiveHour: string;
   limitWeekly: string;
   limitUsed: string;
@@ -40,6 +41,13 @@ type Dict = {
   settingsGeneral: string;
   settingsProjects: string;
   settingsProjectsHint: string;
+  settingsOrchestrator: string;
+  settingsOrchestratorHint: string;
+  settingsJournal: string;
+  settingsJournalHint: string;
+  journalFilterAll: string;
+  journalFilterFree: string;
+  journalEmpty: string;
   projectPathLabel: string;
   projectPathNotSet: string;
   settingsDictionaries: string;
@@ -66,6 +74,9 @@ type Dict = {
   languageHint: string;
   appearance: string;
   appearanceHint: string;
+  settingsChatArchive: string;
+  settingsChatArchiveHint: string;
+  openFolder: string;
   themeNormal: string;
   themeNight: string;
   themeBook: string;
@@ -110,8 +121,15 @@ type Dict = {
   agentHistoryEmpty: string;
   agentHistoryDelete: string;
   agentHistoryDeleteConfirm: string;
+  simpleChatPickEngine: string;
+  simpleChatSwitchAgent: string;
+  simpleChatComposerPlaceholder: string;
+  simpleChatEmpty: string;
+  simpleChatWaiting: string;
+  simpleChatSend: string;
   orchestrator: string;
   orchestratorHint: string;
+  orchestratorSidebarPanel: string;
   orchestratorEmpty: string;
   orchestratorYou: string;
   orchestratorDispatched: string;
@@ -222,6 +240,7 @@ const en: Dict = {
   loadAppleNoteFailed: "[failed to load note: {error}]",
   editor: "Editor",
   backToAgents: "Agents",
+  simpleChatSidebarLabel: "Chat",
   limitFiveHour: "5h",
   limitWeekly: "week",
   limitUsed: "{label} {percent}% used",
@@ -233,6 +252,15 @@ const en: Dict = {
   settingsProjects: "Projects",
   settingsProjectsHint:
     "Each profile can have its own connected folder or file — the Orchestrator uses whichever one is active. Manuscript accepts a folder of chapter files or a single file; the others, any folder or file.",
+  settingsOrchestrator: "Orchestrator",
+  settingsOrchestratorHint:
+    "What's selected when you open the Orchestrator panel — you can still change it there per message.",
+  settingsJournal: "Action journal",
+  settingsJournalHint:
+    "Every applied and rolled-back change, across every chat and project — not just the one message it happened in.",
+  journalFilterAll: "All",
+  journalFilterFree: "Free chat",
+  journalEmpty: "No applied changes yet.",
   projectPathLabel: "Path",
   projectPathNotSet: "Not connected",
   chooseFolder: "Choose folder…",
@@ -261,6 +289,10 @@ const en: Dict = {
   languageHint: "Interface language for the app.",
   appearance: "Appearance",
   appearanceHint: "Normal, night, or a book-like reading look.",
+  settingsChatArchive: "Chat archive",
+  settingsChatArchiveHint:
+    "Every chat is also saved as Markdown on disk — split by project (a shared folder for chats with no connected project, plus one per project profile), and within that, one subfolder per engine.",
+  openFolder: "Open folder",
   themeNormal: "Normal",
   themeNight: "Night",
   themeBook: "Book",
@@ -307,8 +339,15 @@ const en: Dict = {
   agentHistoryEmpty: "No saved conversations yet.",
   agentHistoryDelete: "Delete conversation",
   agentHistoryDeleteConfirm: "Delete this conversation? This can't be undone.",
+  simpleChatPickEngine: "Who do you want to talk to?",
+  simpleChatSwitchAgent: "Switch agent",
+  simpleChatComposerPlaceholder: "Message",
+  simpleChatEmpty: "Say something to get started.",
+  simpleChatWaiting: "Thinking…",
+  simpleChatSend: "Send",
   orchestrator: "Orchestrator",
   orchestratorHint: "You talk to the Orchestrator; it runs the connected agents and collects their results.",
+  orchestratorSidebarPanel: "Orchestrator",
   orchestratorEmpty: "Write a request below. The Orchestrator will pass it to the available agents.",
   orchestratorYou: "You",
   orchestratorDispatched: "Request sent to agents.",
@@ -425,6 +464,7 @@ const ru: Dict = {
   loadAppleNoteFailed: "[не удалось загрузить заметку: {error}]",
   editor: "Редактор",
   backToAgents: "Агенты",
+  simpleChatSidebarLabel: "Чат",
   limitFiveHour: "5ч",
   limitWeekly: "нед.",
   limitUsed: "{label} {percent}%",
@@ -436,6 +476,15 @@ const ru: Dict = {
   settingsProjects: "Проекты",
   settingsProjectsHint:
     "У каждого профиля может быть свой подключённый путь — Оркестратор использует тот, что активен сейчас. «Рукопись» принимает папку с главами или один файл; остальные — любую папку или файл.",
+  settingsOrchestrator: "Оркестратор",
+  settingsOrchestratorHint:
+    "Что подставится при открытии панели Оркестратора — там же можно поменять на конкретное сообщение.",
+  settingsJournal: "Журнал действий",
+  settingsJournalHint:
+    "Каждое применённое и откаченное изменение, из любого чата и проекта — не только внутри того сообщения, где это произошло.",
+  journalFilterAll: "Все",
+  journalFilterFree: "Свободный чат",
+  journalEmpty: "Применённых изменений пока нет.",
   projectPathLabel: "Путь",
   projectPathNotSet: "Не подключён",
   chooseFolder: "Выбрать папку…",
@@ -464,6 +513,10 @@ const ru: Dict = {
   languageHint: "Язык интерфейса приложения.",
   appearance: "Оформление",
   appearanceHint: "Обычный, ночной или книжный режим.",
+  settingsChatArchive: "Архив чатов",
+  settingsChatArchiveHint:
+    "Каждый чат также сохраняется в Markdown на диске — сначала по проекту (общая папка для чатов без подключённого проекта, и по одной на каждый профиль), а внутри — отдельная подпапка на каждый движок.",
+  openFolder: "Открыть папку",
   themeNormal: "Обычный",
   themeNight: "Ночной",
   themeBook: "Книжный",
@@ -510,9 +563,16 @@ const ru: Dict = {
   agentHistoryEmpty: "Пока нет сохранённых обсуждений.",
   agentHistoryDelete: "Удалить обсуждение",
   agentHistoryDeleteConfirm: "Удалить это обсуждение? Отменить будет нельзя.",
+  simpleChatPickEngine: "С кем хочешь поговорить?",
+  simpleChatSwitchAgent: "Сменить агента",
+  simpleChatComposerPlaceholder: "Сообщение",
+  simpleChatEmpty: "Напиши что-нибудь, чтобы начать.",
+  simpleChatWaiting: "Думает…",
+  simpleChatSend: "Отправить",
   orchestrator: "Оркестратор",
   orchestratorHint:
     "Вы общаетесь с Оркестратором; он запускает подключённых агентов и собирает их результаты.",
+  orchestratorSidebarPanel: "Оркестратор",
   orchestratorEmpty:
     "Напишите запрос ниже. Оркестратор передаст его доступным агентам.",
   orchestratorYou: "Вы",
@@ -630,6 +690,7 @@ const uk: Dict = {
   loadAppleNoteFailed: "[не вдалося завантажити нотатку: {error}]",
   editor: "Редактор",
   backToAgents: "Агенти",
+  simpleChatSidebarLabel: "Чат",
   limitFiveHour: "5 год",
   limitWeekly: "тижд.",
   limitUsed: "{label} {percent}%",
@@ -641,6 +702,15 @@ const uk: Dict = {
   settingsProjects: "Проєкти",
   settingsProjectsHint:
     "У кожного профілю може бути свій підключений шлях — Оркестратор використовує той, що активний зараз. «Рукопис» приймає теку з розділами або один файл; решта — будь-яку теку чи файл.",
+  settingsOrchestrator: "Оркестратор",
+  settingsOrchestratorHint:
+    "Що підставиться при відкритті панелі Оркестратора — там само можна змінити на конкретне повідомлення.",
+  settingsJournal: "Журнал дій",
+  settingsJournalHint:
+    "Кожна застосована й відкочена зміна, з будь-якого чату й проєкту — не тільки всередині того повідомлення, де це сталося.",
+  journalFilterAll: "Усі",
+  journalFilterFree: "Вільний чат",
+  journalEmpty: "Застосованих змін поки немає.",
   projectPathLabel: "Шлях",
   projectPathNotSet: "Не підключено",
   chooseFolder: "Обрати теку…",
@@ -669,6 +739,10 @@ const uk: Dict = {
   languageHint: "Мова інтерфейсу програми.",
   appearance: "Оформлення",
   appearanceHint: "Звичайний, нічний або книжковий режим.",
+  settingsChatArchive: "Архів чатів",
+  settingsChatArchiveHint:
+    "Кожен чат також зберігається у Markdown на диску — спершу за проєктом (спільна тека для чатів без підключеного проєкту й окрема на кожен профіль), а всередині — окрема підтека на кожен рушій.",
+  openFolder: "Відкрити теку",
   themeNormal: "Звичайний",
   themeNight: "Нічний",
   themeBook: "Книжковий",
@@ -715,9 +789,16 @@ const uk: Dict = {
   agentHistoryEmpty: "Поки немає збережених обговорень.",
   agentHistoryDelete: "Видалити обговорення",
   agentHistoryDeleteConfirm: "Видалити це обговорення? Скасувати буде неможливо.",
+  simpleChatPickEngine: "З ким хочеш поговорити?",
+  simpleChatSwitchAgent: "Змінити агента",
+  simpleChatComposerPlaceholder: "Повідомлення",
+  simpleChatEmpty: "Напиши щось, щоб почати.",
+  simpleChatWaiting: "Думає…",
+  simpleChatSend: "Надіслати",
   orchestrator: "Оркестратор",
   orchestratorHint:
     "Ви спілкуєтеся з Оркестратором; він запускає підключених агентів і збирає їхні результати.",
+  orchestratorSidebarPanel: "Оркестратор",
   orchestratorEmpty:
     "Напишіть запит нижче. Оркестратор передасть його доступним агентам.",
   orchestratorYou: "Ви",
@@ -835,6 +916,7 @@ const cs: Dict = {
   loadAppleNoteFailed: "[poznámku se nepodařilo načíst: {error}]",
   editor: "Editor",
   backToAgents: "Agenti",
+  simpleChatSidebarLabel: "Chat",
   limitFiveHour: "5 h",
   limitWeekly: "týden",
   limitUsed: "{label} {percent} %",
@@ -846,6 +928,15 @@ const cs: Dict = {
   settingsProjects: "Projekty",
   settingsProjectsHint:
     "Každý profil může mít vlastní připojenou cestu — Orchestrátor použije tu, která je právě aktivní. „Rukopis“ přijímá složku s kapitolami nebo jeden soubor; ostatní libovolnou složku nebo soubor.",
+  settingsOrchestrator: "Orchestrátor",
+  settingsOrchestratorHint:
+    "Co se přednastaví při otevření panelu Orchestrátoru — tam ho lze pro konkrétní zprávu i změnit.",
+  settingsJournal: "Deník akcí",
+  settingsJournalHint:
+    "Každá provedená a vrácená změna, ze všech chatů a projektů — ne jen uvnitř té zprávy, kde se to stalo.",
+  journalFilterAll: "Vše",
+  journalFilterFree: "Volný chat",
+  journalEmpty: "Zatím žádné provedené změny.",
   projectPathLabel: "Cesta",
   projectPathNotSet: "Nepřipojeno",
   chooseFolder: "Vybrat složku…",
@@ -874,6 +965,10 @@ const cs: Dict = {
   languageHint: "Jazyk rozhraní aplikace.",
   appearance: "Vzhled",
   appearanceHint: "Běžný, noční nebo knižní režim.",
+  settingsChatArchive: "Archiv chatů",
+  settingsChatArchiveHint:
+    "Každý chat se také ukládá jako Markdown na disk — nejprve podle projektu (sdílená složka pro chaty bez připojeného projektu a samostatná pro každý profil), a uvnitř samostatná podsložka pro každý engine.",
+  openFolder: "Otevřít složku",
   themeNormal: "Běžný",
   themeNight: "Noční",
   themeBook: "Knižní",
@@ -920,9 +1015,16 @@ const cs: Dict = {
   agentHistoryEmpty: "Zatím žádné uložené konverzace.",
   agentHistoryDelete: "Smazat konverzaci",
   agentHistoryDeleteConfirm: "Smazat tuto konverzaci? Nelze vrátit zpět.",
+  simpleChatPickEngine: "S kým chceš mluvit?",
+  simpleChatSwitchAgent: "Změnit agenta",
+  simpleChatComposerPlaceholder: "Zpráva",
+  simpleChatEmpty: "Napiš něco pro začátek.",
+  simpleChatWaiting: "Přemýšlí…",
+  simpleChatSend: "Odeslat",
   orchestrator: "Orchestrátor",
   orchestratorHint:
     "Mluvíte s Orchestrátorem; ten spouští připojené agenty a sbírá jejich výsledky.",
+  orchestratorSidebarPanel: "Orchestrátor",
   orchestratorEmpty:
     "Napište požadavek níže. Orchestrátor ho předá dostupným agentům.",
   orchestratorYou: "Vy",

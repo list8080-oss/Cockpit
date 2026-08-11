@@ -23,9 +23,14 @@ import {
   OPENCODE_EFFORT_OPTIONS,
 } from "../agentSettings";
 import { profileLabel, type ProjectProfile } from "../profiles";
+import type { OrchestratorContext } from "../orchestrator/runFanout";
+import { OrchestratorConfigPanel, JournalPanel } from "../orchestrator";
+import type { OrchestratorAgentId } from "../orchestrator";
 
 export type SettingsSection =
   | "general"
+  | "orchestrator"
+  | "journal"
   | "projects"
   | "dictionaries"
   | "updates"
@@ -59,6 +64,7 @@ export function SettingsView({
   onLocaleChange,
   theme,
   onThemeChange,
+  onOpenChatArchive,
   onBack,
   agentAuths,
   authLoading,
@@ -72,6 +78,25 @@ export function SettingsView({
   onChooseProjectFolder,
   onChooseProjectFile,
   onDisconnectProject,
+  orchestratorContext,
+  onOrchestratorContextChange,
+  activeProfileId,
+  onActiveProfileChange,
+  profileSwitchError,
+  orchestratorBusy,
+  orchestratorSynthesizing,
+  fullAccessMode,
+  onFullAccessModeChange,
+  planMode,
+  onPlanModeChange,
+  proposeMode,
+  onProposeModeChange,
+  selectedAgents,
+  onToggleAgent,
+  selectedRoles,
+  onAgentRoleChange,
+  structuredResultMode,
+  onStructuredResultModeChange,
   dictionaries,
   dictionaryBusy,
   onDownloadDictionary,
@@ -97,6 +122,7 @@ export function SettingsView({
   onLocaleChange: (locale: Locale) => void;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
+  onOpenChatArchive: () => void;
   onBack: () => void;
   agentAuths: AuthStatus[];
   authLoading: boolean;
@@ -110,6 +136,25 @@ export function SettingsView({
   onChooseProjectFolder: (profileId: string) => void;
   onChooseProjectFile: (profileId: string) => void;
   onDisconnectProject: (profileId: string) => void;
+  orchestratorContext: OrchestratorContext;
+  onOrchestratorContextChange: (context: OrchestratorContext) => void;
+  activeProfileId: string | null;
+  onActiveProfileChange: (id: string) => void;
+  profileSwitchError: string | null;
+  orchestratorBusy: boolean;
+  orchestratorSynthesizing: boolean;
+  fullAccessMode: boolean;
+  onFullAccessModeChange: (enabled: boolean) => void;
+  planMode: boolean;
+  onPlanModeChange: (enabled: boolean) => void;
+  proposeMode: boolean;
+  onProposeModeChange: (enabled: boolean) => void;
+  selectedAgents: OrchestratorAgentId[];
+  onToggleAgent: (id: OrchestratorAgentId) => void;
+  selectedRoles: Partial<Record<OrchestratorAgentId, string>>;
+  onAgentRoleChange: (id: OrchestratorAgentId, roleId: string | null) => void;
+  structuredResultMode: boolean;
+  onStructuredResultModeChange: (enabled: boolean) => void;
   dictionaries: DictionaryStatus[];
   dictionaryBusy: string | null;
   claudeModel: string;
@@ -142,6 +187,8 @@ export function SettingsView({
 
   const navItems: { id: SettingsSection; label: string }[] = [
     { id: "general", label: t(locale, "settingsGeneral") },
+    { id: "orchestrator", label: t(locale, "settingsOrchestrator") },
+    { id: "journal", label: t(locale, "settingsJournal") },
     { id: "projects", label: t(locale, "settingsProjects") },
     { id: "dictionaries", label: t(locale, "settingsDictionaries") },
     { id: "updates", label: t(locale, "settingsUpdates") },
@@ -219,6 +266,60 @@ export function SettingsView({
                 ))}
               </select>
             </div>
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-label">{t(locale, "settingsChatArchive")}</div>
+                <div className="settings-hint">{t(locale, "settingsChatArchiveHint")}</div>
+              </div>
+              <button type="button" className="auth-action-btn" onClick={onOpenChatArchive}>
+                {t(locale, "openFolder")}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {section === "orchestrator" && (
+          <section className="settings-section">
+            <h2>{t(locale, "settingsOrchestrator")}</h2>
+            <p className="settings-section-hint">
+              {t(locale, "settingsOrchestratorHint")}
+            </p>
+            <div className="settings-orchestrator-config">
+              <OrchestratorConfigPanel
+                locale={locale}
+                busy={orchestratorBusy}
+                synthesizing={orchestratorSynthesizing}
+                fullAccessMode={fullAccessMode}
+                onFullAccessModeChange={onFullAccessModeChange}
+                planMode={planMode}
+                onPlanModeChange={onPlanModeChange}
+                proposeMode={proposeMode}
+                onProposeModeChange={onProposeModeChange}
+                context={orchestratorContext}
+                onContextChange={onOrchestratorContextChange}
+                selectedAgents={selectedAgents}
+                onToggleAgent={onToggleAgent}
+                activeProfileId={activeProfileId}
+                availableProfiles={availableProfiles}
+                onProfileChange={onActiveProfileChange}
+                profileSwitchError={profileSwitchError}
+                selectedRoles={selectedRoles}
+                onAgentRoleChange={onAgentRoleChange}
+                structuredResultMode={structuredResultMode}
+                onStructuredResultModeChange={onStructuredResultModeChange}
+                projectProfileLabel={
+                  activeProfileId ? profileLabel(locale, activeProfileId) : null
+                }
+              />
+            </div>
+          </section>
+        )}
+
+        {section === "journal" && (
+          <section className="settings-section">
+            <h2>{t(locale, "settingsJournal")}</h2>
+            <p className="settings-section-hint">{t(locale, "settingsJournalHint")}</p>
+            <JournalPanel locale={locale} availableProfiles={availableProfiles} />
           </section>
         )}
 

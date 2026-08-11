@@ -43,6 +43,15 @@ export {
 } from "./buildSynthesisPrompt";
 export { agentPanelLamp, agentPanelStatusKey } from "./panelStatus";
 export { OrchestratorChat } from "./OrchestratorChat";
+export { OrchestratorConfigPanel } from "./OrchestratorConfigPanel";
+export { JournalPanel } from "./JournalPanel";
+export {
+  deriveJournalRows,
+  filterJournalRows,
+  type JournalEntry,
+  type JournalFilter,
+  type JournalRow,
+} from "./journal";
 export { AgentPanels, type AgentPanelModel } from "./AgentPanels";
 export {
   useOrchestrator,
