@@ -7,6 +7,30 @@ use std::path::PathBuf;
 
 const DEFAULT_CHATGPT_BASE: &str = "https://chatgpt.com/backend-api";
 
+/// Hosts the Codex access token is allowed to be sent to. `config.toml` is
+/// user-editable (and, on a compromised machine, editable by anything else
+/// with access to `$HOME`), so an override read from it must never be
+/// trusted blindly — otherwise a malicious `chatgpt_base_url` would exfiltrate
+/// the ChatGPT bearer token to an arbitrary host.
+const TRUSTED_TOKEN_HOSTS: &[&str] = &["chatgpt.com", "openai.com"];
+
+fn is_trusted_token_host(host: &str) -> bool {
+    TRUSTED_TOKEN_HOSTS
+        .iter()
+        .any(|allowed| host == *allowed || host.ends_with(&format!(".{allowed}")))
+}
+
+/// `https` + a host in `TRUSTED_TOKEN_HOSTS` — anything else is rejected.
+fn is_trusted_base_url(url: &str) -> bool {
+    match reqwest::Url::parse(url) {
+        Ok(parsed) => {
+            parsed.scheme() == "https"
+                && parsed.host_str().map(is_trusted_token_host).unwrap_or(false)
+        }
+        Err(_) => false,
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodexLimitWindow {
@@ -78,7 +102,9 @@ fn auth_path() -> Option<PathBuf> {
 }
 
 fn chatgpt_base_url() -> String {
-    // Optional override from Codex config if present.
+    // Optional override from Codex config if present — only honored when it
+    // points at a trusted ChatGPT/OpenAI host, since this URL is where the
+    // account's bearer token gets sent.
     if let Some(home) = dirs::home_dir() {
         let cfg = home.join(".codex").join("config.toml");
         if let Ok(text) = std::fs::read_to_string(cfg) {
@@ -88,8 +114,12 @@ fn chatgpt_base_url() -> String {
                     let rest = rest.trim().trim_start_matches('=').trim();
                     let url = rest.trim_matches('"').trim_matches('\'').trim();
                     if !url.is_empty() {
-                        return url.trim_end_matches('/').to_string();
+                        let candidate = url.trim_end_matches('/').to_string();
+                        if is_trusted_base_url(&candidate) {
+                            return candidate;
+                        }
                     }
+                    break;
                 }
             }
         }
@@ -215,4 +245,25 @@ pub async fn get_codex_limits() -> Result<CodexLimits, String> {
         plan_type: parsed.plan_type,
         detail: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trusts_default_and_subdomains_of_allowed_hosts() {
+        assert!(is_trusted_base_url("https://chatgpt.com/backend-api"));
+        assert!(is_trusted_base_url("https://chat.openai.com/backend-api"));
+        assert!(is_trusted_base_url(DEFAULT_CHATGPT_BASE));
+    }
+
+    #[test]
+    fn rejects_untrusted_hosts_and_schemes() {
+        assert!(!is_trusted_base_url("https://evil.example/api"));
+        assert!(!is_trusted_base_url("https://notchatgpt.com/api"));
+        assert!(!is_trusted_base_url("https://chatgpt.com.evil.example/api"));
+        assert!(!is_trusted_base_url("http://chatgpt.com/api"));
+        assert!(!is_trusted_base_url("not a url"));
+    }
 }

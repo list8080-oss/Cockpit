@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.3",
+    date: "2026-08-11",
+    notes: {
+      en: "Security fix: the Codex usage-limit check no longer trusts an arbitrary \"chatgpt_base_url\" override from ~/.codex/config.toml — it now only sends the account's bearer token to chatgpt.com/openai.com, closing a path where a tampered config file could exfiltrate it. Also added CI (typecheck, tests, dependency audit, Rust build) so regressions are caught automatically instead of relying on manual checks.",
+      ru: "Фикс безопасности: проверка лимитов Codex больше не доверяет произвольному override \"chatgpt_base_url\" из ~/.codex/config.toml — токен аккаунта теперь уходит только на chatgpt.com/openai.com, что закрывает путь для утечки через подменённый конфиг. Также добавлен CI (проверка типов, тесты, аудит зависимостей, сборка Rust), чтобы регрессии ловились автоматически, а не только вручную.",
+      uk: "Фікс безпеки: перевірка лімітів Codex більше не довіряє довільному override \"chatgpt_base_url\" з ~/.codex/config.toml — токен акаунта тепер надсилається лише на chatgpt.com/openai.com, що закриває шлях для витоку через підмінений конфіг. Також додано CI (перевірка типів, тести, аудит залежностей, збірка Rust), щоб регресії ловилися автоматично, а не лише вручну.",
+      cs: "Bezpečnostní oprava: kontrola limitů Codexu už nedůvěřuje libovolnému přepsání \"chatgpt_base_url\" z ~/.codex/config.toml — token účtu se nyní odesílá pouze na chatgpt.com/openai.com, což uzavírá cestu k úniku přes pozměněný konfigurační soubor. Přidáno také CI (kontrola typů, testy, audit závislostí, sestavení Rustu), aby se regrese odhalovaly automaticky, ne jen ručně.",
+    },
+  },
+  {
     version: "0.4.2",
     date: "2026-08-11",
     notes: {
