@@ -46,8 +46,14 @@ pub fn load() -> AppConfig {
     cfg
 }
 
+/// Writes via a temp file + rename in the same directory so a crash mid-write
+/// can never leave `config.json` truncated or corrupted — the rename is
+/// atomic, so readers always see either the old file or the fully-written
+/// new one, never a partial one.
 pub fn save(config: &AppConfig) -> Result<(), String> {
     let path = config_path()?;
     let text = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
-    std::fs::write(path, text).map_err(|e| e.to_string())
+    let tmp_path = path.with_extension("json.tmp");
+    std::fs::write(&tmp_path, text).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp_path, &path).map_err(|e| e.to_string())
 }

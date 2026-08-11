@@ -19,6 +19,11 @@ type NSpell = { correct: (word: string) => boolean };
 let spellInstance: NSpell | null = null;
 let loadedLang: SpellLang | null = null;
 let dictionaryLoading: SpellLang | null = null;
+// Bumped on every load request; a load only commits its result if no newer
+// request has been issued since — otherwise a slow load for a language the
+// user already switched away from could win the race and silently replace
+// the dictionary the user is actually seeing.
+let dictionaryRequestSeq = 0;
 const wordCache = new Map<string, boolean>();
 
 const SKIP_TYPES = new Set([
@@ -52,11 +57,13 @@ async function loadDictionary(lang: SpellLang): Promise<void> {
   if (loadedLang === lang && spellInstance) return;
   if (dictionaryLoading === lang) return;
   dictionaryLoading = lang;
+  const myRequest = ++dictionaryRequestSeq;
   try {
     const [{ aff, dic }, nspellModule] = await Promise.all([
       invoke<{ aff: string; dic: string }>("read_dictionary", { lang }),
       import("nspell"),
     ]);
+    if (myRequest !== dictionaryRequestSeq) return; // superseded by a newer request
     const NSpell = nspellModule.default as unknown as new (
       aff: string,
       dic: string,
@@ -65,11 +72,13 @@ async function loadDictionary(lang: SpellLang): Promise<void> {
     loadedLang = lang;
     wordCache.clear();
   } catch (err) {
-    console.warn(`Failed to load spell-check dictionary (${lang}):`, err);
-    spellInstance = null;
-    loadedLang = null;
+    if (myRequest === dictionaryRequestSeq) {
+      console.warn(`Failed to load spell-check dictionary (${lang}):`, err);
+      spellInstance = null;
+      loadedLang = null;
+    }
   } finally {
-    dictionaryLoading = null;
+    if (dictionaryLoading === lang) dictionaryLoading = null;
   }
 }
 

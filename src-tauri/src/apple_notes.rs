@@ -92,10 +92,15 @@ pub fn list_apple_notes(folder_id: String) -> Result<Vec<AppleNotesItem>, String
     if folder_id.is_empty() || folder_id.contains('\n') || folder_id.contains('"') {
         return Err("invalid folder id".into());
     }
+    // JSON string escaping is valid JS string-literal syntax; Rust's `Debug`
+    // escaping (`{:?}`) isn't guaranteed to be — it can emit `\u{7f}`-style
+    // brace escapes that are invalid JavaScript, breaking the generated script.
+    let folder_id_js =
+        serde_json::to_string(&folder_id).map_err(|e| format!("cannot encode folder id: {e}"))?;
     let script = format!(
         r#"
 function run() {{
-  const folderId = {folder_id:?};
+  const folderId = {folder_id_js};
   const Notes = Application("Notes");
   const accounts = Notes.accounts();
   let folder = null;
@@ -134,10 +139,12 @@ pub fn read_apple_note(note_id: String) -> Result<String, String> {
     if note_id.is_empty() || note_id.contains('\n') || note_id.contains('"') {
         return Err("invalid note id".into());
     }
+    let note_id_js =
+        serde_json::to_string(&note_id).map_err(|e| format!("cannot encode note id: {e}"))?;
     let script = format!(
         r#"
 function run() {{
-  const noteId = {note_id:?};
+  const noteId = {note_id_js};
   const Notes = Application("Notes");
   let note = null;
   try {{

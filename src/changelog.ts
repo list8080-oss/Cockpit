@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.5",
+    date: "2026-08-11",
+    notes: {
+      en: "Security/reliability pass: a real Content-Security-Policy instead of none, a follow-up message that fails to send no longer gets stuck unanswered (you can retry it), and a fast language switch in spell-check can no longer silently swap in the wrong dictionary. Plus some internal cleanup.",
+      ru: "Проход по безопасности и надёжности: задана реальная политика Content-Security-Policy вместо отсутствующей, реплика, которая не отправилась, больше не зависает без ответа (можно повторить отправку), быстрое переключение языка в проверке орфографии больше не может незаметно подменить активный словарь. Плюс внутренняя чистка.",
+      uk: "Прохід з безпеки та надійності: задана реальна політика Content-Security-Policy замість відсутньої, репліка, яка не надіслалась, більше не зависає без відповіді (можна повторити надсилання), швидке перемикання мови в перевірці орфографії більше не може непомітно підмінити активний словник. Плюс внутрішнє прибирання.",
+      cs: "Průchod zaměřený na bezpečnost a spolehlivost: nastavena skutečná Content-Security-Policy místo žádné, zpráva navazující na konverzaci, která se nepodaří odeslat, už nezůstává bez odpovědi navždy (lze ji zkusit odeslat znovu), rychlé přepnutí jazyka v kontrole pravopisu už nemůže nepozorovaně vyměnit aktivní slovník. Plus vnitřní úklid.",
+    },
+  },
+  {
     version: "0.4.4",
     date: "2026-08-11",
     notes: {

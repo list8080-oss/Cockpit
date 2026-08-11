@@ -550,8 +550,7 @@ export function useOrchestrator({
       })
       .finally(() => {
         sendBusyRef.current = false;
-        if (isStillActive(id)) setOrchestratorAgentBusy(false);
-        else setOrchestratorAgentBusy(false);
+        setOrchestratorAgentBusy(false);
       });
   };
 
@@ -595,8 +594,7 @@ export function useOrchestrator({
       })
       .finally(() => {
         sendBusyRef.current = false;
-        if (isStillActive(id)) setOrchestratorAgentBusy(false);
-        else setOrchestratorAgentBusy(false);
+        setOrchestratorAgentBusy(false);
       });
   };
 
@@ -643,8 +641,7 @@ export function useOrchestrator({
       })
       .finally(() => {
         sendBusyRef.current = false;
-        if (isStillActive(id)) setOrchestratorAgentBusy(false);
-        else setOrchestratorAgentBusy(false);
+        setOrchestratorAgentBusy(false);
       });
   };
 
@@ -1068,7 +1065,16 @@ export function useOrchestrator({
         setClaude({ status: "done" });
       })
       .catch((e) => {
-        if (isStillActive(conversationId)) setClaude({ status: "error", message: String(e) });
+        upsertConversation(conversationId, (c) => ({
+          ...c,
+          updatedAt: Date.now(),
+          claude: { ...c.claude, history: claudeHistory },
+        }));
+        if (isStillActive(conversationId)) {
+          setClaude({ status: "error", message: String(e) });
+          setClaudeHistory(claudeHistory);
+          setClaudeReply(text);
+        }
       })
       .finally(() => {
         claudeBusyRef.current = false;
@@ -1113,7 +1119,16 @@ export function useOrchestrator({
         void refreshCodexLimits();
       })
       .catch((e) => {
-        if (isStillActive(conversationId)) setCodex({ status: "error", message: String(e) });
+        upsertConversation(conversationId, (c) => ({
+          ...c,
+          updatedAt: Date.now(),
+          codex: { ...c.codex, history: codexHistory },
+        }));
+        if (isStillActive(conversationId)) {
+          setCodex({ status: "error", message: String(e) });
+          setCodexHistory(codexHistory);
+          setCodexReply(text);
+        }
         void refreshCodexLimits();
       })
       .finally(() => {
@@ -1156,7 +1171,16 @@ export function useOrchestrator({
         setCursor({ status: "done" });
       })
       .catch((e) => {
-        if (isStillActive(conversationId)) setCursor({ status: "error", message: String(e) });
+        upsertConversation(conversationId, (c) => ({
+          ...c,
+          updatedAt: Date.now(),
+          cursor: { ...c.cursor, history: cursorHistory },
+        }));
+        if (isStillActive(conversationId)) {
+          setCursor({ status: "error", message: String(e) });
+          setCursorHistory(cursorHistory);
+          setCursorReply(text);
+        }
       })
       .finally(() => {
         cursorBusyRef.current = false;
@@ -1199,7 +1223,16 @@ export function useOrchestrator({
         setOpencode({ status: "done" });
       })
       .catch((e) => {
-        if (isStillActive(conversationId)) setOpencode({ status: "error", message: String(e) });
+        upsertConversation(conversationId, (c) => ({
+          ...c,
+          updatedAt: Date.now(),
+          opencode: { ...c.opencode, history: opencodeHistory },
+        }));
+        if (isStillActive(conversationId)) {
+          setOpencode({ status: "error", message: String(e) });
+          setOpencodeHistory(opencodeHistory);
+          setOpencodeReply(text);
+        }
       })
       .finally(() => {
         opencodeBusyRef.current = false;
