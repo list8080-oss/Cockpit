@@ -1,37 +1,32 @@
-//! Local storage for the writing editor (images under an app-data
-//! "project" directory). Does not touch the manuscript repo.
+//! Image storage for the writing editor — images live under
+//! `assets/images/` inside whichever project the active profile has
+//! connected, so they travel with the manuscript instead of an app-data
+//! sandbox disconnected from it. Path validation is shared with
+//! `editor_project`, which owns the notion of "the active project dir".
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use crate::editor_project::active_editor_project_dir;
 use std::path::{Path, PathBuf};
 
 const MAX_IMAGE_SIZE: u64 = 20 * 1024 * 1024;
 const ALLOWED_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"];
 
-fn editor_project_dir() -> Result<PathBuf, String> {
-    let base = dirs::data_dir().ok_or("data directory unavailable")?;
-    let dir = base.join("yar-cockpit").join("editor-project");
-    std::fs::create_dir_all(&dir)
-        .map_err(|e| format!("cannot create editor project dir: {e}"))?;
-    Ok(dir)
-}
-
-/// The two write commands below take `project_path` from the frontend, which
-/// in normal use is always whatever `get_editor_project_dir` returned — but a
-/// command handler shouldn't trust caller-supplied paths on faith. Pin writes
-/// to the one real editor project dir so this can never become a write path
-/// into an arbitrary folder (e.g. the manuscript root) even if some future
+/// The write commands below take `project_path` from the frontend, which in
+/// normal use is always whatever `get_editor_project_dir` returned — but a
+/// command handler shouldn't trust caller-supplied paths on faith. Pin
+/// writes to the one real, currently-active project dir so this can never
+/// become a write path into an arbitrary folder even if some future
 /// frontend bug passed something else through.
 fn require_editor_project(project_path: &str) -> Result<PathBuf, String> {
     let given = PathBuf::from(project_path);
-    std::fs::create_dir_all(&given).ok();
     let canonical_given = given
         .canonicalize()
         .map_err(|e| format!("Cannot resolve project path: {e}"))?;
-    let canonical_real = editor_project_dir()?
+    let canonical_real = active_editor_project_dir()?
         .canonicalize()
         .map_err(|e| format!("Cannot resolve editor project dir: {e}"))?;
     if canonical_given != canonical_real {
-        return Err("project_path must be the editor's own project directory".into());
+        return Err("project_path must be the active project directory".into());
     }
     Ok(canonical_real)
 }
@@ -62,11 +57,6 @@ fn write_image_bytes(project: &Path, original_name: &str, ext: &str, bytes: &[u8
     let dest_path = dest_dir.join(&dest_filename);
     std::fs::write(&dest_path, bytes).map_err(|e| format!("Failed to write image: {e}"))?;
     Ok(format!("assets/images/{dest_filename}"))
-}
-
-#[tauri::command]
-pub fn get_editor_project_dir() -> Result<String, String> {
-    Ok(editor_project_dir()?.to_string_lossy().into_owned())
 }
 
 #[tauri::command]

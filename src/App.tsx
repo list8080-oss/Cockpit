@@ -42,8 +42,6 @@ type View = "workspace" | "settings";
 type WorkspaceMode = "agents" | "editor";
 type SidebarPanelId = "notes" | "appleNotes" | "history" | null;
 
-const EDITOR_STORAGE_KEY = "yar-cockpit.editor";
-const LEGACY_EDITOR_STORAGE_KEY = "yar-cockpit.notes";
 const SIDEBAR_PANEL_STORAGE_KEY = "yar-cockpit.sidebarPanel";
 
 const SIDEBAR_PANEL_IDS: SidebarPanelId[] = ["notes", "appleNotes", "history"];
@@ -81,17 +79,6 @@ export default function App() {
   const [view, setView] = useState<View>("workspace");
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("agents");
   const [openPanel, setOpenPanel] = useState<SidebarPanelId>(loadSidebarPanel);
-  const [editorText, setEditorText] = useState(() => {
-    try {
-      return (
-        localStorage.getItem(EDITOR_STORAGE_KEY) ??
-        localStorage.getItem(LEGACY_EDITOR_STORAGE_KEY) ??
-        ""
-      );
-    } catch {
-      return "";
-    }
-  });
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [chaptersError, setChaptersError] = useState<string | null>(null);
   const [appleFolders, setAppleFolders] = useState<AppleNotesFolder[]>([]);
@@ -511,14 +498,6 @@ export default function App() {
       /* ignore */
     }
   }, [openPanel]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(EDITOR_STORAGE_KEY, editorText);
-    } catch {
-      // ignore quota / private mode
-    }
-  }, [editorText]);
 
   const toggleNotesPanel = () => {
     setOpenPanel((current) => (current === "notes" ? null : "notes"));
@@ -952,8 +931,6 @@ export default function App() {
         <div className="main-body">
           {workspaceMode === "editor" ? (
             <WritingEditor
-              content={editorText}
-              onContentChange={setEditorText}
               onBack={openAgentsMode}
               backLabel={t(locale, "backToAgents")}
               title={t(locale, "editor")}

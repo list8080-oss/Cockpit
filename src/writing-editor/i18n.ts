@@ -115,6 +115,11 @@ type Dict = {
 
   // Misc
   loadingImage: string;
+
+  // Project / document connection
+  noProjectConnected: string;
+  noDocuments: string;
+  chapterLabel: string;
 };
 
 const en: Dict = {
@@ -221,6 +226,10 @@ const en: Dict = {
   shortcutWrap: "Soft wrap",
 
   loadingImage: "Loading image…",
+
+  noProjectConnected: "No project connected — connect a folder or file in Settings > Projects.",
+  noDocuments: "This project has no chapters yet.",
+  chapterLabel: "Chapter",
 };
 
 const ru: Dict = {
@@ -327,6 +336,10 @@ const ru: Dict = {
   shortcutWrap: "Мягкий перенос",
 
   loadingImage: "Загрузка изображения…",
+
+  noProjectConnected: "Проект не подключён — подключите папку или файл в Настройки > Проекты.",
+  noDocuments: "В этом проекте пока нет глав.",
+  chapterLabel: "Глава",
 };
 
 const uk: Dict = {
@@ -433,6 +446,10 @@ const uk: Dict = {
   shortcutWrap: "М’яке перенесення",
 
   loadingImage: "Завантаження зображення…",
+
+  noProjectConnected: "Проєкт не підключено — підключіть теку або файл у Налаштування > Проєкти.",
+  noDocuments: "У цьому проєкті поки немає розділів.",
+  chapterLabel: "Розділ",
 };
 
 const cs: Dict = {
@@ -539,6 +556,10 @@ const cs: Dict = {
   shortcutWrap: "Měkké zalamování",
 
   loadingImage: "Načítání obrázku…",
+
+  noProjectConnected: "Žádný připojený projekt — připojte složku nebo soubor v Nastavení > Projekty.",
+  noDocuments: "Tento projekt zatím nemá žádné kapitoly.",
+  chapterLabel: "Kapitola",
 };
 
 const dictionaries: Record<Locale, Dict> = { en, ru, uk, cs };

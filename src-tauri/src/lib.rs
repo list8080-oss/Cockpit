@@ -5,9 +5,11 @@ mod codex_limits;
 mod config;
 mod dictionaries;
 mod editor_assets;
+mod editor_project;
 mod engines;
 mod manuscript;
 mod profiles;
+mod version_history;
 
 /// Shared across different modules' tests that set process-global env vars
 /// (`YAR_COCKPIT_ORCHESTRATOR_DATA_DIR`, `YAR_COCKPIT_CONFIG_DIR`) — a
@@ -45,10 +47,21 @@ pub fn run() {
             auth::start_auth_login,
             auth::start_auth_logout,
             codex_limits::get_codex_limits,
-            editor_assets::get_editor_project_dir,
             editor_assets::import_image,
             editor_assets::import_image_bytes,
             editor_assets::read_image_base64,
+            editor_project::get_editor_project_dir,
+            editor_project::list_editor_documents,
+            editor_project::load_document,
+            editor_project::save_document,
+            editor_project::get_manuscript_word_count,
+            version_history::create_backup,
+            version_history::list_document_backups,
+            version_history::restore_backup,
+            version_history::list_document_snapshots,
+            version_history::pin_snapshot,
+            version_history::unpin_snapshot,
+            version_history::restore_snapshot,
             dictionaries::list_dictionary_status,
             dictionaries::download_dictionary,
             dictionaries::delete_dictionary,

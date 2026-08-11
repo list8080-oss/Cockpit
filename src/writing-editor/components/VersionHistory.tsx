@@ -1,15 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { History, RotateCcw } from "lucide-react";
 import type { BackupEntry, DocumentContent, SnapshotEntry } from "../types";
 import { useWeT } from "../LocaleContext";
-import {
-  listLocalBackups,
-  listLocalSnapshots,
-  pinLocalSnapshot,
-  restoreLocalBackup,
-  restoreLocalSnapshot,
-  unpinLocalSnapshot,
-} from "../stubs/localSnapshots";
 
 interface VersionHistoryProps {
   projectPath: string;
@@ -20,18 +13,9 @@ interface VersionHistoryProps {
 }
 
 function formatTimestamp(ts: string): string {
-  const match = ts.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
-  if (!match) return ts;
-  const [, year, month, day, hour, min, sec] = match;
-  const date = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(min),
-    Number(sec),
-  );
-  return date.toLocaleString(undefined, {
+  const ms = Number(ts);
+  if (!Number.isFinite(ms)) return ts;
+  return new Date(ms).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -46,8 +30,11 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Local (localStorage) version history. */
+/** Version history persisted on disk under the project's own
+ * `.inprincipio/history/` folder — travels with the manuscript instead of
+ * living only in the WebView's localStorage. */
 export function VersionHistory({
+  projectPath,
   nodeId,
   docTitle,
   onRestore,
@@ -67,14 +54,18 @@ export function VersionHistory({
     setLoading(true);
     setError(null);
     try {
-      setBackups(listLocalBackups(nodeId));
-      setSnapshots(listLocalSnapshots(nodeId));
+      const [b, s] = await Promise.all([
+        invoke<BackupEntry[]>("list_document_backups", { projectPath, nodeId }),
+        invoke<SnapshotEntry[]>("list_document_snapshots", { projectPath, nodeId }),
+      ]);
+      setBackups(b);
+      setSnapshots(s);
     } catch (err) {
       setError(String(err));
     } finally {
       setLoading(false);
     }
-  }, [nodeId]);
+  }, [projectPath, nodeId]);
 
   useEffect(() => {
     void fetchData();
@@ -85,58 +76,60 @@ export function VersionHistory({
       setRestoring(timestamp);
       setError(null);
       try {
-        const doc = restoreLocalBackup(nodeId, timestamp, title);
-        if (!doc) throw new Error("Backup not found");
-        onRestore(doc);
+        const content = await invoke<string>("restore_backup", { projectPath, nodeId, timestamp });
+        onRestore({ id: nodeId, title, doc_type: "chapter", content, file: nodeId });
       } catch (err) {
         setError(String(err));
       } finally {
         setRestoring(null);
       }
     },
-    [nodeId, title, onRestore],
+    [projectPath, nodeId, title, onRestore],
   );
 
   const handlePin = useCallback(
     async (timestamp: string, name: string) => {
       try {
-        const entry = pinLocalSnapshot(nodeId, timestamp, name);
-        if (entry) setSnapshots((prev) => [entry, ...prev]);
+        const entry = await invoke<SnapshotEntry>("pin_snapshot", { projectPath, nodeId, timestamp, name });
+        setSnapshots((prev) => [entry, ...prev]);
         setPinNamingFor(null);
         setPinNameDraft("");
       } catch (err) {
         setError(String(err));
       }
     },
-    [nodeId],
+    [projectPath, nodeId],
   );
 
   const handleUnpin = useCallback(
     async (snapshot: SnapshotEntry) => {
       try {
-        unpinLocalSnapshot(nodeId, snapshot.timestamp);
+        await invoke("unpin_snapshot", { projectPath, nodeId, timestamp: snapshot.timestamp });
         setSnapshots((prev) => prev.filter((s) => s.timestamp !== snapshot.timestamp));
       } catch (err) {
         setError(String(err));
       }
     },
-    [nodeId],
+    [projectPath, nodeId],
   );
 
   const handleRestoreSnapshot = useCallback(
     async (snapshot: SnapshotEntry) => {
       setRestoring(snapshot.timestamp);
       try {
-        const doc = restoreLocalSnapshot(nodeId, snapshot.timestamp, title);
-        if (!doc) throw new Error("Snapshot not found");
-        onRestore(doc);
+        const content = await invoke<string>("restore_snapshot", {
+          projectPath,
+          nodeId,
+          timestamp: snapshot.timestamp,
+        });
+        onRestore({ id: nodeId, title, doc_type: "chapter", content, file: nodeId });
       } catch (err) {
         setError(String(err));
       } finally {
         setRestoring(null);
       }
     },
-    [nodeId, title, onRestore],
+    [projectPath, nodeId, title, onRestore],
   );
 
   return (

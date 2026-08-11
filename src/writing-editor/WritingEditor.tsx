@@ -5,7 +5,8 @@ import { Editor } from "./components/Editor";
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
 import { ToastStack, createToast, type ToastData } from "./components/Toast";
 import { WritingEditorLocaleProvider } from "./LocaleContext";
-import type { DocumentContent } from "./types";
+import { weT } from "./i18n";
+import type { DocumentContent, ProjectManifest } from "./types";
 import { BUILTIN_THEMES } from "./themes/builtinThemes";
 import type { ThemeDefinition } from "./themes/themeTypes";
 import { modKey } from "./utils/platform";
@@ -15,19 +16,23 @@ import "./styles/toolbar.css";
 import "./styles/dialogs.css";
 import "./styles/toast.css";
 
-const DOC_ID = "cockpit-draft";
+function lastNodeKey(projectPath: string): string {
+  return `yar-cockpit.editor.lastNode:${projectPath}`;
+}
+
+/** First node id in filename order — the manifest already arrives sorted that way from Rust. */
+function firstNodeId(manifest: ProjectManifest): string | null {
+  const ids = Object.keys(manifest.nodes);
+  return ids.length ? ids[0] : null;
+}
 
 export function WritingEditor({
-  content,
-  onContentChange,
   onBack,
   backLabel,
   title,
   themeId,
   locale,
 }: {
-  content: string;
-  onContentChange: (value: string) => void;
   onBack: () => void;
   backLabel: string;
   title: string;
@@ -35,24 +40,81 @@ export function WritingEditor({
   themeId?: "normal" | "night" | "book";
   locale: Locale;
 }) {
-  const [doc, setDoc] = useState<DocumentContent>(() => ({
-    id: DOC_ID,
-    title,
-    doc_type: "note",
-    content,
-    file: `${DOC_ID}.md`,
-  }));
+  const t = useCallback((key: Parameters<typeof weT>[1]) => weT(locale, key), [locale]);
+
   const [projectPath, setProjectPath] = useState<string | null>(null);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [manifest, setManifest] = useState<ProjectManifest | null>(null);
+  const [manifestError, setManifestError] = useState<string | null>(null);
+  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+  const [doc, setDoc] = useState<DocumentContent | null>(null);
+  const [docError, setDocError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
 
+  // Resolve the active project's directory once on mount.
   useEffect(() => {
     void invoke<string>("get_editor_project_dir")
-      .then(setProjectPath)
+      .then((dir) => {
+        setProjectPath(dir);
+        setProjectError(null);
+      })
       .catch((err) => {
-        console.warn("editor project dir unavailable", err);
+        setProjectPath(null);
+        setProjectError(String(err));
       });
   }, []);
+
+  // List the project's documents once we know where it lives.
+  useEffect(() => {
+    if (!projectPath) return;
+    let cancelled = false;
+    invoke<ProjectManifest>("list_editor_documents", { projectPath })
+      .then((m) => {
+        if (cancelled) return;
+        setManifest(m);
+        setManifestError(null);
+        let restored: string | null = null;
+        try {
+          const stored = localStorage.getItem(lastNodeKey(projectPath));
+          if (stored && m.nodes[stored]) restored = stored;
+        } catch {
+          /* ignore */
+        }
+        setActiveNodeId(restored ?? firstNodeId(m));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setManifest(null);
+        setManifestError(String(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectPath]);
+
+  // Load the active document's content whenever the selection changes.
+  useEffect(() => {
+    if (!projectPath || !activeNodeId) {
+      setDoc(null);
+      return;
+    }
+    let cancelled = false;
+    setDocError(null);
+    invoke<DocumentContent>("load_document", { projectPath, nodeId: activeNodeId })
+      .then((d) => {
+        if (!cancelled) setDoc(d);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setDoc(null);
+          setDocError(String(err));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectPath, activeNodeId]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -64,11 +126,6 @@ export function WritingEditor({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
-
-  const docForEditor = useMemo<DocumentContent>(() => {
-    if (doc.content === content && doc.title === title) return doc;
-    return { ...doc, content, title };
-  }, [content, title, doc]);
 
   const activeTheme: ThemeDefinition = useMemo(() => {
     if (themeId === "night") return BUILTIN_THEMES.dark;
@@ -84,13 +141,37 @@ export function WritingEditor({
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const handleSave = useCallback(
-    async (nodeId: string, next: string) => {
-      onContentChange(next);
-      setDoc((prev) => ({ ...prev, id: nodeId, content: next }));
-      return true;
+  const selectNode = useCallback(
+    (id: string) => {
+      setActiveNodeId(id);
+      if (projectPath) {
+        try {
+          localStorage.setItem(lastNodeKey(projectPath), id);
+        } catch {
+          /* ignore quota / private mode */
+        }
+      }
     },
-    [onContentChange],
+    [projectPath],
+  );
+
+  const handleSave = useCallback(
+    async (nodeId: string, content: string) => {
+      if (!projectPath) return false;
+      try {
+        await invoke("save_document", { projectPath, nodeId, content });
+        return true;
+      } catch (err) {
+        showToast(String(err), "error");
+        return false;
+      }
+    },
+    [projectPath, showToast],
+  );
+
+  const sortedNodeEntries = useMemo(
+    () => (manifest ? Object.entries(manifest.nodes) : []),
+    [manifest],
   );
 
   return (
@@ -101,15 +182,60 @@ export function WritingEditor({
             ← {backLabel}
           </button>
           <span className="writing-editor-back-title">{title}</span>
+          {sortedNodeEntries.length > 0 && (
+            <select
+              className="writing-editor-doc-select"
+              value={activeNodeId ?? ""}
+              onChange={(e) => selectNode(e.target.value)}
+              aria-label={t("chapterLabel")}
+            >
+              {sortedNodeEntries.map(([id, node]) => (
+                <option key={id} value={id}>
+                  {node.title ?? id}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
-        <Editor
-          doc={docForEditor}
-          onSave={handleSave}
-          projectPath={projectPath ?? undefined}
-          activeTheme={activeTheme}
-          breadcrumbTitle={title}
-          onToast={showToast}
-        />
+
+        {projectError && (
+          <div className="writing-editor-empty">
+            <p className="error-text">{t("noProjectConnected")}</p>
+            <p className="writing-editor-empty-detail">{projectError}</p>
+          </div>
+        )}
+
+        {!projectError && manifestError && (
+          <div className="writing-editor-empty">
+            <p className="error-text">{manifestError}</p>
+          </div>
+        )}
+
+        {!projectError && !manifestError && manifest && sortedNodeEntries.length === 0 && (
+          <div className="writing-editor-empty">
+            <p>{t("noDocuments")}</p>
+          </div>
+        )}
+
+        {!projectError && !manifestError && doc && (
+          <Editor
+            doc={doc}
+            onSave={handleSave}
+            manifest={manifest ?? undefined}
+            onSelectNode={selectNode}
+            projectPath={projectPath ?? undefined}
+            activeTheme={activeTheme}
+            breadcrumbTitle={doc.title}
+            onToast={showToast}
+          />
+        )}
+
+        {!projectError && !manifestError && !doc && docError && (
+          <div className="writing-editor-empty">
+            <p className="error-text">{docError}</p>
+          </div>
+        )}
+
         {showShortcuts && <KeyboardShortcuts onClose={() => setShowShortcuts(false)} />}
         <ToastStack toasts={toasts} onDismiss={dismissToast} />
       </div>

@@ -54,7 +54,12 @@ pub fn agent_workdir(context: &str) -> Result<PathBuf, String> {
 /// Only meaningful in folder mode. Some profiles (e.g. manuscript) keep
 /// chapters in a named subfolder; fall back to the project root so an
 /// arbitrary folder of `.txt` files also works.
-fn chapters_dir(root: &std::path::Path) -> PathBuf {
+///
+/// `pub(crate)` so `editor_project` can resolve the same directory when
+/// listing documents the writing editor can open — one source of truth for
+/// "where do this profile's chapters live" shared between the read-only
+/// Orchestrator view and the editor's real read/write view.
+pub(crate) fn chapters_dir(root: &std::path::Path) -> PathBuf {
     if let Some(sub) = crate::profiles::chapters_subfolder(&crate::profiles::active_profile_id()) {
         let nested = root.join(sub);
         if nested.is_dir() {

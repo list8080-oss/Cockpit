@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.4",
+    date: "2026-08-11",
+    notes: {
+      en: "Writing editor now works on the active project's real chapters instead of one fake in-browser draft: a chapter switcher, and edits save to disk. Version history (autosaves and named snapshots) is now saved to files in the project folder instead of the browser's local storage, so it survives a cache clear or reinstall. Editor images now save inside the project folder too. Also fixed the Find button never showing as active.",
+      ru: "Текстовый редактор теперь работает с реальными главами активного проекта, а не с одним черновиком в памяти браузера: появился переключатель глав, правки сохраняются на диск. История версий (автосохранения и именованные снимки) теперь хранится в файлах внутри папки проекта, а не в локальном хранилище браузера — переживёт очистку кэша или переустановку. Картинки редактора тоже теперь сохраняются внутри папки проекта. Ещё исправлена кнопка «Найти», которая никогда не подсвечивалась активной.",
+      uk: "Текстовий редактор тепер працює з реальними главами активного проєкту, а не з одним чернеткою в пам'яті браузера: з'явився перемикач глав, правки зберігаються на диск. Історія версій (автозбереження та іменовані знімки) тепер зберігається у файлах усередині папки проєкту, а не в локальному сховищі браузера — переживе очищення кешу чи перевстановлення. Картинки редактора теж тепер зберігаються всередині папки проєкту. Ще виправлено кнопку «Знайти», яка ніколи не підсвічувалась активною.",
+      cs: "Textový editor nyní pracuje se skutečnými kapitolami aktivního projektu místo jednoho falešného konceptu v paměti prohlížeče: přibyl přepínač kapitol, úpravy se ukládají na disk. Historie verzí (automatické zálohy a pojmenované snímky) se nyní ukládá do souborů uvnitř složky projektu místo místního úložiště prohlížeče — přežije vymazání mezipaměti i přeinstalaci. Obrázky editoru se nyní také ukládají uvnitř složky projektu. Také opraveno tlačítko Najít, které se nikdy nezobrazovalo jako aktivní.",
+    },
+  },
+  {
     version: "0.4.3",
     date: "2026-08-11",
     notes: {

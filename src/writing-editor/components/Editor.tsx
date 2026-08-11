@@ -5,7 +5,7 @@ import { EditorView, keymap, placeholder } from "@codemirror/view";
 import { Compartment } from "@codemirror/state";
 import { history, undo, redo, defaultKeymap, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
-import { search, searchKeymap, openSearchPanel } from "@codemirror/search";
+import { search, searchKeymap, openSearchPanel, closeSearchPanel, searchPanelOpen } from "@codemirror/search";
 import type { DocumentContent, ProjectManifest, WordCountResult } from "../types";
 import { Toolbar } from "./Toolbar";
 import { ImagePreviewCard, type ActiveImage } from "./ImagePreviewCard";
@@ -34,7 +34,6 @@ import { createSyntaxHighlighting } from "../themes/syntaxTheme";
 import type { ThemeDefinition } from "../themes/themeTypes";
 import { AUTOSAVE_INTERVAL_MS, UNDO_GROUP_DELAY_MS } from "../constants";
 import { useWeLocale, useWeT } from "../LocaleContext";
-import { pushLocalBackup } from "../stubs/localSnapshots";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -96,6 +95,7 @@ export function Editor({
       return false;
     }
   });
+  const [findOpen, setFindOpen] = useState(false);
   const [hoveredLink, setHoveredLink] = useState<HoveredLink | null>(null);
   const [linkPreview, setLinkPreview] = useState<DocumentContent | null>(null);
   const [cursorPos, setCursorPos] = useState<CursorPosition>({ line: 1, col: 1 });
@@ -182,8 +182,8 @@ export function Editor({
         dirtyRef.current = false;
         setDirty(false);
         setLastSavedAt(new Date());
-        pushLocalBackup(nodeId, snapshot);
         if (projectPath) {
+          void invoke("create_backup", { projectPath, nodeId, content: snapshot }).catch(() => {});
           invoke<WordCountResult>("get_manuscript_word_count", { projectPath })
             .then((r) => setManuscriptWordCount({ words: r.total_words, chars: r.total_chars }))
             .catch(() => {});
@@ -279,12 +279,22 @@ export function Editor({
     keymapCallbacksRef.current.onSave = handleSave;
   }, [handleSave]);
 
+  // Stable ref so the update listener below (created once in `extensions`)
+  // always calls the latest setter without needing to be in its deps.
+  const setFindOpenRef = useRef(setFindOpen);
+  setFindOpenRef.current = setFindOpen;
+
   const extensions = useMemo(() => {
     const exts = [
       editorBaseTheme,
       history({ newGroupDelay: UNDO_GROUP_DELAY_MS }),
       keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
       search(),
+      EditorView.updateListener.of((update) => {
+        const wasOpen = searchPanelOpen(update.startState);
+        const isOpen = searchPanelOpen(update.state);
+        if (wasOpen !== isOpen) setFindOpenRef.current(isOpen);
+      }),
       markdown(),
       placeholder("Start writing\u2026 Use [[Node Title]] to link to any document."),
       editorKeymap({
@@ -661,6 +671,7 @@ export function Editor({
             type="button"
             className={`toolbar-btn${showHistory ? " active" : ""}`}
             onClick={() => setShowHistory((v) => !v)}
+            disabled={!projectPath}
             data-tooltip={t("versionHistory")}
           >
             {t("history")}
@@ -680,7 +691,7 @@ export function Editor({
           projectPath={projectPath}
           onUndo={handleUndo}
           onRedo={handleRedo}
-          showFind={false}
+          showFind={findOpen}
           softWrap={softWrap}
           showOutline={showOutline}
           outlineCount={outlineEntries.length}
@@ -691,7 +702,9 @@ export function Editor({
           manuscriptMode={manuscriptMode}
           onToggleFind={() => {
             const view = viewRef.current;
-            if (view) openSearchPanel(view);
+            if (!view) return;
+            if (searchPanelOpen(view.state)) closeSearchPanel(view);
+            else openSearchPanel(view);
           }}
           onToggleSoftWrap={() => setSoftWrap((v) => !v)}
           onToggleOutline={() => setShowOutline((v) => !v)}
@@ -774,9 +787,9 @@ export function Editor({
           <div ref={editorContainerRef} className="cm-editor-container" />
         </div>
 
-        {showHistory && (
+        {showHistory && projectPath && (
           <VersionHistory
-            projectPath={projectPath ?? "local"}
+            projectPath={projectPath}
             nodeId={doc.id}
             docTitle={doc.title}
             onRestore={handleHistoryRestore}
