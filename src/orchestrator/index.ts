@@ -12,11 +12,17 @@ export {
   agentDisplayName,
   createAgentFullAccessErrorMessage,
   createAgentFullAccessMessage,
+  createAgentPlanErrorMessage,
+  createAgentPlanMessage,
+  createAgentProposalErrorMessage,
+  createAgentProposalMessage,
   createCompletedMessage,
+  createDelegationMessage,
   createDispatchedMessage,
   createSynthesisErrorMessage,
   createSynthesisMessage,
   createUserMessage,
+  delegatedAgentLabel,
   formatOrchestratorMessage,
   legacyMessagesFromConversation,
 } from "./messages";
@@ -24,6 +30,7 @@ export {
   runOrchestratorFanout,
   summarizeFanoutResults,
   type FanoutAgentResult,
+  type OrchestratorContext,
   type RunFanoutOptions,
 } from "./runFanout";
 export {
@@ -37,3 +44,9 @@ export {
 export { agentPanelLamp, agentPanelStatusKey } from "./panelStatus";
 export { OrchestratorChat } from "./OrchestratorChat";
 export { AgentPanels, type AgentPanelModel } from "./AgentPanels";
+export {
+  useOrchestrator,
+  type UseOrchestratorDeps,
+  type OrchestratorView,
+  type OrchestratorWorkspaceMode,
+} from "./useOrchestrator";

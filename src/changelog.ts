@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.1",
+    date: "2026-08-11",
+    notes: {
+      en: "Renamed to InPrincipio (new name, new icon) — the previous name collided with several existing products. Major update since 0.3.27: three project profiles (Manuscript, Development, Free project) with a real switcher and their own connected folders; configurable agent roles for the normal fan-out; an opt-in structured self-assessment agents can attach to their replies; a new \"Propose changes\" mode that shows a diff before anything is written, plus \"Apply\" with a journal and rollback; and \"Plan\" mode for read-only investigation including delegating to sibling CLIs.",
+      ru: "Переименовано в InPrincipio (новое имя, новая иконка) — прежнее название пересекалось с несколькими существующими продуктами. Крупное обновление с версии 0.3.27: три профиля проекта (Рукопись, Разработка, Свободный проект) с реальным переключателем и собственной подключённой папкой у каждого; настраиваемые роли агентов для обычного фан-аута; опциональная структурированная самооценка, которую агенты могут прикладывать к ответу; новый режим «Предложить изменения», показывающий diff перед тем, как что-либо записано, плюс «Применить» с журналом и откатом; и режим «План» для read-only исследования, включая делегирование другим CLI.",
+      uk: "Перейменовано на InPrincipio (нова назва, нова іконка) — попередня назва перетиналася з кількома наявними продуктами. Велике оновлення з версії 0.3.27: три профілі проєкту (Рукопис, Розробка, Вільний проєкт) із реальним перемикачем і власною підключеною папкою в кожного; настроювані ролі агентів для звичайного фан-ауту; опційна структурована самооцінка, яку агенти можуть додавати до відповіді; новий режим «Запропонувати зміни», що показує diff перед тим, як щось записано, плюс «Застосувати» з журналом і відкатом; і режим «План» для read-only дослідження, включно з делегуванням іншим CLI.",
+      cs: "Přejmenováno na InPrincipio (nový název, nová ikona) — předchozí název kolidoval s několika existujícími produkty. Velká aktualizace od verze 0.3.27: tři profily projektu (Rukopis, Vývoj, Volný projekt) se skutečným přepínačem a vlastní připojenou složkou u každého; konfigurovatelné role agentů pro běžný fan-out; volitelné strukturované sebehodnocení, které agenti mohou připojit k odpovědi; nový režim „Navrhnout změny“, který před jakýmkoli zápisem zobrazí diff, plus „Použít“ s deníkem a možností vrátit zpět; a režim „Plán“ pro read-only zkoumání včetně delegování na sesterská CLI.",
+    },
+  },
+  {
     version: "0.3.27",
     date: "2026-08-09",
     notes: {

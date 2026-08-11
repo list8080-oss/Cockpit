@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 const LANGS: &[&str] = &["en", "ru", "uk", "cs"];
 const RAW_BASE: &str =
-    "https://raw.githubusercontent.com/list8080-oss/yar-cockpit/main/dictionaries";
+    "https://raw.githubusercontent.com/list8080-oss/InPrincipio/main/dictionaries";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DictionaryStatus {

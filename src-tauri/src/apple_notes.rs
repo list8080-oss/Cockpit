@@ -41,7 +41,7 @@ fn run_jxa(script: &str) -> Result<String, String> {
             || detail.to_lowercase().contains("(-1743)")
         {
             return Err(
-                "access_denied: allow Cockpit to control Notes in System Settings → Privacy & Security → Automation"
+                "access_denied: allow InPrincipio to control Notes in System Settings → Privacy & Security → Automation"
                     .into(),
             );
         }

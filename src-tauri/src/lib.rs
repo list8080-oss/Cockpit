@@ -1,11 +1,25 @@
 mod apple_notes;
 mod auth;
+mod bin_paths;
 mod codex_limits;
 mod config;
 mod dictionaries;
 mod editor_assets;
 mod engines;
 mod manuscript;
+mod profiles;
+
+/// Shared across different modules' tests that set process-global env vars
+/// (`YAR_COCKPIT_ORCHESTRATOR_DATA_DIR`, `YAR_COCKPIT_CONFIG_DIR`) — a
+/// module-private lock only serializes tests within that same module, so a
+/// test in another module reading the real default location can still race
+/// against it under `cargo test`'s default parallel execution. All tests
+/// that set either of those vars take this same lock first.
+#[cfg(test)]
+pub(crate) mod test_env_lock {
+    use std::sync::Mutex;
+    pub static ENV_LOCK: Mutex<()> = Mutex::new(());
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -22,6 +36,9 @@ pub fn run() {
             manuscript::clear_manuscript_path,
             engines::run_claude,
             engines::run_orchestrator_agent,
+            engines::run_orchestrator_propose,
+            engines::apply_orchestrator_change,
+            engines::rollback_orchestrator_change,
             engines::run_codex,
             engines::run_cursor,
             engines::run_opencode,
@@ -42,6 +59,12 @@ pub fn run() {
             apple_notes::list_apple_notes_folders,
             apple_notes::list_apple_notes,
             apple_notes::read_apple_note,
+            profiles::list_profiles,
+            profiles::get_active_profile_id,
+            profiles::set_active_profile_id,
+            profiles::get_project_path,
+            profiles::set_project_path,
+            profiles::clear_project_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

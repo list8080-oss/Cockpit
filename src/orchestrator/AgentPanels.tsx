@@ -36,65 +36,83 @@ export function AgentPanels({
   panels,
   expandedId,
   onToggle,
+  mainSlot,
 }: {
   locale: Locale;
   panels: AgentPanelModel[];
   expandedId: OrchestratorAgentId | null;
   onToggle: (id: OrchestratorAgentId) => void;
+  /** Shown above the agent strip when no agent panel is open (Orchestrator chat). */
+  mainSlot: ReactNode;
 }) {
   const expanded = panels.find((panel) => panel.id === expandedId) ?? null;
 
   return (
     <div className="agent-panels">
-      <div className="agent-panels-label muted">{t(locale, "orchestratorAgentPanels")}</div>
-      <div className="agent-panels-row">
-        {panels.map((panel) => {
-          const lamp = agentPanelLamp(panel.auth, panel.state, panel.authLoading);
-          const statusKey = agentPanelStatusKey(
-            panel.auth,
-            panel.state,
-            panel.authLoading,
-          );
-          const isOpen = expandedId === panel.id;
-          return (
-            <button
-              key={panel.id}
-              type="button"
-              className={
-                isOpen ? "agent-panel-card agent-panel-card-active" : "agent-panel-card"
-              }
-              onClick={() => onToggle(panel.id)}
-              aria-expanded={isOpen}
-              title={
-                isOpen
-                  ? t(locale, "orchestratorCollapsePanel")
-                  : t(locale, "orchestratorExpandPanel")
-              }
-            >
-              <span className={lampClass(lamp)} aria-hidden />
-              <span className="agent-panel-card-text">
-                <span className="agent-panel-name">{agentDisplayName(panel.id)}</span>
-                <span className="agent-panel-status">{t(locale, statusKey)}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      {expanded && (
-        <div className="agent-panel-detail">
-          <div className="agent-panel-detail-head">
-            <span className="agent-panel-name">{agentDisplayName(expanded.id)}</span>
-            <button
-              type="button"
-              className="agent-panel-detail-close"
-              onClick={() => onToggle(expanded.id)}
-            >
-              {t(locale, "orchestratorCollapsePanel")}
-            </button>
+      <div className="agent-panels-main">
+        {expanded ? (
+          <div className="agent-panel-detail">
+            <div className="agent-panel-detail-head">
+              <button
+                type="button"
+                className="agent-panel-detail-back"
+                onClick={() => onToggle(expanded.id)}
+              >
+                ← {t(locale, "orchestrator")}
+              </button>
+              <span className="agent-panel-name">{agentDisplayName(expanded.id)}</span>
+            </div>
+            <div className="agent-panel-body">{expanded.body}</div>
           </div>
-          <div className="agent-panel-body">{expanded.body}</div>
+        ) : (
+          mainSlot
+        )}
+      </div>
+
+      <div className="agent-panels-strip">
+        <div className="agent-panels-label muted">
+          {t(locale, "orchestratorAgentPanels")}
         </div>
-      )}
+        <div className="agent-panels-row">
+          {panels.map((panel) => {
+            const lamp = agentPanelLamp(panel.auth, panel.state, panel.authLoading);
+            const statusKey = agentPanelStatusKey(
+              panel.auth,
+              panel.state,
+              panel.authLoading,
+            );
+            const isOpen = expandedId === panel.id;
+            return (
+              <button
+                key={panel.id}
+                type="button"
+                className={
+                  isOpen
+                    ? "agent-panel-card agent-panel-card-active"
+                    : "agent-panel-card"
+                }
+                onClick={() => onToggle(panel.id)}
+                aria-expanded={isOpen}
+                title={
+                  isOpen
+                    ? t(locale, "orchestratorCollapsePanel")
+                    : t(locale, "orchestratorExpandPanel")
+                }
+              >
+                <span className={lampClass(lamp)} aria-hidden />
+                <span className="agent-panel-card-text">
+                  <span className="agent-panel-name">
+                    {agentDisplayName(panel.id)}
+                  </span>
+                  <span className="agent-panel-status">
+                    {t(locale, statusKey)}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

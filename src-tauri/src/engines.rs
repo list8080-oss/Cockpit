@@ -5,11 +5,23 @@
 //! resume a prior turn's session/thread id (returned alongside the reply) so
 //! a follow-up stays in that engine's own context instead of starting cold.
 
-use crate::manuscript::manuscript_root;
-use serde::Serialize;
+use crate::bin_paths::{claude_bin, codex_bin, cursor_bin, opencode_bin};
+use crate::manuscript::agent_workdir;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::fs::OpenOptions;
+use std::io::{BufRead, BufReader, Write};
+use std::path::{Component, Path, PathBuf};
 use std::process::Stdio;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::process::Command;
+
+/// Orchestrator context from the frontend: `project` (manuscript) or `free`
+/// (app-data sandbox). Anything else falls back to project.
+fn resolve_cwd(context: &str) -> Result<PathBuf, String> {
+    agent_workdir(context)
+}
 
 /// A completed engine reply plus the session/thread id (if any) that a
 /// follow-up call can pass back in to continue the same conversation.
@@ -24,46 +36,6 @@ pub struct EngineReply {
 pub struct ModelOption {
     pub id: String,
     pub label: String,
-}
-
-/// GUI-launched apps on macOS don't inherit a login shell's PATH, so Homebrew
-/// binaries can be invisible even though a Terminal `which` finds them. Try
-/// known install locations before falling back to bare `PATH` lookup.
-fn resolve_bin(candidates: &[&str], fallback: &str) -> String {
-    for c in candidates {
-        if std::path::Path::new(c).is_file() {
-            return c.to_string();
-        }
-    }
-    fallback.to_string()
-}
-
-fn claude_bin() -> String {
-    resolve_bin(&["/opt/homebrew/bin/claude", "/usr/local/bin/claude"], "claude")
-}
-
-fn codex_bin() -> String {
-    resolve_bin(
-        &[
-            "/Applications/ChatGPT.app/Contents/Resources/codex",
-            "/opt/homebrew/bin/codex",
-            "/usr/local/bin/codex",
-        ],
-        "codex",
-    )
-}
-
-fn cursor_bin() -> String {
-    if let Some(home) = dirs::home_dir() {
-        let p = home.join(".local/bin/cursor-agent");
-        if p.is_file() {
-            return p.to_string_lossy().to_string();
-        }
-    }
-    resolve_bin(
-        &["/opt/homebrew/bin/cursor-agent", "/usr/local/bin/cursor-agent"],
-        "cursor-agent",
-    )
 }
 
 /// Cursor's actual model catalog, straight from the CLI (`--list-models`),
@@ -121,8 +93,10 @@ pub async fn run_claude(
     session_id: Option<String>,
     model: String,
     effort: String,
+    context: Option<String>,
 ) -> Result<EngineReply, String> {
-    let cwd = manuscript_root()?;
+    let ctx = context.unwrap_or_else(|| "project".into());
+    let cwd = resolve_cwd(&ctx)?;
     let mut cmd = Command::new(claude_bin());
     cmd.current_dir(&cwd).stdin(Stdio::null()).arg("-p");
     if let Some(sid) = &session_id {
@@ -165,30 +139,376 @@ pub async fn run_claude(
     Err(format!("claude exited with {}: {}", output.status, stderr.trim()))
 }
 
-/// Orchestrator "Full access" mode — the sole intentional exception to this
-/// project's read-only engine policy. Unlike `run_claude` (and the other
-/// engines), this path is allowed to write manuscript files and run shell
-/// commands: it passes `--dangerously-skip-permissions` so headless `-p`
-/// turns can use Claude Code's normal tool set without a TTY prompt.
+/// Orchestrator agent modes ("Full access" / "Plan") — the intentional
+/// exceptions to this project's read-only engine policy for the Orchestrator
+/// column. Unlike `run_claude` (and the other engines), these paths talk to a
+/// real Claude Code agent session with tools:
 ///
-/// Flag name verified empirically against the installed CLI (`claude --help`
+/// - `"full"` (default): `--dangerously-skip-permissions` so headless `-p`
+///   turns can write files and run shell commands without a TTY prompt.
+/// - `"plan"`: `--permission-mode plan` — free Read/Bash investigation
+///   (including sibling-CLI delegation), but no writes or mutating commands.
+///
+/// Flag names verified empirically against the installed CLI (`claude --help`
 /// / `claude -p --help`, @anthropic-ai/claude-code 2.1.226):
-/// `--dangerously-skip-permissions` ("Bypass all permission checks").
-/// Resume uses the same `-r` / `--resume` as `run_claude`. Do not reuse this
-/// for the Claude column or for Orchestrator synthesis — those stay read-only.
+/// `--dangerously-skip-permissions` ("Bypass all permission checks");
+/// `--permission-mode plan` (one of acceptEdits/auto/bypassPermissions/manual/
+/// dontAsk/plan). Resume uses the same `-r` / `--resume` as `run_claude`.
+/// Do not reuse this for the Claude column or for Orchestrator synthesis —
+/// those stay read-only.
+///
+/// Without extra framing, the model has no idea it's running with real tool
+/// access rather than as a chat-only assistant — observed asking the user to
+/// go run another engine manually instead of just invoking it itself via
+/// Bash. `--append-system-prompt` corrects that (verified: `--help` lists it
+/// as additive to the default system prompt, not a replacement).
+///
+/// `context` is `project` (manuscript cwd) or `free` (app-data sandbox).
+///
+/// The delegation paragraph (shared by all variants below) was added after
+/// the model, even once it knew the sibling CLIs existed, still defaulted to
+/// asking the user permission/clarification before actually running one —
+/// it needs telling explicitly that deciding *and* delegating are its job,
+/// not just knowing the binaries are there.
+const ORCHESTRATOR_DELEGATION_PROMPT: &str = " You can act as a real coordinator, not just a single assistant: when a request is better served by splitting it across agents (one drafts, another reviews, another checks a specific angle), decide that yourself and actually run each agent's CLI in turn instead of asking the user which agent to use first. Each of these CLIs is itself a full agent, not a read-only question box — you can give them real subtasks, not only questions. Figure out each one's non-interactive flags yourself the way you'd learn any new CLI (read --help, try it, adjust on error) rather than assuming one will just work. Keep delegation proportionate — don't spin up all four agents for something one can answer directly.";
+
+const ORCHESTRATOR_AGENT_SYSTEM_PROMPT_PROJECT: &str = "You are running as InPrincipio's Orchestrator in \"Full access\" mode: a real Claude Code agent session with full tool access (Read/Write/Edit/Bash/etc.) in the connected project/manuscript directory, not a restricted or read-only assistant. Stay focused on that project directory as your working context. This machine also has other CLI coding agents installed that you can invoke yourself directly via Bash whenever it's useful, e.g. to test, compare, or delegate to them: `claude`, `codex`, `cursor-agent`, `opencode`. Don't tell the user to go run these manually or claim you lack access to them — just invoke the relevant binary via Bash and report the real result.";
+
+const ORCHESTRATOR_AGENT_SYSTEM_PROMPT_FREE: &str = "You are running as InPrincipio's Orchestrator in \"Full access\" mode for free conversation (no manuscript project required): a real Claude Code agent session with full tool access (Read/Write/Edit/Bash/etc.) in InPrincipio's dedicated free-chat working directory — not the user's manuscript folder. This machine also has other CLI coding agents installed that you can invoke yourself directly via Bash whenever it's useful, e.g. to test, compare, or delegate to them: `claude`, `codex`, `cursor-agent`, `opencode`. Don't tell the user to go run these manually or claim you lack access to them — just invoke the relevant binary via Bash and report the real result.";
+
+const ORCHESTRATOR_PLAN_SYSTEM_PROMPT_PROJECT: &str = "You are running as InPrincipio's Orchestrator in \"Plan\" mode: you can freely read files and investigate via Bash (including delegating to sibling CLIs, same as in Full access) in the connected project/manuscript directory, but you cannot write, edit, or run mutating commands in this mode. End with a concrete, actionable plan for the user to review — don't just describe what you would need permission for. This machine also has other CLI coding agents installed that you can invoke yourself directly via Bash whenever it's useful for investigation: `claude`, `codex`, `cursor-agent`, `opencode`. Don't tell the user to go run these manually or claim you lack access to them — just invoke the relevant binary via Bash and report the real result.";
+
+const ORCHESTRATOR_PLAN_SYSTEM_PROMPT_FREE: &str = "You are running as InPrincipio's Orchestrator in \"Plan\" mode for free conversation (no manuscript project required): you can freely read files and investigate via Bash (including delegating to sibling CLIs, same as in Full access) in InPrincipio's dedicated free-chat working directory — not the user's manuscript folder — but you cannot write, edit, or run mutating commands in this mode. End with a concrete, actionable plan for the user to review — don't just describe what you would need permission for. This machine also has other CLI coding agents installed that you can invoke yourself directly via Bash whenever it's useful for investigation: `claude`, `codex`, `cursor-agent`, `opencode`. Don't tell the user to go run these manually or claim you lack access to them — just invoke the relevant binary via Bash and report the real result.";
+
+/// One real call the full-access agent made to a sibling CLI while working
+/// on this turn — extracted from its own Bash tool calls so the user can see
+/// exactly what was asked and what came back, not just a paraphrase.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DelegatedCall {
+    /// Binary name as invoked (`codex`, `cursor-agent`, `opencode`, `claude`).
+    pub agent: String,
+    pub command: String,
+    pub output: String,
+    pub is_error: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrchestratorAgentReply {
+    pub text: String,
+    pub session_id: Option<String>,
+    pub delegated_calls: Vec<DelegatedCall>,
+}
+
+const SIBLING_CLI_BINARIES: [&str; 4] = ["codex", "cursor-agent", "opencode", "claude"];
+/// Cap on a single delegated call's captured output — the full-access agent
+/// already read the whole thing to answer; the chat only needs enough to be
+/// legible, not a second full dump of e.g. a huge `codex` transcript.
+const DELEGATED_OUTPUT_LIMIT: usize = 4000;
+
+/// The first whitespace-separated token of a Bash command, path-stripped —
+/// used to recognize `codex ...`, `~/.local/bin/cursor-agent ...`, etc. as
+/// calls to a sibling engine (rather than e.g. a passing mention of the word
+/// in an argument, which `.contains()` alone would also match).
+fn command_binary_name(command: &str) -> Option<&str> {
+    let first = command.split_whitespace().next()?;
+    Some(first.rsplit('/').next().unwrap_or(first))
+}
+
+fn truncate_for_chat(s: &str) -> String {
+    if s.chars().count() <= DELEGATED_OUTPUT_LIMIT {
+        s.to_string()
+    } else {
+        let truncated: String = s.chars().take(DELEGATED_OUTPUT_LIMIT).collect();
+        format!("{truncated}\n… (truncated)")
+    }
+}
+
 #[tauri::command]
 pub async fn run_orchestrator_agent(
     prompt: String,
     session_id: Option<String>,
     model: String,
     effort: String,
-) -> Result<EngineReply, String> {
-    let cwd = manuscript_root()?;
+    context: Option<String>,
+    mode: Option<String>,
+) -> Result<OrchestratorAgentReply, String> {
+    let ctx = context.unwrap_or_else(|| "project".into());
+    let agent_mode = mode.unwrap_or_else(|| "full".into());
+    let is_plan = agent_mode == "plan";
+    let cwd = resolve_cwd(&ctx)?;
+    // GUI-launched processes don't inherit the user's login-shell PATH, so a
+    // bare `codex`/`cursor-agent`/`opencode` can report "command not found"
+    // even though it's installed — the exact issue `resolve_bin`/`cursor_bin`
+    // already work around for InPrincipio's own calls to these engines (see
+    // above). The model's own Bash tool has the same PATH problem, so it
+    // gets the same resolved, known-good paths instead of rediscovering them
+    // by trial and error (observed failing outright on a bare `codex` call).
+    let known_paths = format!(
+        " On this Mac, GUI apps (including your own Bash tool) don't inherit the normal shell PATH — a bare command name can wrongly report \"command not found\" even though it's installed. If that happens, use these confirmed paths instead: claude -> {}, codex -> {}, cursor-agent -> {}, opencode -> {}.",
+        claude_bin(),
+        codex_bin(),
+        cursor_bin(),
+        opencode_bin(),
+    );
+    let system_prompt = if is_plan {
+        if ctx == "free" {
+            ORCHESTRATOR_PLAN_SYSTEM_PROMPT_FREE
+        } else {
+            ORCHESTRATOR_PLAN_SYSTEM_PROMPT_PROJECT
+        }
+    } else if ctx == "free" {
+        ORCHESTRATOR_AGENT_SYSTEM_PROMPT_FREE
+    } else {
+        ORCHESTRATOR_AGENT_SYSTEM_PROMPT_PROJECT
+    }
+    .to_string()
+        + ORCHESTRATOR_DELEGATION_PROMPT
+        + &known_paths;
+    let mut cmd = Command::new(claude_bin());
+    cmd.current_dir(&cwd)
+        .stdin(Stdio::null())
+        .arg("-p");
+    if is_plan {
+        cmd.arg("--permission-mode").arg("plan");
+    } else {
+        cmd.arg("--dangerously-skip-permissions");
+    }
+    cmd.arg("--append-system-prompt").arg(&system_prompt);
+    if let Some(sid) = &session_id {
+        cmd.arg("-r").arg(sid);
+    }
+    if !model.is_empty() {
+        cmd.arg("--model").arg(&model);
+    }
+    if !effort.is_empty() {
+        cmd.arg("--effort").arg(&effort);
+    }
+    // `stream-json` (plus the `--verbose` it requires in `-p` mode) exposes
+    // every tool_use/tool_result pair as its own NDJSON line, instead of
+    // collapsing the whole turn into one final `result` string like plain
+    // `json` does — that's what lets calls to sibling CLIs be pulled out
+    // below and shown to the user as their own messages, not folded into
+    // the agent's own summary of what it did.
+    let output = cmd
+        .arg(&prompt)
+        .arg("--output-format")
+        .arg("stream-json")
+        .arg("--verbose")
+        .output()
+        .await
+        .map_err(|e| format!("failed to run claude (orchestrator agent): {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut pending_bash: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut delegated_calls: Vec<DelegatedCall> = Vec::new();
+    let mut final_result: Option<(bool, String, Option<String>)> = None; // (is_error, text, session_id)
+
+    for line in stdout.lines() {
+        let Ok(event) = serde_json::from_str::<Value>(line) else { continue };
+        match event.get("type").and_then(Value::as_str) {
+            Some("assistant") => {
+                if let Some(blocks) = event.pointer("/message/content").and_then(Value::as_array) {
+                    for block in blocks {
+                        if block.get("type").and_then(Value::as_str) == Some("tool_use")
+                            && block.get("name").and_then(Value::as_str) == Some("Bash")
+                        {
+                            if let (Some(id), Some(command)) = (
+                                block.get("id").and_then(Value::as_str),
+                                block.pointer("/input/command").and_then(Value::as_str),
+                            ) {
+                                pending_bash.insert(id.to_string(), command.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+            Some("user") => {
+                if let Some(blocks) = event.pointer("/message/content").and_then(Value::as_array) {
+                    for block in blocks {
+                        if block.get("type").and_then(Value::as_str) != Some("tool_result") {
+                            continue;
+                        }
+                        let Some(tool_use_id) = block.get("tool_use_id").and_then(Value::as_str) else {
+                            continue;
+                        };
+                        let Some(command) = pending_bash.remove(tool_use_id) else { continue };
+                        let Some(bin) = command_binary_name(&command) else { continue };
+                        if !SIBLING_CLI_BINARIES.contains(&bin) {
+                            continue;
+                        }
+                        let output_text = match block.get("content") {
+                            Some(Value::String(s)) => s.clone(),
+                            Some(other) => other.to_string(),
+                            None => String::new(),
+                        };
+                        let is_error = block.get("is_error").and_then(Value::as_bool).unwrap_or(false);
+                        delegated_calls.push(DelegatedCall {
+                            agent: bin.to_string(),
+                            command,
+                            output: truncate_for_chat(&output_text),
+                            is_error,
+                        });
+                    }
+                }
+            }
+            Some("result") => {
+                let is_error = event.get("is_error").and_then(Value::as_bool).unwrap_or(false);
+                if let Some(result) = event.get("result").and_then(Value::as_str) {
+                    let sid = event.get("session_id").and_then(Value::as_str).map(str::to_string);
+                    final_result = Some((is_error, result.to_string(), sid));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if let Some((is_error, text, sid)) = final_result {
+        if is_error {
+            return Err(text);
+        }
+        let text = require_nonempty(text, "claude (orchestrator agent)")?;
+        return Ok(OrchestratorAgentReply { text, session_id: sid, delegated_calls });
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    Err(format!(
+        "claude (orchestrator agent) exited with {}: {}",
+        output.status,
+        stderr.trim()
+    ))
+}
+
+/// JSON Schema passed to `claude -p --json-schema` for Propose-changes mode.
+/// Verified empirically: works together with `--output-format stream-json
+/// --verbose` and yields `structured_output` on the final `result` event
+/// without writing files (`--permission-mode plan`).
+const ORCHESTRATOR_PROPOSE_JSON_SCHEMA: &str = r#"{"type":"object","properties":{"summary":{"type":"string"},"changes":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"newContent":{"type":"string"}},"required":["path","newContent"]}}},"required":["summary","changes"]}"#;
+
+const ORCHESTRATOR_PROPOSE_SYSTEM_PROMPT_PROJECT: &str = "You are running as InPrincipio's Orchestrator in \"Propose changes\" mode: you can freely read files and investigate via Bash (including delegating to sibling CLIs, same as in Plan mode) in the connected project/manuscript directory, but you cannot write, edit, or run mutating commands — the CLI enforces that via permission-mode plan. Instead of writing files yourself, return a structured proposal: `summary` is a short explanation of what and why; `changes` is a list of files, each with `path` (relative to your working directory only — no `..`, no leading `/`) and `newContent` (the FULL new file contents, not a patch or diff — InPrincipio computes the diff against the current file). Proposing a brand-new file is fine: same `path`/`newContent` fields. If nothing should change, return `changes: []` and explain why in `summary`. This machine also has other CLI coding agents installed that you can invoke yourself directly via Bash whenever it's useful for investigation: `claude`, `codex`, `cursor-agent`, `opencode`. Don't tell the user to go run these manually or claim you lack access to them — just invoke the relevant binary via Bash and report the real result.";
+
+const ORCHESTRATOR_PROPOSE_SYSTEM_PROMPT_FREE: &str = "You are running as InPrincipio's Orchestrator in \"Propose changes\" mode for free conversation (no manuscript project required): you can freely read files and investigate via Bash (including delegating to sibling CLIs, same as in Plan mode) in InPrincipio's dedicated free-chat working directory — not the user's manuscript folder — but you cannot write, edit, or run mutating commands — the CLI enforces that via permission-mode plan. Instead of writing files yourself, return a structured proposal: `summary` is a short explanation of what and why; `changes` is a list of files, each with `path` (relative to your working directory only — no `..`, no leading `/`) and `newContent` (the FULL new file contents, not a patch or diff — InPrincipio computes the diff against the current file). Proposing a brand-new file is fine: same `path`/`newContent` fields. If nothing should change, return `changes: []` and explain why in `summary`. This machine also has other CLI coding agents installed that you can invoke yourself directly via Bash whenever it's useful for investigation: `claude`, `codex`, `cursor-agent`, `opencode`. Don't tell the user to go run these manually or claim you lack access to them — just invoke the relevant binary via Bash and report the real result.";
+
+#[derive(Deserialize)]
+struct ProposedFileChange {
+    path: String,
+    #[serde(rename = "newContent")]
+    new_content: String,
+}
+
+#[derive(Deserialize)]
+struct ProposalStructuredOutput {
+    summary: String,
+    changes: Vec<ProposedFileChange>,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FileDiff {
+    pub path: String,
+    /// `None` if the file does not exist yet (agent proposes a new file).
+    pub old_content: Option<String>,
+    pub new_content: String,
+    /// Unified diff, ready to display as-is.
+    pub diff: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrchestratorProposal {
+    pub summary: String,
+    pub changes: Vec<FileDiff>,
+    pub session_id: Option<String>,
+    pub delegated_calls: Vec<DelegatedCall>,
+}
+
+/// Join `relative` onto `cwd` only if it cannot escape `cwd`: reject empty,
+/// absolute, and any path containing `..` components. Nested relatives like
+/// `src/foo.rs` are allowed. The target file need not exist (new-file proposals).
+fn resolve_orchestrator_relative_path(cwd: &Path, relative: &str) -> Result<PathBuf, String> {
+    if relative.is_empty() {
+        return Err("orchestrator propose: empty path".into());
+    }
+    let path = Path::new(relative);
+    if path.is_absolute() {
+        return Err(format!(
+            "orchestrator propose: absolute path rejected: {relative}"
+        ));
+    }
+    for component in path.components() {
+        if matches!(component, Component::ParentDir) {
+            return Err(format!(
+                "orchestrator propose: path escapes cwd (..): {relative}"
+            ));
+        }
+    }
+    Ok(cwd.join(path))
+}
+
+fn unified_diff_for(path: &str, old: &str, new: &str) -> String {
+    let diff = similar::TextDiff::from_lines(old, new);
+    let mut udiff = diff.unified_diff();
+    udiff.header(path, path);
+    udiff.to_string()
+}
+
+fn file_diff_from_proposal(cwd: &Path, change: ProposedFileChange) -> Result<FileDiff, String> {
+    let resolved = resolve_orchestrator_relative_path(cwd, &change.path)?;
+    let old_content = match std::fs::read_to_string(&resolved) {
+        Ok(s) => Some(s),
+        Err(_) => None,
+    };
+    let old = old_content.as_deref().unwrap_or("");
+    let diff = unified_diff_for(&change.path, old, &change.new_content);
+    Ok(FileDiff {
+        path: change.path,
+        old_content,
+        new_content: change.new_content,
+        diff,
+    })
+}
+
+/// Orchestrator "Propose changes" — same investigation posture as Plan
+/// (`--permission-mode plan`, no writes), but asks Claude for structured
+/// `summary` + `changes` via `--json-schema` and returns file diffs for the
+/// UI. Does **not** write any proposed paths (read-only for diff baselines).
+#[tauri::command]
+pub async fn run_orchestrator_propose(
+    prompt: String,
+    session_id: Option<String>,
+    model: String,
+    effort: String,
+    context: Option<String>,
+) -> Result<OrchestratorProposal, String> {
+    let ctx = context.unwrap_or_else(|| "project".into());
+    let cwd = resolve_cwd(&ctx)?;
+    let known_paths = format!(
+        " On this Mac, GUI apps (including your own Bash tool) don't inherit the normal shell PATH — a bare command name can wrongly report \"command not found\" even though it's installed. If that happens, use these confirmed paths instead: claude -> {}, codex -> {}, cursor-agent -> {}, opencode -> {}.",
+        claude_bin(),
+        codex_bin(),
+        cursor_bin(),
+        opencode_bin(),
+    );
+    let system_prompt = if ctx == "free" {
+        ORCHESTRATOR_PROPOSE_SYSTEM_PROMPT_FREE
+    } else {
+        ORCHESTRATOR_PROPOSE_SYSTEM_PROMPT_PROJECT
+    }
+    .to_string()
+        + ORCHESTRATOR_DELEGATION_PROMPT
+        + &known_paths;
+
     let mut cmd = Command::new(claude_bin());
     cmd.current_dir(&cwd)
         .stdin(Stdio::null())
         .arg("-p")
-        .arg("--dangerously-skip-permissions");
+        .arg("--permission-mode")
+        .arg("plan")
+        .arg("--json-schema")
+        .arg(ORCHESTRATOR_PROPOSE_JSON_SCHEMA)
+        .arg("--append-system-prompt")
+        .arg(&system_prompt);
     if let Some(sid) = &session_id {
         cmd.arg("-r").arg(sid);
     }
@@ -201,32 +521,406 @@ pub async fn run_orchestrator_agent(
     let output = cmd
         .arg(&prompt)
         .arg("--output-format")
-        .arg("json")
+        .arg("stream-json")
+        .arg("--verbose")
         .output()
         .await
-        .map_err(|e| format!("failed to run claude (orchestrator agent): {e}"))?;
+        .map_err(|e| format!("failed to run claude (orchestrator propose): {e}"))?;
 
-    // Same stdout-first error parsing as `run_claude`: non-zero exits often
-    // still carry a human-readable reason in the JSON `result` field.
     let stdout = String::from_utf8_lossy(&output.stdout);
-    if let Ok(json) = serde_json::from_str::<Value>(stdout.trim()) {
-        let is_error = json.get("is_error").and_then(Value::as_bool).unwrap_or(false);
-        if let Some(result) = json.get("result").and_then(Value::as_str) {
-            if is_error {
-                return Err(result.to_string());
+    let mut pending_bash: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    let mut delegated_calls: Vec<DelegatedCall> = Vec::new();
+    let mut final_error: Option<(String, Option<String>)> = None;
+    let mut final_ok: Option<(ProposalStructuredOutput, Option<String>)> = None;
+
+    for line in stdout.lines() {
+        let Ok(event) = serde_json::from_str::<Value>(line) else {
+            continue;
+        };
+        match event.get("type").and_then(Value::as_str) {
+            Some("assistant") => {
+                if let Some(blocks) = event.pointer("/message/content").and_then(Value::as_array) {
+                    for block in blocks {
+                        if block.get("type").and_then(Value::as_str) == Some("tool_use")
+                            && block.get("name").and_then(Value::as_str) == Some("Bash")
+                        {
+                            if let (Some(id), Some(command)) = (
+                                block.get("id").and_then(Value::as_str),
+                                block.pointer("/input/command").and_then(Value::as_str),
+                            ) {
+                                pending_bash.insert(id.to_string(), command.to_string());
+                            }
+                        }
+                    }
+                }
             }
-            let text = require_nonempty(result.to_string(), "claude (orchestrator agent)")?;
-            let new_session_id = json.get("session_id").and_then(Value::as_str).map(str::to_string);
-            return Ok(EngineReply { text, session_id: new_session_id });
+            Some("user") => {
+                if let Some(blocks) = event.pointer("/message/content").and_then(Value::as_array) {
+                    for block in blocks {
+                        if block.get("type").and_then(Value::as_str) != Some("tool_result") {
+                            continue;
+                        }
+                        let Some(tool_use_id) = block.get("tool_use_id").and_then(Value::as_str)
+                        else {
+                            continue;
+                        };
+                        let Some(command) = pending_bash.remove(tool_use_id) else {
+                            continue;
+                        };
+                        let Some(bin) = command_binary_name(&command) else {
+                            continue;
+                        };
+                        if !SIBLING_CLI_BINARIES.contains(&bin) {
+                            continue;
+                        }
+                        let output_text = match block.get("content") {
+                            Some(Value::String(s)) => s.clone(),
+                            Some(other) => other.to_string(),
+                            None => String::new(),
+                        };
+                        let is_error = block
+                            .get("is_error")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false);
+                        delegated_calls.push(DelegatedCall {
+                            agent: bin.to_string(),
+                            command,
+                            output: truncate_for_chat(&output_text),
+                            is_error,
+                        });
+                    }
+                }
+            }
+            Some("result") => {
+                let is_error = event
+                    .get("is_error")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                let sid = event
+                    .get("session_id")
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+                if is_error {
+                    let text = event
+                        .get("result")
+                        .and_then(Value::as_str)
+                        .unwrap_or("orchestrator propose failed")
+                        .to_string();
+                    final_error = Some((text, sid));
+                    continue;
+                }
+                let Some(so_value) = event.get("structured_output") else {
+                    return Err(
+                        "orchestrator propose: missing/invalid structured_output".into(),
+                    );
+                };
+                match serde_json::from_value::<ProposalStructuredOutput>(so_value.clone()) {
+                    Ok(parsed) => final_ok = Some((parsed, sid)),
+                    Err(_) => {
+                        return Err(
+                            "orchestrator propose: missing/invalid structured_output".into(),
+                        );
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    Err(format!(
-        "claude (orchestrator agent) exited with {}: {}",
-        output.status,
-        stderr.trim()
-    ))
+    if let Some((text, _)) = final_error {
+        return Err(text);
+    }
+
+    let Some((parsed, sid)) = final_ok else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "claude (orchestrator propose) exited with {}: {}",
+            output.status,
+            stderr.trim()
+        ));
+    };
+
+    let mut changes = Vec::with_capacity(parsed.changes.len());
+    for change in parsed.changes {
+        changes.push(file_diff_from_proposal(&cwd, change)?);
+    }
+
+    Ok(OrchestratorProposal {
+        summary: parsed.summary,
+        changes,
+        session_id: sid,
+        delegated_calls,
+    })
+}
+
+// --- Propose apply / rollback + append-only journal (stage 4b) -------------
+
+static JOURNAL_SEQ: AtomicU64 = AtomicU64::new(0);
+
+fn next_journal_id() -> String {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let seq = JOURNAL_SEQ.fetch_add(1, Ordering::Relaxed);
+    format!("{millis}-{seq}")
+}
+
+fn utc_timestamp_now() -> String {
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // Compact UTC approximation without an extra time crate (sortable, unique enough).
+    let days = secs / 86_400;
+    let time = secs % 86_400;
+    let hour = time / 3600;
+    let min = (time % 3600) / 60;
+    let sec = time % 60;
+    // Civil date from days since 1970-01-01 (Howard Hinnant's algorithm).
+    let z = days as i64 + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}T{hour:02}:{min:02}:{sec:02}Z")
+}
+
+/// App-data directory for Orchestrator journal (and siblings). Overridable via
+/// `YAR_COCKPIT_ORCHESTRATOR_DATA_DIR` so unit tests never touch the real
+/// Application Support tree.
+fn orchestrator_data_dir() -> Result<PathBuf, String> {
+    if let Ok(override_dir) = std::env::var("YAR_COCKPIT_ORCHESTRATOR_DATA_DIR") {
+        let dir = PathBuf::from(override_dir);
+        std::fs::create_dir_all(&dir)
+            .map_err(|e| format!("cannot create orchestrator data directory: {e}"))?;
+        return Ok(dir);
+    }
+    let base = dirs::data_dir().ok_or("data directory unavailable")?;
+    let dir = base.join("yar-cockpit");
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("cannot create orchestrator data directory: {e}"))?;
+    Ok(dir)
+}
+
+fn journal_file_path() -> Result<PathBuf, String> {
+    Ok(orchestrator_data_dir()?.join("orchestrator-journal.jsonl"))
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+struct JournalEntry {
+    id: String,
+    kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    context: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    old_content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    new_content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    rolled_back_id: Option<String>,
+    timestamp: String,
+}
+
+fn read_journal_entries(journal: &Path) -> Result<Vec<JournalEntry>, String> {
+    if !journal.exists() {
+        return Ok(Vec::new());
+    }
+    let file = std::fs::File::open(journal)
+        .map_err(|e| format!("failed to open orchestrator journal: {e}"))?;
+    let mut out = Vec::new();
+    for line in BufReader::new(file).lines() {
+        let line = line.map_err(|e| format!("failed to read orchestrator journal: {e}"))?;
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let entry: JournalEntry = serde_json::from_str(trimmed)
+            .map_err(|e| format!("corrupt orchestrator journal line: {e}"))?;
+        out.push(entry);
+    }
+    Ok(out)
+}
+
+fn append_journal_entry(journal: &Path, entry: &JournalEntry) -> Result<(), String> {
+    if let Some(parent) = journal.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("cannot create journal directory: {e}"))?;
+    }
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(journal)
+        .map_err(|e| format!("failed to open orchestrator journal for append: {e}"))?;
+    let line = serde_json::to_string(entry)
+        .map_err(|e| format!("failed to serialize journal entry: {e}"))?;
+    writeln!(file, "{line}").map_err(|e| format!("failed to write journal entry: {e}"))?;
+    Ok(())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplyChangeRequest {
+    pub context: Option<String>,
+    pub path: String,
+    pub old_content: Option<String>,
+    pub new_content: String,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AppliedChange {
+    pub journal_id: String,
+}
+
+fn check_apply_freshness(
+    resolved: &Path,
+    old_content: &Option<String>,
+) -> Result<(), String> {
+    match old_content {
+        Some(expected) => match std::fs::read_to_string(resolved) {
+            Err(_) => Err(
+                "file no longer exists — the proposal is stale, ask again".into(),
+            ),
+            Ok(actual) if actual == *expected => Ok(()),
+            Ok(_) => Err(
+                "file changed on disk since the proposal was generated — ask again before applying"
+                    .into(),
+            ),
+        },
+        None => {
+            if resolved.exists() {
+                Err("file already exists — the proposal is stale, ask again".into())
+            } else {
+                Ok(())
+            }
+        }
+    }
+}
+
+fn apply_change_with_journal(
+    request: ApplyChangeRequest,
+    journal: &Path,
+) -> Result<AppliedChange, String> {
+    let ctx = request.context.clone().unwrap_or_else(|| "project".into());
+    let cwd = resolve_cwd(&ctx)?;
+    let resolved = resolve_orchestrator_relative_path(&cwd, &request.path)?;
+    check_apply_freshness(&resolved, &request.old_content)?;
+    if let Some(parent) = resolved.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("failed to create parent directories: {e}"))?;
+        }
+    }
+    std::fs::write(&resolved, &request.new_content)
+        .map_err(|e| format!("failed to write {}: {e}", resolved.display()))?;
+
+    let journal_id = next_journal_id();
+    let entry = JournalEntry {
+        id: journal_id.clone(),
+        kind: "apply".into(),
+        context: Some(ctx),
+        path: Some(request.path),
+        old_content: request.old_content,
+        new_content: Some(request.new_content),
+        rolled_back_id: None,
+        timestamp: utc_timestamp_now(),
+    };
+    append_journal_entry(journal, &entry)?;
+    Ok(AppliedChange { journal_id })
+}
+
+#[tauri::command]
+pub async fn apply_orchestrator_change(
+    request: ApplyChangeRequest,
+) -> Result<AppliedChange, String> {
+    let journal = journal_file_path()?;
+    apply_change_with_journal(request, &journal)
+}
+
+fn rollback_change_with_journal(journal_id: &str, journal: &Path) -> Result<(), String> {
+    let entries = read_journal_entries(journal)?;
+    let apply_entry = entries
+        .iter()
+        .find(|e| e.kind == "apply" && e.id == journal_id)
+        .cloned()
+        .ok_or_else(|| "unknown journal entry".to_string())?;
+
+    if entries.iter().any(|e| {
+        e.kind == "rollback" && e.rolled_back_id.as_deref() == Some(journal_id)
+    }) {
+        return Err("already rolled back".into());
+    }
+
+    let ctx = apply_entry
+        .context
+        .as_deref()
+        .unwrap_or("project");
+    let path = apply_entry
+        .path
+        .as_deref()
+        .ok_or_else(|| "journal apply entry missing path".to_string())?;
+    let new_content = apply_entry
+        .new_content
+        .as_deref()
+        .ok_or_else(|| "journal apply entry missing newContent".to_string())?;
+
+    let cwd = resolve_cwd(ctx)?;
+    let resolved = resolve_orchestrator_relative_path(&cwd, path)?;
+
+    match std::fs::read_to_string(&resolved) {
+        Ok(actual) if actual == new_content => {}
+        Ok(_) => {
+            return Err(
+                "file changed since it was applied — refusing to roll back automatically".into(),
+            );
+        }
+        Err(_) => {
+            // File missing while we expected the applied content — treat as drift.
+            return Err(
+                "file changed since it was applied — refusing to roll back automatically".into(),
+            );
+        }
+    }
+
+    match &apply_entry.old_content {
+        None => {
+            std::fs::remove_file(&resolved)
+                .map_err(|e| format!("failed to remove {}: {e}", resolved.display()))?;
+        }
+        Some(old) => {
+            std::fs::write(&resolved, old)
+                .map_err(|e| format!("failed to restore {}: {e}", resolved.display()))?;
+        }
+    }
+
+    let entry = JournalEntry {
+        id: next_journal_id(),
+        kind: "rollback".into(),
+        context: None,
+        path: None,
+        old_content: None,
+        new_content: None,
+        rolled_back_id: Some(journal_id.to_string()),
+        timestamp: utc_timestamp_now(),
+    };
+    append_journal_entry(journal, &entry)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn rollback_orchestrator_change(journal_id: String) -> Result<(), String> {
+    let journal = journal_file_path()?;
+    rollback_change_with_journal(&journal_id, &journal)
 }
 
 /// `--mode plan` is Cursor's read-only planning mode (analyze, propose a
@@ -240,8 +934,10 @@ pub async fn run_cursor(
     prompt: String,
     session_id: Option<String>,
     model: String,
+    context: Option<String>,
 ) -> Result<EngineReply, String> {
-    let cwd = manuscript_root()?;
+    let ctx = context.unwrap_or_else(|| "project".into());
+    let cwd = resolve_cwd(&ctx)?;
     let mut cmd = Command::new(cursor_bin());
     cmd.current_dir(&cwd).stdin(Stdio::null()).arg("--print");
     if let Some(sid) = &session_id {
@@ -290,8 +986,10 @@ pub async fn run_codex(
     session_id: Option<String>,
     model: String,
     effort: String,
+    context: Option<String>,
 ) -> Result<EngineReply, String> {
-    let cwd = manuscript_root()?;
+    let ctx = context.unwrap_or_else(|| "project".into());
+    let cwd = resolve_cwd(&ctx)?;
     let model = if model.is_empty() { "gpt-5.6-sol".to_string() } else { model };
     let mut cmd = Command::new(codex_bin());
     cmd.current_dir(&cwd).stdin(Stdio::null());
@@ -369,10 +1067,6 @@ pub async fn run_codex(
     Err(format!("no reply from codex:\n{}", stdout.trim()))
 }
 
-fn opencode_bin() -> String {
-    resolve_bin(&["/opt/homebrew/bin/opencode", "/usr/local/bin/opencode"], "opencode")
-}
-
 /// A real, confirmed-working free model (used when `model` is empty) —
 /// letting OpenCode fall back to its own default silently would hit a paid
 /// one instead (verified: an unset model tried billed OpenCode Zen usage
@@ -423,8 +1117,10 @@ pub async fn run_opencode(
     session_id: Option<String>,
     model: String,
     effort: String,
+    context: Option<String>,
 ) -> Result<EngineReply, String> {
-    let cwd = manuscript_root()?;
+    let ctx = context.unwrap_or_else(|| "project".into());
+    let cwd = resolve_cwd(&ctx)?;
     let model = if model.is_empty() { OPENCODE_DEFAULT_FREE_MODEL.to_string() } else { model };
     let mut cmd = Command::new(opencode_bin());
     cmd.current_dir(&cwd).stdin(Stdio::null()).arg("run").arg("--agent").arg("plan");
@@ -486,4 +1182,288 @@ pub async fn run_opencode(
     }
 
     Err(format!("no reply from opencode:\n{}", stdout.trim()))
+}
+
+#[cfg(test)]
+mod propose_path_tests {
+    use super::{
+        apply_change_with_journal, file_diff_from_proposal, read_journal_entries,
+        resolve_orchestrator_relative_path, rollback_change_with_journal, ApplyChangeRequest,
+        ProposedFileChange,
+    };
+    use crate::test_env_lock::ENV_LOCK;
+    use std::path::PathBuf;
+
+    fn temp_dir(label: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "cockpit-{label}-{}-{}",
+            std::process::id(),
+            super::JOURNAL_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// Points `YAR_COCKPIT_ORCHESTRATOR_DATA_DIR` (and therefore both
+    /// `free_chat_root()` and the journal file) at a fresh temp directory for
+    /// the lifetime of the guard, so apply/rollback tests never touch the
+    /// real Application Support tree. Holds `ENV_LOCK` until dropped.
+    struct FreeSandbox<'a> {
+        _guard: std::sync::MutexGuard<'a, ()>,
+        pub root: PathBuf,
+    }
+
+    impl FreeSandbox<'_> {
+        fn new(label: &str) -> Self {
+            let guard = ENV_LOCK.lock().unwrap();
+            let root = temp_dir(label);
+            std::env::set_var("YAR_COCKPIT_ORCHESTRATOR_DATA_DIR", &root);
+            Self { _guard: guard, root }
+        }
+
+        fn journal_path(&self) -> PathBuf {
+            self.root.join("orchestrator-journal.jsonl")
+        }
+
+        fn free_cwd(&self) -> PathBuf {
+            crate::manuscript::free_chat_root().unwrap()
+        }
+    }
+
+    impl Drop for FreeSandbox<'_> {
+        fn drop(&mut self) {
+            std::env::remove_var("YAR_COCKPIT_ORCHESTRATOR_DATA_DIR");
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    #[test]
+    fn rejects_empty_absolute_and_parent_dir() {
+        let cwd = PathBuf::from("/tmp/propose-cwd");
+        assert!(resolve_orchestrator_relative_path(&cwd, "").is_err());
+        assert!(resolve_orchestrator_relative_path(&cwd, "/etc/passwd").is_err());
+        assert!(resolve_orchestrator_relative_path(&cwd, "../escape.txt").is_err());
+        assert!(resolve_orchestrator_relative_path(&cwd, "nested/../../escape.txt").is_err());
+    }
+
+    #[test]
+    fn accepts_nested_relative_paths() {
+        let cwd = PathBuf::from("/tmp/propose-cwd");
+        let got = resolve_orchestrator_relative_path(&cwd, "src/foo.rs").expect("nested ok");
+        assert_eq!(got, cwd.join("src/foo.rs"));
+        let got = resolve_orchestrator_relative_path(&cwd, "scene.txt").expect("flat ok");
+        assert_eq!(got, cwd.join("scene.txt"));
+    }
+
+    #[test]
+    fn file_diff_marks_missing_file_as_new() {
+        let dir = temp_dir("propose-diff");
+        let change = ProposedFileChange {
+            path: "brand-new.txt".into(),
+            new_content: "hello\n".into(),
+        };
+        let diff = file_diff_from_proposal(&dir, change).unwrap();
+        assert!(diff.old_content.is_none());
+        assert_eq!(diff.new_content, "hello\n");
+        assert!(diff.diff.contains('+') || diff.diff.contains("hello"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn file_diff_reads_existing_baseline() {
+        let dir = temp_dir("propose-diff-exist");
+        std::fs::write(dir.join("scene.txt"), "old line\n").unwrap();
+        let change = ProposedFileChange {
+            path: "scene.txt".into(),
+            new_content: "new line\n".into(),
+        };
+        let diff = file_diff_from_proposal(&dir, change).unwrap();
+        assert_eq!(diff.old_content.as_deref(), Some("old line\n"));
+        assert!(diff.diff.contains("-old line") || diff.diff.contains("old line"));
+        assert!(diff.diff.contains("+new line") || diff.diff.contains("new line"));
+        assert_eq!(
+            std::fs::read_to_string(dir.join("scene.txt")).unwrap(),
+            "old line\n"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn apply_writes_when_old_content_matches() {
+        let sandbox = FreeSandbox::new("apply-ok");
+        let file = sandbox.free_cwd().join("scene.txt");
+        std::fs::write(&file, "old\n").unwrap();
+        let journal = sandbox.journal_path();
+        let applied = apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("free".into()),
+                path: "scene.txt".into(),
+                old_content: Some("old\n".into()),
+                new_content: "new\n".into(),
+            },
+            &journal,
+        )
+        .unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "new\n");
+        let entries = read_journal_entries(&journal).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].kind, "apply");
+        assert_eq!(entries[0].id, applied.journal_id);
+    }
+
+    #[test]
+    fn apply_rejects_stale_old_content() {
+        let sandbox = FreeSandbox::new("apply-stale");
+        let file = sandbox.free_cwd().join("scene.txt");
+        std::fs::write(&file, "actual on disk\n").unwrap();
+        let journal = sandbox.journal_path();
+        let err = apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("free".into()),
+                path: "scene.txt".into(),
+                old_content: Some("expected baseline\n".into()),
+                new_content: "new\n".into(),
+            },
+            &journal,
+        )
+        .unwrap_err();
+        assert!(err.contains("changed on disk"), "{err}");
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "actual on disk\n");
+        assert!(!journal.exists() || read_journal_entries(&journal).unwrap().is_empty());
+    }
+
+    #[test]
+    fn apply_rejects_new_file_when_already_exists() {
+        let sandbox = FreeSandbox::new("apply-exists");
+        let file = sandbox.free_cwd().join("scene.txt");
+        std::fs::write(&file, "already here\n").unwrap();
+        let journal = sandbox.journal_path();
+        let err = apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("free".into()),
+                path: "scene.txt".into(),
+                old_content: None,
+                new_content: "new\n".into(),
+            },
+            &journal,
+        )
+        .unwrap_err();
+        assert!(err.contains("already exists"), "{err}");
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "already here\n");
+    }
+
+    #[test]
+    fn apply_creates_new_file_and_nested_dirs() {
+        let sandbox = FreeSandbox::new("apply-new");
+        let file = sandbox.free_cwd().join("nested/mod.txt");
+        let journal = sandbox.journal_path();
+        let applied = apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("free".into()),
+                path: "nested/mod.txt".into(),
+                old_content: None,
+                new_content: "brand new\n".into(),
+            },
+            &journal,
+        )
+        .unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "brand new\n");
+        assert!(!applied.journal_id.is_empty());
+    }
+
+    #[test]
+    fn rollback_restores_old_content() {
+        let sandbox = FreeSandbox::new("rollback-restore");
+        let file = sandbox.free_cwd().join("scene.txt");
+        std::fs::write(&file, "old\n").unwrap();
+        let journal = sandbox.journal_path();
+        let applied = apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("free".into()),
+                path: "scene.txt".into(),
+                old_content: Some("old\n".into()),
+                new_content: "new\n".into(),
+            },
+            &journal,
+        )
+        .unwrap();
+        rollback_change_with_journal(&applied.journal_id, &journal).unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "old\n");
+        let entries = read_journal_entries(&journal).unwrap();
+        assert!(entries.iter().any(|e| e.kind == "rollback"));
+    }
+
+    #[test]
+    fn rollback_deletes_created_file() {
+        let sandbox = FreeSandbox::new("rollback-delete");
+        let file = sandbox.free_cwd().join("scene.txt");
+        let journal = sandbox.journal_path();
+        let applied = apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("free".into()),
+                path: "scene.txt".into(),
+                old_content: None,
+                new_content: "created\n".into(),
+            },
+            &journal,
+        )
+        .unwrap();
+        assert!(file.exists());
+        rollback_change_with_journal(&applied.journal_id, &journal).unwrap();
+        assert!(!file.exists());
+    }
+
+    #[test]
+    fn rollback_twice_is_rejected() {
+        let sandbox = FreeSandbox::new("rollback-twice");
+        let file = sandbox.free_cwd().join("scene.txt");
+        std::fs::write(&file, "old\n").unwrap();
+        let journal = sandbox.journal_path();
+        let applied = apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("free".into()),
+                path: "scene.txt".into(),
+                old_content: Some("old\n".into()),
+                new_content: "new\n".into(),
+            },
+            &journal,
+        )
+        .unwrap();
+        rollback_change_with_journal(&applied.journal_id, &journal).unwrap();
+        // File is "old" again after rollback — second rollback must fail on
+        // "already rolled back" before it even re-checks freshness.
+        let err = rollback_change_with_journal(&applied.journal_id, &journal).unwrap_err();
+        assert_eq!(err, "already rolled back");
+    }
+
+    #[test]
+    fn rollback_rejects_when_file_changed_after_apply() {
+        let sandbox = FreeSandbox::new("rollback-drift");
+        let file = sandbox.free_cwd().join("scene.txt");
+        std::fs::write(&file, "old\n").unwrap();
+        let journal = sandbox.journal_path();
+        let applied = apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("free".into()),
+                path: "scene.txt".into(),
+                old_content: Some("old\n".into()),
+                new_content: "new\n".into(),
+            },
+            &journal,
+        )
+        .unwrap();
+        std::fs::write(&file, "drifted\n").unwrap();
+        let err = rollback_change_with_journal(&applied.journal_id, &journal).unwrap_err();
+        assert!(err.contains("changed since it was applied"), "{err}");
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "drifted\n");
+    }
+
+    #[test]
+    fn rollback_unknown_id_errors() {
+        let sandbox = FreeSandbox::new("rollback-unknown");
+        let journal = sandbox.journal_path();
+        let err = rollback_change_with_journal("no-such-id", &journal).unwrap_err();
+        assert_eq!(err, "unknown journal entry");
+    }
 }

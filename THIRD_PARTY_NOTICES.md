@@ -8,8 +8,8 @@ dictionaries `dictionaries/en.aff` / `en.dic` are derived from
 [Loomdraft](https://github.com/H3kk3/Loomdraft) by Hekke, licensed under the MIT
 License. See `src/writing-editor/LICENSE.loomdraft.txt`.
 
-Cockpit does not ship Loomdraft’s project shell (corkboard, wiki tree, export
-pipeline); local draft text, version history, and images use Cockpit storage.
+InPrincipio does not ship Loomdraft’s project shell (corkboard, wiki tree, export
+pipeline); local draft text, version history, and images use InPrincipio storage.
 
 ## Hunspell dictionaries (LibreOffice)
 

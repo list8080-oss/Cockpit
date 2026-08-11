@@ -3,6 +3,6 @@
 <plist version="1.0">
 <dict>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Cockpit reads note titles and text from the Notes app so you can send them to writing agents.</string>
+	<string>InPrincipio reads note titles and text from the Notes app so you can send them to writing agents.</string>
 </dict>
 </plist>

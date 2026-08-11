@@ -1,0 +1,50 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="48%" r="72%">
+      <stop offset="0%" stop-color="#241005"/>
+      <stop offset="60%" stop-color="#0f0603"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffb347" stop-opacity="1"/>
+      <stop offset="40%" stop-color="#ff7a1a" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#ff7a1a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="spokeFill" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#c8460a"/>
+      <stop offset="45%" stop-color="#ff9a2e"/>
+      <stop offset="100%" stop-color="#ffe2a8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="430" fill="url(#glow)" opacity="0.4"/>
+
+  <!-- Seven thin spokes, each swept into a tight hook — a clearly turning
+       wheel (kolovrat in spirit), kept abstract by the odd count and the
+       light, linear weight rather than a literal reproduction of the glyph. -->
+  <g transform="translate(512,512)">
+    <g id="spoke">
+      <path d="
+        M0,-55
+        C 22,-118 68,-158 112,-198
+        C 152,-234 178,-268 178,-306
+        C 178,-330 164,-346 144,-350
+        C 148,-330 148,-312 128,-288
+        C 96,-250 46,-198 18,-150
+        C 4,-126 -2,-90 0,-55
+        Z"
+        fill="url(#spokeFill)"/>
+    </g>
+    <use href="#spoke" transform="rotate(51.43)"/>
+    <use href="#spoke" transform="rotate(102.86)"/>
+    <use href="#spoke" transform="rotate(154.29)"/>
+    <use href="#spoke" transform="rotate(205.71)"/>
+    <use href="#spoke" transform="rotate(257.14)"/>
+    <use href="#spoke" transform="rotate(308.57)"/>
+  </g>
+
+  <circle cx="512" cy="512" r="118" fill="url(#glow)"/>
+  <circle cx="512" cy="512" r="50" fill="#fff1d6"/>
+  <circle cx="512" cy="512" r="50" fill="none" stroke="#ff9a2e" stroke-width="7" opacity="0.9"/>
+</svg>

@@ -1,6 +1,8 @@
 import type { Locale } from "../i18n";
 import { t } from "../i18n";
 import type {
+  DelegatedCall,
+  FileDiff,
   OrchestratorAgentId,
   OrchestratorMessage,
 } from "../conversations";
@@ -92,6 +94,65 @@ export function createAgentFullAccessErrorMessage(
   };
 }
 
+export function createAgentPlanMessage(text: string): OrchestratorMessage {
+  return {
+    id: newId(),
+    role: "orchestrator",
+    kind: "agent_plan",
+    createdAt: Date.now(),
+    text,
+  };
+}
+
+export function createAgentPlanErrorMessage(error: string): OrchestratorMessage {
+  return {
+    id: newId(),
+    role: "orchestrator",
+    kind: "agent_plan_error",
+    createdAt: Date.now(),
+    text: error,
+  };
+}
+
+export function createAgentProposalMessage(
+  summary: string,
+  changes: FileDiff[],
+  context: "project" | "free",
+): OrchestratorMessage {
+  return {
+    id: newId(),
+    role: "orchestrator",
+    kind: "agent_proposal",
+    createdAt: Date.now(),
+    text: summary,
+    proposalChanges: changes,
+    proposalContext: context,
+  };
+}
+
+export function createAgentProposalErrorMessage(
+  error: string,
+): OrchestratorMessage {
+  return {
+    id: newId(),
+    role: "orchestrator",
+    kind: "agent_proposal_error",
+    createdAt: Date.now(),
+    text: error,
+  };
+}
+
+export function createDelegationMessage(call: DelegatedCall): OrchestratorMessage {
+  return {
+    id: newId(),
+    role: "orchestrator",
+    kind: "agent_delegation",
+    createdAt: Date.now(),
+    text: "",
+    delegation: call,
+  };
+}
+
 const AGENT_LABEL: Record<OrchestratorAgentId, string> = {
   claude: "Claude",
   codex: "Codex",
@@ -101,6 +162,21 @@ const AGENT_LABEL: Record<OrchestratorAgentId, string> = {
 
 export function agentDisplayName(id: OrchestratorAgentId): string {
   return AGENT_LABEL[id];
+}
+
+/** Maps a raw invoked binary name (from a Bash call) to a display name —
+ * `cursor-agent` is the CLI binary, "Cursor" is what the rest of the UI
+ * calls it everywhere else. Falls back to the raw name if unrecognized. */
+const DELEGATED_BINARY_LABEL: Record<string, OrchestratorAgentId> = {
+  claude: "claude",
+  codex: "codex",
+  "cursor-agent": "cursor",
+  opencode: "opencode",
+};
+
+export function delegatedAgentLabel(binary: string): string {
+  const id = DELEGATED_BINARY_LABEL[binary];
+  return id ? agentDisplayName(id) : binary;
 }
 
 function joinNames(ids: OrchestratorAgentId[]): string {
@@ -146,13 +222,32 @@ export function formatOrchestratorMessage(
       return lines.join("\n");
     }
     case "synthesis":
-      return `${t(locale, "orchestratorSynthesisIntro")}\n\n${message.text}`;
+      return message.text;
     case "synthesis_error":
       return t(locale, "orchestratorSynthesisError", { error: message.text });
     case "agent_full_access":
-      return `${t(locale, "orchestratorFullAccessIntro")}\n\n${message.text}`;
+      return message.text;
     case "agent_full_access_error":
       return t(locale, "orchestratorFullAccessError", { error: message.text });
+    case "agent_plan":
+      return `${t(locale, "orchestratorPlanPreface")}\n\n${message.text}`;
+    case "agent_plan_error":
+      return t(locale, "orchestratorPlanError", { error: message.text });
+    case "agent_proposal": {
+      const paths = (message.proposalChanges ?? []).map((c) => c.path);
+      const lines = [message.text.trim()].filter(Boolean);
+      if (paths.length > 0) {
+        lines.push(paths.join(", "));
+      }
+      return lines.join("\n");
+    }
+    case "agent_proposal_error":
+      return t(locale, "orchestratorProposeError", { error: message.text });
+    case "agent_delegation": {
+      const call = message.delegation;
+      if (!call) return message.text;
+      return [`$ ${call.command}`, "", call.output].join("\n");
+    }
     default:
       return message.text;
   }

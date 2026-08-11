@@ -46,7 +46,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Local (localStorage) version history — Loomdraft UI, Cockpit storage. */
+/** Local (localStorage) version history — Loomdraft UI, InPrincipio storage. */
 export function VersionHistory({
   nodeId,
   docTitle,

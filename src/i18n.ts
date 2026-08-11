@@ -42,6 +42,12 @@ type Dict = {
   settingsGeneral: string;
   settingsManuscript: string;
   settingsManuscriptHint: string;
+  settingsDevelopment: string;
+  settingsDevelopmentHint: string;
+  developmentPath: string;
+  settingsFreeProject: string;
+  settingsFreeProjectHint: string;
+  freeProjectPath: string;
   manuscriptPath: string;
   manuscriptNotSet: string;
   settingsDictionaries: string;
@@ -138,21 +144,66 @@ type Dict = {
   orchestratorAgentError: string;
   orchestratorSynthesize: string;
   orchestratorSynthesizing: string;
-  orchestratorSynthesisIntro: string;
   orchestratorSynthesisNeedTwo: string;
   orchestratorSynthesisError: string;
   orchestratorModeLabel: string;
   orchestratorModeNormal: string;
+  orchestratorModePlan: string;
+  orchestratorModePropose: string;
   orchestratorModeFullAccess: string;
+  orchestratorContextLabel: string;
+  orchestratorContextProject: string;
+  orchestratorContextFree: string;
+  orchestratorAgentsSelectLabel: string;
+  orchestratorProjectRequired: string;
   orchestratorFullAccessWarningTitle: string;
-  orchestratorFullAccessWarningBody: string;
+  orchestratorFullAccessWarningBodyProject: string;
+  orchestratorFullAccessWarningBodyFree: string;
   orchestratorFullAccessConfirm: string;
   orchestratorFullAccessCancel: string;
-  orchestratorFullAccessBanner: string;
+  orchestratorFullAccessBannerProject: string;
+  orchestratorFullAccessBannerFree: string;
   orchestratorSendFullAccess: string;
+  orchestratorSendPlan: string;
+  orchestratorSendPropose: string;
+  orchestratorSendFree: string;
   orchestratorFullAccessWaiting: string;
-  orchestratorFullAccessIntro: string;
   orchestratorFullAccessError: string;
+  orchestratorPlanWaiting: string;
+  orchestratorPlanPreface: string;
+  orchestratorPlanError: string;
+  orchestratorProposeWaiting: string;
+  orchestratorProposeError: string;
+  orchestratorProposalApply: string;
+  orchestratorProposalReject: string;
+  orchestratorProposalApplying: string;
+  orchestratorProposalApplied: string;
+  orchestratorProposalRejected: string;
+  orchestratorProposalRollback: string;
+  orchestratorProposalRollingBack: string;
+  orchestratorProposalRolledBack: string;
+  orchestratorProposalApplyError: string;
+  orchestratorProposalRollbackError: string;
+  orchestratorRoleLabel: string;
+  orchestratorRoleNone: string;
+  roleSceneAuthor: string;
+  roleStyleEditor: string;
+  roleCanonChecker: string;
+  rolePsychologyChecker: string;
+  roleHistoricalAccuracyChecker: string;
+  roleContinuityEditor: string;
+  roleFinalLiteraryEditor: string;
+  roleCodeResearcher: string;
+  roleArchitect: string;
+  roleTester: string;
+  roleReviewer: string;
+  roleExecutor: string;
+  orchestratorStructuredResultLabel: string;
+  orchestratorProfileLabel: string;
+  orchestratorProfileSwitchError: string;
+  profileManuscript: string;
+  profileDevelopment: string;
+  profileFreeProject: string;
 };
 
 const en: Dict = {
@@ -165,7 +216,7 @@ const en: Dict = {
   chooseFile: "Choose file…",
   appleNotes: "Apple Notes",
   appleNotesHint:
-    "macOS will ask to let Cockpit control the Notes app. Then pick a folder and a note — its text goes into the agents prompt.",
+    "macOS will ask to let InPrincipio control the Notes app. Then pick a folder and a note — its text goes into the agents prompt.",
   appleNotesConnect: "Open Apple Notes",
   appleNotesConnecting: "Opening Notes…",
   appleNotesFolders: "Folders",
@@ -174,7 +225,7 @@ const en: Dict = {
   appleNotesBack: "← Folders",
   appleNotesRefresh: "Refresh",
   appleNotesAccessDenied:
-    "Access denied. Allow Cockpit → Notes in System Settings → Privacy & Security → Automation.",
+    "Access denied. Allow InPrincipio → Notes in System Settings → Privacy & Security → Automation.",
   appleNotesOnlyMac: "Apple Notes works only on Mac.",
   loadAppleNoteFailed: "[failed to load note: {error}]",
   editor: "Editor",
@@ -191,6 +242,14 @@ const en: Dict = {
   settingsGeneral: "General",
   settingsManuscript: "Project",
   settingsManuscriptHint: "Connect a folder (chapters as separate files) or a single file (the whole manuscript in one document).",
+  settingsDevelopment: "Development",
+  settingsDevelopmentHint:
+    "Connect the folder of your development project (e.g. a Godot project) — used when the \"Development\" profile is active in the Orchestrator.",
+  developmentPath: "Project folder",
+  settingsFreeProject: "Free project",
+  settingsFreeProjectHint:
+    "Connect any folder or file that doesn't fit \"Manuscript\" or \"Development\" — used when the \"Free project\" profile is active in the Orchestrator, with no assumptions or preset roles.",
+  freeProjectPath: "Project folder or file",
   manuscriptPath: "Path",
   manuscriptNotSet: "Not connected",
   chooseFolder: "Choose folder…",
@@ -291,24 +350,72 @@ const en: Dict = {
   orchestratorAgentError: "Agent error",
   orchestratorSynthesize: "Make a conclusion",
   orchestratorSynthesizing: "Analyzing replies…",
-  orchestratorSynthesisIntro: "Conclusion from the agent replies:",
   orchestratorSynthesisNeedTwo:
     "Need at least two successful agent replies before a comparison can be made.",
   orchestratorSynthesisError: "Could not make a conclusion: {error}",
-  orchestratorModeLabel: "Mode",
+  orchestratorModeLabel: "Rights",
   orchestratorModeNormal: "Normal",
+  orchestratorModePlan: "Plan",
+  orchestratorModePropose: "Propose changes",
   orchestratorModeFullAccess: "Full access",
+  orchestratorContextLabel: "Context",
+  orchestratorContextProject: "Project",
+  orchestratorContextFree: "Free chat",
+  orchestratorAgentsSelectLabel: "Ask",
+  orchestratorProjectRequired:
+    "Connect a project first, or switch Context to Free chat.",
   orchestratorFullAccessWarningTitle: "Enable full access?",
-  orchestratorFullAccessWarningBody:
-    "In Full access mode the Orchestrator runs a real Claude Code agent session. It can change manuscript files and run shell commands on this computer — not read-only. Only continue if you trust this request.",
+  orchestratorFullAccessWarningBodyProject:
+    "In Full access mode the Orchestrator runs a real Claude Code agent session in your connected project. It can change project files and run shell commands on this computer — not read-only. Only continue if you trust this request.",
+  orchestratorFullAccessWarningBodyFree:
+    "In Full access mode the Orchestrator runs a real Claude Code agent session in InPrincipio’s free-chat working folder (not your manuscript). It can write files there and run shell commands on this computer. Only continue if you trust this request.",
   orchestratorFullAccessConfirm: "Enable full access",
   orchestratorFullAccessCancel: "Cancel",
-  orchestratorFullAccessBanner:
-    "Full access is on — the Orchestrator can edit manuscript files and run commands on this computer.",
+  orchestratorFullAccessBannerProject:
+    "Full access is on — the Orchestrator can edit project files and run commands on this computer.",
+  orchestratorFullAccessBannerFree:
+    "Full access is on — the Orchestrator can edit files in the free-chat folder and run commands on this computer.",
   orchestratorSendFullAccess: "Send with full access",
+  orchestratorSendPlan: "Send for plan",
+  orchestratorSendPropose: "Send proposal",
+  orchestratorSendFree: "Send (free chat)",
   orchestratorFullAccessWaiting: "Full-access agent is working…",
-  orchestratorFullAccessIntro: "Full-access agent:",
   orchestratorFullAccessError: "Full-access agent failed: {error}",
+  orchestratorPlanWaiting: "Planning…",
+  orchestratorPlanPreface: "Plan",
+  orchestratorPlanError: "Plan agent failed: {error}",
+  orchestratorProposeWaiting: "Preparing proposal…",
+  orchestratorProposeError: "Propose-changes agent failed: {error}",
+  orchestratorProposalApply: "Apply",
+  orchestratorProposalReject: "Reject",
+  orchestratorProposalApplying: "Applying…",
+  orchestratorProposalApplied: "Applied",
+  orchestratorProposalRejected: "Rejected",
+  orchestratorProposalRollback: "Roll back",
+  orchestratorProposalRollingBack: "Rolling back…",
+  orchestratorProposalRolledBack: "Rolled back",
+  orchestratorProposalApplyError: "Could not apply: {error}",
+  orchestratorProposalRollbackError: "Could not roll back: {error}",
+  orchestratorRoleLabel: "Role",
+  orchestratorRoleNone: "No role",
+  roleSceneAuthor: "Scene author",
+  roleStyleEditor: "Style editor",
+  roleCanonChecker: "Canon checker",
+  rolePsychologyChecker: "Psychology checker",
+  roleHistoricalAccuracyChecker: "Historical accuracy checker",
+  roleContinuityEditor: "Continuity editor",
+  roleFinalLiteraryEditor: "Final literary editor",
+  roleCodeResearcher: "Code researcher",
+  roleArchitect: "Architect",
+  roleTester: "Tester",
+  roleReviewer: "Reviewer",
+  roleExecutor: "Executor",
+  orchestratorStructuredResultLabel: "Ask for structured findings",
+  orchestratorProfileLabel: "Profile",
+  orchestratorProfileSwitchError: "Could not switch profile: {error}",
+  profileManuscript: "Manuscript",
+  profileDevelopment: "Development",
+  profileFreeProject: "Free project",
 };
 
 const ru: Dict = {
@@ -348,6 +455,14 @@ const ru: Dict = {
   settingsGeneral: "Общие",
   settingsManuscript: "Проект",
   settingsManuscriptHint: "Подключи папку (главы отдельными файлами) или один файл (вся рукопись целиком).",
+  settingsDevelopment: "Разработка",
+  settingsDevelopmentHint:
+    "Подключите папку с проектом разработки (например, проект Godot) — используется, когда в Оркестраторе активен профиль «Разработка».",
+  developmentPath: "Папка проекта",
+  settingsFreeProject: "Свободный проект",
+  settingsFreeProjectHint:
+    "Подключите любую папку или файл, которые не подходят под «Рукопись» или «Разработку» — используется, когда в Оркестраторе активен профиль «Свободный проект», без предположений и заготовленных ролей.",
+  freeProjectPath: "Папка или файл проекта",
   manuscriptPath: "Путь",
   manuscriptNotSet: "Не подключён",
   chooseFolder: "Выбрать папку…",
@@ -450,24 +565,72 @@ const ru: Dict = {
   orchestratorAgentError: "Ошибка агента",
   orchestratorSynthesize: "Сделать вывод",
   orchestratorSynthesizing: "Анализирую ответы…",
-  orchestratorSynthesisIntro: "Вывод по ответам агентов:",
   orchestratorSynthesisNeedTwo:
     "Нужны ответы хотя бы двух агентов, иначе сравнивать нечего.",
   orchestratorSynthesisError: "Не удалось сделать вывод: {error}",
-  orchestratorModeLabel: "Режим",
+  orchestratorModeLabel: "Права",
   orchestratorModeNormal: "Обычный",
+  orchestratorModePlan: "План",
+  orchestratorModePropose: "Предложить изменения",
   orchestratorModeFullAccess: "Полный доступ",
+  orchestratorContextLabel: "Контекст",
+  orchestratorContextProject: "Проект",
+  orchestratorContextFree: "Свободное общение",
+  orchestratorAgentsSelectLabel: "Спросить",
+  orchestratorProjectRequired:
+    "Сначала подключите проект или переключите контекст на «Свободное общение».",
   orchestratorFullAccessWarningTitle: "Включить полный доступ?",
-  orchestratorFullAccessWarningBody:
-    "В режиме «Полный доступ» Оркестратор запускает настоящую агентную сессию Claude Code. Он может менять файлы рукописи и выполнять команды на этом компьютере — это уже не read-only. Продолжайте только если доверяете этому запросу.",
+  orchestratorFullAccessWarningBodyProject:
+    "В режиме «Полный доступ» Оркестратор запускает настоящую агентную сессию Claude Code в подключённом проекте. Он может менять файлы проекта и выполнять команды на этом компьютере — это уже не read-only. Продолжайте только если доверяете этому запросу.",
+  orchestratorFullAccessWarningBodyFree:
+    "В режиме «Полный доступ» Оркестратор запускает настоящую агентную сессию Claude Code в рабочей папке свободного общения InPrincipio (не в рукописи). Он может писать файлы туда и выполнять команды на этом компьютере. Продолжайте только если доверяете этому запросу.",
   orchestratorFullAccessConfirm: "Включить полный доступ",
   orchestratorFullAccessCancel: "Отмена",
-  orchestratorFullAccessBanner:
-    "Включён полный доступ — Оркестратор может править файлы рукописи и выполнять команды на этом компьютере.",
+  orchestratorFullAccessBannerProject:
+    "Включён полный доступ — Оркестратор может править файлы проекта и выполнять команды на этом компьютере.",
+  orchestratorFullAccessBannerFree:
+    "Включён полный доступ — Оркестратор может править файлы в папке свободного общения и выполнять команды на этом компьютере.",
   orchestratorSendFullAccess: "Отправить с полным доступом",
+  orchestratorSendPlan: "Отправить за планом",
+  orchestratorSendPropose: "Отправить предложение",
+  orchestratorSendFree: "Отправить (свободное)",
   orchestratorFullAccessWaiting: "Агент с полным доступом работает…",
-  orchestratorFullAccessIntro: "Агент с полным доступом:",
   orchestratorFullAccessError: "Агент с полным доступом завершился ошибкой: {error}",
+  orchestratorPlanWaiting: "Планирую…",
+  orchestratorPlanPreface: "План",
+  orchestratorPlanError: "Агент планирования завершился ошибкой: {error}",
+  orchestratorProposeWaiting: "Готовлю предложение…",
+  orchestratorProposeError: "Агент предложений завершился ошибкой: {error}",
+  orchestratorProposalApply: "Применить",
+  orchestratorProposalReject: "Отклонить",
+  orchestratorProposalApplying: "Применяю…",
+  orchestratorProposalApplied: "Применено",
+  orchestratorProposalRejected: "Отклонено",
+  orchestratorProposalRollback: "Откатить",
+  orchestratorProposalRollingBack: "Откатываю…",
+  orchestratorProposalRolledBack: "Откачено",
+  orchestratorProposalApplyError: "Не удалось применить: {error}",
+  orchestratorProposalRollbackError: "Не удалось откатить: {error}",
+  orchestratorRoleLabel: "Роль",
+  orchestratorRoleNone: "Без роли",
+  roleSceneAuthor: "Автор сцены",
+  roleStyleEditor: "Редактор стиля",
+  roleCanonChecker: "Проверяющий канон",
+  rolePsychologyChecker: "Проверяющий психологию",
+  roleHistoricalAccuracyChecker: "Проверяющий историческую достоверность",
+  roleContinuityEditor: "Редактор непрерывности",
+  roleFinalLiteraryEditor: "Финальный литературный редактор",
+  roleCodeResearcher: "Исследователь кода",
+  roleArchitect: "Архитектор",
+  roleTester: "Тестировщик",
+  roleReviewer: "Ревьюер",
+  roleExecutor: "Исполнитель",
+  orchestratorStructuredResultLabel: "Запросить структурированный итог",
+  orchestratorProfileLabel: "Профиль",
+  orchestratorProfileSwitchError: "Не удалось переключить профиль: {error}",
+  profileManuscript: "Рукопись",
+  profileDevelopment: "Разработка",
+  profileFreeProject: "Свободный проект",
 };
 
 const uk: Dict = {
@@ -507,6 +670,14 @@ const uk: Dict = {
   settingsGeneral: "Загальні",
   settingsManuscript: "Проєкт",
   settingsManuscriptHint: "Підключи теку (розділи окремими файлами) або один файл (весь рукопис цілком).",
+  settingsDevelopment: "Розробка",
+  settingsDevelopmentHint:
+    "Підключіть папку проєкту розробки (наприклад, проєкт Godot) — використовується, коли в Оркестраторі активний профіль «Розробка».",
+  developmentPath: "Папка проєкту",
+  settingsFreeProject: "Вільний проект",
+  settingsFreeProjectHint:
+    "Підключіть будь-яку папку чи файл, які не підходять під «Рукопис» або «Розробку» — використовується, коли в Оркестраторі активний профіль «Вільний проект», без припущень і заготовлених ролей.",
+  freeProjectPath: "Папка чи файл проєкту",
   manuscriptPath: "Шлях",
   manuscriptNotSet: "Не підключено",
   chooseFolder: "Обрати теку…",
@@ -609,24 +780,72 @@ const uk: Dict = {
   orchestratorAgentError: "Помилка агента",
   orchestratorSynthesize: "Зробити висновок",
   orchestratorSynthesizing: "Аналізую відповіді…",
-  orchestratorSynthesisIntro: "Висновок за відповідями агентів:",
   orchestratorSynthesisNeedTwo:
     "Потрібні відповіді щонайменше двох агентів, інакше порівнювати нічого.",
   orchestratorSynthesisError: "Не вдалося зробити висновок: {error}",
-  orchestratorModeLabel: "Режим",
+  orchestratorModeLabel: "Права",
   orchestratorModeNormal: "Звичайний",
+  orchestratorModePlan: "План",
+  orchestratorModePropose: "Запропонувати зміни",
   orchestratorModeFullAccess: "Повний доступ",
+  orchestratorContextLabel: "Контекст",
+  orchestratorContextProject: "Проєкт",
+  orchestratorContextFree: "Вільне спілкування",
+  orchestratorAgentsSelectLabel: "Запитати",
+  orchestratorProjectRequired:
+    "Спочатку підключіть проєкт або перемкніть контекст на «Вільне спілкування».",
   orchestratorFullAccessWarningTitle: "Увімкнути повний доступ?",
-  orchestratorFullAccessWarningBody:
-    "У режимі «Повний доступ» Оркестратор запускає справжню агентну сесію Claude Code. Він може змінювати файли рукопису й виконувати команди на цьому комп’ютері — це вже не read-only. Продовжуйте лише якщо довіряєте цьому запиту.",
+  orchestratorFullAccessWarningBodyProject:
+    "У режимі «Повний доступ» Оркестратор запускає справжню агентну сесію Claude Code в підключеному проєкті. Він може змінювати файли проєкту й виконувати команди на цьому комп’ютері — це вже не read-only. Продовжуйте лише якщо довіряєте цьому запиту.",
+  orchestratorFullAccessWarningBodyFree:
+    "У режимі «Повний доступ» Оркестратор запускає справжню агентну сесію Claude Code в робочій теці вільного спілкування InPrincipio (не в рукописі). Він може писати файли туди й виконувати команди на цьому комп’ютері. Продовжуйте лише якщо довіряєте цьому запиту.",
   orchestratorFullAccessConfirm: "Увімкнути повний доступ",
   orchestratorFullAccessCancel: "Скасувати",
-  orchestratorFullAccessBanner:
-    "Увімкнено повний доступ — Оркестратор може редагувати файли рукопису й виконувати команди на цьому комп’ютері.",
+  orchestratorFullAccessBannerProject:
+    "Увімкнено повний доступ — Оркестратор може редагувати файли проєкту й виконувати команди на цьому комп’ютері.",
+  orchestratorFullAccessBannerFree:
+    "Увімкнено повний доступ — Оркестратор може редагувати файли в теці вільного спілкування й виконувати команди на цьому комп’ютері.",
   orchestratorSendFullAccess: "Надіслати з повним доступом",
+  orchestratorSendPlan: "Надіслати за планом",
+  orchestratorSendPropose: "Надіслати пропозицію",
+  orchestratorSendFree: "Надіслати (вільне)",
   orchestratorFullAccessWaiting: "Агент із повним доступом працює…",
-  orchestratorFullAccessIntro: "Агент із повним доступом:",
   orchestratorFullAccessError: "Агент із повним доступом завершився помилкою: {error}",
+  orchestratorPlanWaiting: "Планую…",
+  orchestratorPlanPreface: "План",
+  orchestratorPlanError: "Агент планування завершився помилкою: {error}",
+  orchestratorProposeWaiting: "Готую пропозицію…",
+  orchestratorProposeError: "Агент пропозицій завершився помилкою: {error}",
+  orchestratorProposalApply: "Застосувати",
+  orchestratorProposalReject: "Відхилити",
+  orchestratorProposalApplying: "Застосовую…",
+  orchestratorProposalApplied: "Застосовано",
+  orchestratorProposalRejected: "Відхилено",
+  orchestratorProposalRollback: "Відкотити",
+  orchestratorProposalRollingBack: "Відкочую…",
+  orchestratorProposalRolledBack: "Відкочено",
+  orchestratorProposalApplyError: "Не вдалося застосувати: {error}",
+  orchestratorProposalRollbackError: "Не вдалося відкотити: {error}",
+  orchestratorRoleLabel: "Роль",
+  orchestratorRoleNone: "Без ролі",
+  roleSceneAuthor: "Автор сцени",
+  roleStyleEditor: "Редактор стилю",
+  roleCanonChecker: "Перевірка канону",
+  rolePsychologyChecker: "Перевірка психології",
+  roleHistoricalAccuracyChecker: "Перевірка історичної достовірності",
+  roleContinuityEditor: "Редактор безперервності",
+  roleFinalLiteraryEditor: "Фінальний літературний редактор",
+  roleCodeResearcher: "Дослідник коду",
+  roleArchitect: "Архітектор",
+  roleTester: "Тестувальник",
+  roleReviewer: "Рев'юер",
+  roleExecutor: "Виконавець",
+  orchestratorStructuredResultLabel: "Запросити структурований підсумок",
+  orchestratorProfileLabel: "Профіль",
+  orchestratorProfileSwitchError: "Не вдалося перемкнути профіль: {error}",
+  profileManuscript: "Рукопис",
+  profileDevelopment: "Розробка",
+  profileFreeProject: "Вільний проект",
 };
 
 const cs: Dict = {
@@ -648,7 +867,7 @@ const cs: Dict = {
   appleNotesBack: "← Složky",
   appleNotesRefresh: "Obnovit",
   appleNotesAccessDenied:
-    "Přístup odepřen. Povolte Cockpit → Poznámky v Nastavení systému → Soukromí → Automatizace.",
+    "Přístup odepřen. Povolte InPrincipio → Poznámky v Nastavení systému → Soukromí → Automatizace.",
   appleNotesOnlyMac: "Poznámky Apple fungují jen na Macu.",
   loadAppleNoteFailed: "[poznámku se nepodařilo načíst: {error}]",
   editor: "Editor",
@@ -666,6 +885,14 @@ const cs: Dict = {
   settingsGeneral: "Obecné",
   settingsManuscript: "Projekt",
   settingsManuscriptHint: "Připojte složku (kapitoly jako samostatné soubory) nebo jeden soubor (celý rukopis v jednom dokumentu).",
+  settingsDevelopment: "Vývoj",
+  settingsDevelopmentHint:
+    "Připojte složku vývojového projektu (např. projekt Godot) — použije se, když je v Orchestrátoru aktivní profil „Vývoj“.",
+  developmentPath: "Složka projektu",
+  settingsFreeProject: "Volný projekt",
+  settingsFreeProjectHint:
+    "Připojte libovolnou složku nebo soubor, které nezapadají do „Rukopis\" ani „Vývoj\" — použije se, když je v Orchestrátoru aktivní profil „Volný projekt\", bez předpokladů a přednastavených rolí.",
+  freeProjectPath: "Složka nebo soubor projektu",
   manuscriptPath: "Cesta",
   manuscriptNotSet: "Nepřipojeno",
   chooseFolder: "Vybrat složku…",
@@ -768,24 +995,72 @@ const cs: Dict = {
   orchestratorAgentError: "Chyba agenta",
   orchestratorSynthesize: "Udělat závěr",
   orchestratorSynthesizing: "Analyzuji odpovědi…",
-  orchestratorSynthesisIntro: "Závěr z odpovědí agentů:",
   orchestratorSynthesisNeedTwo:
     "Ke srovnání jsou potřeba úspěšné odpovědi alespoň dvou agentů.",
   orchestratorSynthesisError: "Závěr se nepodařilo udělat: {error}",
-  orchestratorModeLabel: "Režim",
+  orchestratorModeLabel: "Práva",
   orchestratorModeNormal: "Běžný",
+  orchestratorModePlan: "Plán",
+  orchestratorModePropose: "Navrhnout změny",
   orchestratorModeFullAccess: "Plný přístup",
+  orchestratorContextLabel: "Kontext",
+  orchestratorContextProject: "Projekt",
+  orchestratorContextFree: "Volný chat",
+  orchestratorAgentsSelectLabel: "Zeptat se",
+  orchestratorProjectRequired:
+    "Nejdřív připojte projekt, nebo přepněte kontext na Volný chat.",
   orchestratorFullAccessWarningTitle: "Zapnout plný přístup?",
-  orchestratorFullAccessWarningBody:
-    "V režimu Plný přístup Orchestrátor spouští skutečnou agentní relaci Claude Code. Může měnit soubory rukopisu a spouštět příkazy na tomto počítači — už to není jen pro čtení. Pokračujte jen pokud tomuto požadavku důvěřujete.",
+  orchestratorFullAccessWarningBodyProject:
+    "V režimu Plný přístup Orchestrátor spouští skutečnou agentní relaci Claude Code v připojeném projektu. Může měnit soubory projektu a spouštět příkazy na tomto počítači — už to není jen pro čtení. Pokračujte jen pokud tomuto požadavku důvěřujete.",
+  orchestratorFullAccessWarningBodyFree:
+    "V režimu Plný přístup Orchestrátor spouští skutečnou agentní relaci Claude Code v pracovní složce volného chatu InPrincipio (ne v rukopisu). Může tam zapisovat soubory a spouštět příkazy na tomto počítači. Pokračujte jen pokud tomuto požadavku důvěřujete.",
   orchestratorFullAccessConfirm: "Zapnout plný přístup",
   orchestratorFullAccessCancel: "Zrušit",
-  orchestratorFullAccessBanner:
-    "Plný přístup je zapnutý — Orchestrátor může upravovat soubory rukopisu a spouštět příkazy na tomto počítači.",
+  orchestratorFullAccessBannerProject:
+    "Plný přístup je zapnutý — Orchestrátor může upravovat soubory projektu a spouštět příkazy na tomto počítači.",
+  orchestratorFullAccessBannerFree:
+    "Plný přístup je zapnutý — Orchestrátor může upravovat soubory ve složce volného chatu a spouštět příkazy na tomto počítači.",
   orchestratorSendFullAccess: "Odeslat s plným přístupem",
+  orchestratorSendPlan: "Odeslat pro plán",
+  orchestratorSendPropose: "Odeslat návrh",
+  orchestratorSendFree: "Odeslat (volný chat)",
   orchestratorFullAccessWaiting: "Agent s plným přístupem pracuje…",
-  orchestratorFullAccessIntro: "Agent s plným přístupem:",
   orchestratorFullAccessError: "Agent s plným přístupem selhal: {error}",
+  orchestratorPlanWaiting: "Plánuji…",
+  orchestratorPlanPreface: "Plán",
+  orchestratorPlanError: "Plánovací agent selhal: {error}",
+  orchestratorProposeWaiting: "Připravuji návrh…",
+  orchestratorProposeError: "Agent návrhů selhal: {error}",
+  orchestratorProposalApply: "Použít",
+  orchestratorProposalReject: "Odmítnout",
+  orchestratorProposalApplying: "Používám…",
+  orchestratorProposalApplied: "Použito",
+  orchestratorProposalRejected: "Odmítnuto",
+  orchestratorProposalRollback: "Vrátit zpět",
+  orchestratorProposalRollingBack: "Vracím…",
+  orchestratorProposalRolledBack: "Vráceno",
+  orchestratorProposalApplyError: "Nepodařilo se použít: {error}",
+  orchestratorProposalRollbackError: "Nepodařilo se vrátit: {error}",
+  orchestratorRoleLabel: "Role",
+  orchestratorRoleNone: "Bez role",
+  roleSceneAuthor: "Autor scény",
+  roleStyleEditor: "Redaktor stylu",
+  roleCanonChecker: "Kontrola kánonu",
+  rolePsychologyChecker: "Kontrola psychologie",
+  roleHistoricalAccuracyChecker: "Kontrola historické věrohodnosti",
+  roleContinuityEditor: "Editor kontinuity",
+  roleFinalLiteraryEditor: "Finální literární redaktor",
+  roleCodeResearcher: "Průzkumník kódu",
+  roleArchitect: "Architekt",
+  roleTester: "Tester",
+  roleReviewer: "Recenzent",
+  roleExecutor: "Vykonavatel",
+  orchestratorStructuredResultLabel: "Požádat o strukturované shrnutí",
+  orchestratorProfileLabel: "Profil",
+  orchestratorProfileSwitchError: "Nepodařilo se přepnout profil: {error}",
+  profileManuscript: "Rukopis",
+  profileDevelopment: "Vývoj",
+  profileFreeProject: "Volný projekt",
 };
 
 const dictionaries: Record<Locale, Dict> = { en, ru, uk, cs };

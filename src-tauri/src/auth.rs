@@ -1,23 +1,15 @@
 //! Per-provider auth status for the CLIs this app fans out to.
-//! Each service uses the user's own subscription/account — Cockpit only
+//! Each service uses the user's own subscription/account — InPrincipio only
 //! surfaces whether that login is present and can start the provider's
-//! own login flow. There is no shared "Cockpit account".
+//! own login flow. There is no shared "InPrincipio account".
 
+use crate::bin_paths::{claude_bin, codex_bin, cursor_bin, gh_bin, opencode_bin};
 use serde::Serialize;
 use std::process::Stdio;
 use tokio::process::Command;
 use tokio::time::{timeout, Duration};
 
 const CMD_TIMEOUT: Duration = Duration::from_secs(10);
-
-fn resolve_bin(candidates: &[&str], fallback: &str) -> String {
-    for c in candidates {
-        if std::path::Path::new(c).is_file() {
-            return c.to_string();
-        }
-    }
-    fallback.to_string()
-}
 
 fn bin_exists(path: &str) -> bool {
     std::path::Path::new(path).is_file()
@@ -32,42 +24,6 @@ fn which_ok(name: &str) -> bool {
         .status()
         .map(|s| s.success())
         .unwrap_or(false)
-}
-
-fn claude_bin() -> String {
-    resolve_bin(&["/opt/homebrew/bin/claude", "/usr/local/bin/claude"], "claude")
-}
-
-fn codex_bin() -> String {
-    resolve_bin(
-        &[
-            "/Applications/ChatGPT.app/Contents/Resources/codex",
-            "/opt/homebrew/bin/codex",
-            "/usr/local/bin/codex",
-        ],
-        "codex",
-    )
-}
-
-fn cursor_bin() -> String {
-    if let Some(home) = dirs::home_dir() {
-        let p = home.join(".local/bin/cursor-agent");
-        if p.is_file() {
-            return p.to_string_lossy().to_string();
-        }
-    }
-    resolve_bin(
-        &["/opt/homebrew/bin/cursor-agent", "/usr/local/bin/cursor-agent"],
-        "cursor-agent",
-    )
-}
-
-fn gh_bin() -> String {
-    resolve_bin(&["/opt/homebrew/bin/gh", "/usr/local/bin/gh"], "gh")
-}
-
-fn opencode_bin() -> String {
-    resolve_bin(&["/opt/homebrew/bin/opencode", "/usr/local/bin/opencode"], "opencode")
 }
 
 /// `opencode auth list` colors its output; strips just the color/reset

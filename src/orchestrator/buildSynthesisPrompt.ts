@@ -2,12 +2,15 @@ import type { ConversationTurn, OrchestratorAgentId } from "../conversations";
 import { ORCHESTRATOR_AGENT_IDS } from "../conversations";
 import { agentDisplayName } from "./messages";
 import type { AgentRunState } from "./types";
+import type { StructuredResult } from "./structuredResult";
 
 export interface AgentReplySnapshot {
   id: OrchestratorAgentId;
   /** Last successful assistant text, if any. */
   replyText: string | null;
   state: AgentRunState;
+  /** Optional parsed self-assessment from structured-result mode. */
+  structured?: StructuredResult | null;
 }
 
 export interface SynthesisPromptInput {
@@ -71,6 +74,17 @@ export function buildSynthesisPrompt(input: SynthesisPromptInput): string {
     if (snap.replyText && snap.state.status === "done") {
       parts.push(`### ${label}`);
       parts.push(snap.replyText.trim());
+      if (snap.structured) {
+        const s = snap.structured;
+        parts.push(
+          `(self-assessment: confidence=${s.confidence}; needsConfirmation=${s.needsConfirmation}` +
+            (s.issues.length ? `; issues: ${s.issues.join("; ")}` : "") +
+            (s.suggestions.length
+              ? `; suggestions: ${s.suggestions.join("; ")}`
+              : "") +
+            ")",
+        );
+      }
       parts.push("");
     } else if (snap.state.status === "error") {
       parts.push(`### ${label}`);
