@@ -3,6 +3,7 @@ import {
   createAgentFullAccessErrorMessage,
   createAgentPlanErrorMessage,
   createAgentProposalErrorMessage,
+  createAgentProposalMessage,
   createCompletedMessage,
   createDelegationMessage,
   createDispatchedMessage,
@@ -14,6 +15,24 @@ import {
 } from "./messages";
 
 const locale = "en" as const;
+
+describe("createAgentProposalMessage", () => {
+  it("carries the profile id when context is project", () => {
+    const message = createAgentProposalMessage("summary", [], "project", "manuscript");
+    expect(message.proposalContext).toBe("project");
+    expect(message.proposalProfileId).toBe("manuscript");
+  });
+
+  it("forces profileId to null when context is free, even if one is passed", () => {
+    const message = createAgentProposalMessage("summary", [], "free", "manuscript");
+    expect(message.proposalProfileId).toBeNull();
+  });
+
+  it("defaults profileId to null when omitted", () => {
+    const message = createAgentProposalMessage("summary", [], "project");
+    expect(message.proposalProfileId).toBeNull();
+  });
+});
 
 describe("createUserMessage", () => {
   it("omits attachedFiles when none are given", () => {

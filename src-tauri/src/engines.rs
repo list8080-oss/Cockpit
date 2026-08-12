@@ -325,7 +325,19 @@ pub async fn run_orchestrator_agent(
 ) -> Result<OrchestratorAgentReply, String> {
     let ctx = context.unwrap_or_else(|| "project".into());
     let agent_mode = mode.unwrap_or_else(|| "full".into());
-    let is_plan = agent_mode == "plan";
+    // Fail closed, not open: only these two values are ever sent by the
+    // frontend (`useOrchestrator.ts`'s two `run_orchestrator_agent` call
+    // sites). Defaulting anything unrecognized to Full access — the more
+    // dangerous of the two, `--dangerously-skip-permissions` — would turn a
+    // typo or a future IPC bug into a silent privilege escalation instead of
+    // a visible error.
+    let is_plan = match agent_mode.as_str() {
+        "plan" => true,
+        "full" => false,
+        other => {
+            return Err(format!("orchestrator agent: unknown mode: {other}"));
+        }
+    };
     let cwd = resolve_cwd(&ctx)?;
     // GUI-launched processes don't inherit the user's login-shell PATH, so a
     // bare `codex`/`cursor-agent`/`opencode` can report "command not found"
@@ -470,8 +482,17 @@ pub struct OrchestratorProposal {
 /// actually stays under `cwd`, same as the already-correct pattern in
 /// `editor_assets.rs::read_image_base64`. The file may not exist yet (a
 /// brand-new file the Orchestrator is proposing) — `canonicalize()` requires
-/// an existing path, so this walks up to the nearest existing ancestor,
-/// canonicalizes *that*, and re-attaches the non-existent tail unresolved.
+/// an existing path, so this walks up to the nearest ancestor that has *any*
+/// filesystem entry, canonicalizes *that*, and re-attaches the non-existent
+/// tail unresolved.
+///
+/// That walk-up must use `symlink_metadata` (an entry exists at exactly this
+/// path, symlink or not) rather than `exists()`/`is_file()` (which follow
+/// symlinks) — a *dangling* symlink (`notes.txt -> /outside/not-created-yet`)
+/// makes `exists()` return `false`, since the target isn't there yet, which
+/// would walk straight past it as if it were simply an unwritten new file.
+/// `std::fs::write` on a dangling symlink's path still creates the file at
+/// the link's target, so that would silently defeat this whole check.
 fn resolve_orchestrator_relative_path(cwd: &Path, relative: &str) -> Result<PathBuf, String> {
     if relative.is_empty() {
         return Err("orchestrator propose: empty path".into());
@@ -494,18 +515,21 @@ fn resolve_orchestrator_relative_path(cwd: &Path, relative: &str) -> Result<Path
         .canonicalize()
         .map_err(|e| format!("orchestrator propose: cannot resolve working directory: {e}"))?;
 
-    // Walk up to the nearest existing ancestor — `canonicalize()` requires
-    // the path to exist, and a new-file proposal's target won't yet.
     let mut base = candidate.clone();
-    while !base.exists() {
+    while std::fs::symlink_metadata(&base).is_err() {
         base = base
             .parent()
             .ok_or_else(|| format!("orchestrator propose: invalid path: {relative}"))?
             .to_path_buf();
     }
-    let canonical_base = base
-        .canonicalize()
-        .map_err(|e| format!("orchestrator propose: cannot resolve path: {e}"))?;
+    // `base` has *some* entry now — canonicalize it. For a plain file/dir
+    // this just normalizes; for a symlink it resolves through to the real
+    // target and fails if that target doesn't exist (a dangling symlink),
+    // which is treated as suspicious and rejected outright rather than
+    // trying to work out where a broken link ultimately points.
+    let canonical_base = base.canonicalize().map_err(|_| {
+        format!("orchestrator propose: path touches a broken symlink, refusing: {relative}")
+    })?;
     if !canonical_base.starts_with(&canonical_cwd) {
         return Err(format!(
             "orchestrator propose: path escapes working directory via symlink: {relative}"
@@ -780,6 +804,14 @@ pub struct ApplyChangeRequest {
     pub path: String,
     pub old_content: Option<String>,
     pub new_content: String,
+    /// The profile active when the proposal was generated (only meaningful
+    /// for `context == "project"`; `None` for `"free"` or for proposals
+    /// stored before this field existed, in which case the check below is
+    /// skipped rather than hard-failing old data). Applying a proposal
+    /// against whichever profile happens to be *currently* active — instead
+    /// of the one it was actually generated for — silently writes into the
+    /// wrong project if the user switched profiles in between.
+    pub profile_id: Option<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -818,6 +850,16 @@ fn apply_change_with_journal(
     journal: &Path,
 ) -> Result<AppliedChange, String> {
     let ctx = request.context.clone().unwrap_or_else(|| "project".into());
+    if ctx == "project" {
+        if let Some(proposed_for) = &request.profile_id {
+            let current = crate::profiles::active_profile_id();
+            if *proposed_for != current {
+                return Err(format!(
+                    "this proposal was generated for profile \"{proposed_for}\", but \"{current}\" is active now — switch back before applying"
+                ));
+            }
+        }
+    }
     let cwd = resolve_cwd(&ctx)?;
     let resolved = resolve_orchestrator_relative_path(&cwd, &request.path)?;
     check_apply_freshness(&resolved, &request.old_content)?;
@@ -873,6 +915,21 @@ fn rollback_change_with_journal(journal_id: &str, journal: &Path) -> Result<(), 
         .context
         .as_deref()
         .unwrap_or("project");
+    // Same reasoning as apply: roll back against the profile the change was
+    // actually applied to, not whichever one happens to be active right
+    // now. Journal entries always carry `profile_id` for `context ==
+    // "project"` (set at apply time) — no `None`-means-old-data case to
+    // grandfather here the way apply's request does.
+    if ctx == "project" {
+        if let Some(applied_for) = &apply_entry.profile_id {
+            let current = crate::profiles::active_profile_id();
+            if applied_for != &current {
+                return Err(format!(
+                    "this change was applied to profile \"{applied_for}\", but \"{current}\" is active now — switch back before rolling back"
+                ));
+            }
+        }
+    }
     let path = apply_entry
         .path
         .as_deref()
@@ -1363,6 +1420,38 @@ mod propose_path_tests {
         assert_eq!(got, cwd.join("alias.txt"));
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn rejects_a_dangling_symlink_pointing_outside_cwd() {
+        // The critical case `Path::exists()` gets wrong: a symlink whose
+        // target doesn't exist yet reports `exists() == false`, which the
+        // walk-up-to-nearest-ancestor logic would otherwise treat as "this
+        // is just an unwritten new file" and let straight through —
+        // std::fs::write on that path then creates the file at the link's
+        // target, outside cwd, regardless.
+        let cwd = temp_dir("resolve-dangling-symlink");
+        let outside = temp_dir("resolve-dangling-symlink-target-dir");
+        let never_created = outside.join("not-created-yet.txt");
+        std::os::unix::fs::symlink(&never_created, cwd.join("notes.txt")).unwrap();
+
+        let err = resolve_orchestrator_relative_path(&cwd, "notes.txt")
+            .expect_err("a dangling symlink escaping cwd must be rejected");
+        assert!(err.contains("symlink"), "unexpected error message: {err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_a_dangling_intermediate_symlinked_directory() {
+        let cwd = temp_dir("resolve-dangling-symlink-dir");
+        let outside = temp_dir("resolve-dangling-symlink-dir-target-parent");
+        let never_created_dir = outside.join("not-created-yet");
+        std::os::unix::fs::symlink(&never_created_dir, cwd.join("chapters")).unwrap();
+
+        let err = resolve_orchestrator_relative_path(&cwd, "chapters/new-file.txt")
+            .expect_err("a dangling symlinked directory escaping cwd must be rejected");
+        assert!(err.contains("symlink"), "unexpected error message: {err}");
+    }
+
     #[test]
     fn file_diff_marks_missing_file_as_new() {
         let dir = temp_dir("propose-diff");
@@ -1408,6 +1497,7 @@ mod propose_path_tests {
                 path: "scene.txt".into(),
                 old_content: Some("old\n".into()),
                 new_content: "new\n".into(),
+                profile_id: None,
             },
             &journal,
         )
@@ -1431,6 +1521,7 @@ mod propose_path_tests {
                 path: "scene.txt".into(),
                 old_content: Some("expected baseline\n".into()),
                 new_content: "new\n".into(),
+                profile_id: None,
             },
             &journal,
         )
@@ -1452,6 +1543,7 @@ mod propose_path_tests {
                 path: "scene.txt".into(),
                 old_content: None,
                 new_content: "new\n".into(),
+                profile_id: None,
             },
             &journal,
         )
@@ -1471,6 +1563,7 @@ mod propose_path_tests {
                 path: "nested/mod.txt".into(),
                 old_content: None,
                 new_content: "brand new\n".into(),
+                profile_id: None,
             },
             &journal,
         )
@@ -1491,6 +1584,7 @@ mod propose_path_tests {
                 path: "scene.txt".into(),
                 old_content: Some("old\n".into()),
                 new_content: "new\n".into(),
+                profile_id: None,
             },
             &journal,
         )
@@ -1512,6 +1606,7 @@ mod propose_path_tests {
                 path: "scene.txt".into(),
                 old_content: None,
                 new_content: "created\n".into(),
+                profile_id: None,
             },
             &journal,
         )
@@ -1533,6 +1628,7 @@ mod propose_path_tests {
                 path: "scene.txt".into(),
                 old_content: Some("old\n".into()),
                 new_content: "new\n".into(),
+                profile_id: None,
             },
             &journal,
         )
@@ -1556,6 +1652,7 @@ mod propose_path_tests {
                 path: "scene.txt".into(),
                 old_content: Some("old\n".into()),
                 new_content: "new\n".into(),
+                profile_id: None,
             },
             &journal,
         )
@@ -1586,6 +1683,7 @@ mod propose_path_tests {
                 path: "scene.txt".into(),
                 old_content: Some("old\n".into()),
                 new_content: "new\n".into(),
+                profile_id: None,
             },
             &journal,
         )
@@ -1616,12 +1714,87 @@ mod propose_path_tests {
                 path: "scene.txt".into(),
                 old_content: Some("old\n".into()),
                 new_content: "new\n".into(),
+                profile_id: None,
             },
             &journal,
         )
         .unwrap();
         let entries = read_journal_entries(&journal).unwrap();
         assert_eq!(entries[0].profile_id.as_deref(), Some("development"));
+
+        std::env::remove_var("YAR_COCKPIT_CONFIG_DIR");
+        let _ = std::fs::remove_dir_all(&config_root);
+        let _ = std::fs::remove_dir_all(&project_dir);
+    }
+
+    #[test]
+    fn apply_rejects_when_the_proposal_profile_is_not_the_active_one() {
+        // A proposal generated while "manuscript" was active must not get
+        // silently applied to whatever the user has switched to since —
+        // that would write the change into the wrong project.
+        let sandbox = FreeSandbox::new("apply-profile-mismatch");
+        let config_root = temp_dir("apply-profile-mismatch-config");
+        std::env::set_var("YAR_COCKPIT_CONFIG_DIR", &config_root);
+        let project_dir = temp_dir("apply-profile-mismatch-connected");
+        crate::profiles::set_active_profile_id("development".into()).unwrap();
+        crate::profiles::set_project_path(
+            "development".into(),
+            project_dir.to_string_lossy().to_string(),
+        )
+        .unwrap();
+
+        let journal = sandbox.journal_path();
+        let err = apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("project".into()),
+                path: "scene.txt".into(),
+                old_content: None,
+                new_content: "new\n".into(),
+                profile_id: Some("manuscript".into()),
+            },
+            &journal,
+        )
+        .unwrap_err();
+        assert!(err.contains("manuscript") && err.contains("development"), "{err}");
+        assert!(!project_dir.join("scene.txt").exists(), "must not write anywhere");
+
+        std::env::remove_var("YAR_COCKPIT_CONFIG_DIR");
+        let _ = std::fs::remove_dir_all(&config_root);
+        let _ = std::fs::remove_dir_all(&project_dir);
+    }
+
+    #[test]
+    fn rollback_rejects_when_the_active_profile_changed_since_apply() {
+        let sandbox = FreeSandbox::new("rollback-profile-mismatch");
+        let config_root = temp_dir("rollback-profile-mismatch-config");
+        std::env::set_var("YAR_COCKPIT_CONFIG_DIR", &config_root);
+        let project_dir = temp_dir("rollback-profile-mismatch-connected");
+        crate::profiles::set_active_profile_id("development".into()).unwrap();
+        crate::profiles::set_project_path(
+            "development".into(),
+            project_dir.to_string_lossy().to_string(),
+        )
+        .unwrap();
+
+        let file = project_dir.join("scene.txt");
+        std::fs::write(&file, "old\n").unwrap();
+        let journal = sandbox.journal_path();
+        let applied = apply_change_with_journal(
+            ApplyChangeRequest {
+                context: Some("project".into()),
+                path: "scene.txt".into(),
+                old_content: Some("old\n".into()),
+                new_content: "new\n".into(),
+                profile_id: Some("development".into()),
+            },
+            &journal,
+        )
+        .unwrap();
+
+        crate::profiles::set_active_profile_id("manuscript".into()).unwrap();
+        let err = rollback_change_with_journal(&applied.journal_id, &journal).unwrap_err();
+        assert!(err.contains("development") && err.contains("manuscript"), "{err}");
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "new\n", "must not touch the file");
 
         std::env::remove_var("YAR_COCKPIT_CONFIG_DIR");
         let _ = std::fs::remove_dir_all(&config_root);
@@ -1640,6 +1813,7 @@ mod propose_path_tests {
                 path: "scene.txt".into(),
                 old_content: Some("old\n".into()),
                 new_content: "new\n".into(),
+                profile_id: None,
             },
             &journal,
         )

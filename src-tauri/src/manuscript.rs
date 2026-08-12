@@ -115,9 +115,12 @@ pub fn list_chapters() -> Result<Vec<ChapterInfo>, String> {
 }
 
 /// `file` must be a bare filename (no path separators) from `list_chapters` —
-/// rejected otherwise so this can never read outside the chapters folder.
-/// In single-file mode `file` is ignored: there is only ever one chapter,
-/// the connected file itself.
+/// blocks textual `../` traversal, but not a symlink already sitting inside
+/// the chapters folder under an innocent name (`std::fs::read_to_string`
+/// follows symlinks by default) — canonicalizing and checking the result
+/// stays under the chapters directory closes that, same pattern as
+/// `editor_project.rs::resolve_document_path`. In single-file mode `file` is
+/// ignored: there is only ever one chapter, the connected file itself.
 #[tauri::command]
 pub fn read_chapter(file: String) -> Result<String, String> {
     if file.contains('/') || file.contains('\\') || file == ".." {
@@ -128,7 +131,17 @@ pub fn read_chapter(file: String) -> Result<String, String> {
         return std::fs::read_to_string(&root)
             .map_err(|e| format!("failed to read {}: {e}", root.display()));
     }
-    let path = chapters_dir(&root).join(&file);
+    let dir = chapters_dir(&root);
+    let canonical_dir = dir
+        .canonicalize()
+        .map_err(|e| format!("failed to resolve chapters directory: {e}"))?;
+    let path = dir.join(&file);
+    let canonical_path = path
+        .canonicalize()
+        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+    if !canonical_path.starts_with(&canonical_dir) {
+        return Err(format!("failed to read {}: chapter escapes chapters directory", path.display()));
+    }
     std::fs::read_to_string(&path).map_err(|e| format!("failed to read {}: {e}", path.display()))
 }
 
@@ -165,5 +178,44 @@ mod tests {
         let got = agent_workdir("free").expect("free chat sandbox should always be creatable");
         assert!(got.ends_with("yar-cockpit/orchestrator-free"));
         assert!(got.is_dir());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn read_chapter_rejects_a_symlink_escaping_the_chapters_directory() {
+        // "01_intro.txt" passes the bare-filename check but if that name is
+        // a symlink pointing outside the chapters folder, read_to_string
+        // would silently follow it — exactly the gap the canonicalize check
+        // in read_chapter closes.
+        let guard = crate::test_env_lock::ENV_LOCK.lock().unwrap();
+        let config_dir = std::env::temp_dir().join(format!(
+            "inprincipio-manuscript-test-symlink-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&config_dir);
+        std::fs::create_dir_all(&config_dir).unwrap();
+        std::env::set_var("YAR_COCKPIT_CONFIG_DIR", &config_dir);
+
+        let project = config_dir.join("my-book");
+        let chapters = project.join("Главы");
+        std::fs::create_dir_all(&chapters).unwrap();
+        let outside = config_dir.join("outside-secret.txt");
+        std::fs::write(&outside, "not part of the manuscript").unwrap();
+        std::os::unix::fs::symlink(&outside, chapters.join("01_intro.txt")).unwrap();
+
+        crate::profiles::set_project_path("manuscript".into(), project.to_string_lossy().into())
+            .expect("connect project");
+
+        let err = read_chapter("01_intro.txt".into())
+            .expect_err("reading through an escaping symlink must be rejected");
+        assert!(err.contains("escapes chapters directory"), "{err}");
+
+        std::env::remove_var("YAR_COCKPIT_CONFIG_DIR");
+        let _ = std::fs::remove_dir_all(&config_dir);
+        drop(guard);
     }
 }

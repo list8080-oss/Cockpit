@@ -122,6 +122,7 @@ export function createAgentProposalMessage(
   summary: string,
   changes: FileDiff[],
   context: "project" | "free",
+  profileId: string | null = null,
 ): OrchestratorMessage {
   return {
     id: newId(),
@@ -131,6 +132,7 @@ export function createAgentProposalMessage(
     text: summary,
     proposalChanges: changes,
     proposalContext: context,
+    proposalProfileId: context === "project" ? profileId : null,
   };
 }
 

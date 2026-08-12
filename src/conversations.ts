@@ -89,6 +89,12 @@ export interface OrchestratorMessage {
   proposalChanges?: FileDiff[];
   /** Context the proposal was generated in — apply must use this, not the live toggle. */
   proposalContext?: "project" | "free";
+  /** Profile active when the proposal was generated (only set when
+   * proposalContext === "project") — apply/rollback must use this, not
+   * whichever profile happens to be active now, or a proposal generated for
+   * one project could get silently applied to a different one if the user
+   * switched profiles in between. */
+  proposalProfileId?: string | null;
   /** Per-path apply/reject/rollback status for proposal files. */
   proposalChangeStatus?: Record<string, ProposalChangeStatus>;
   /** Labels of project files attached to this turn (user messages only). */

@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.8",
+    date: "2026-08-12",
+    notes: {
+      en: "Security follow-up from an independent audit of last release's fixes: a dangling symlink (pointing at a not-yet-created path) could still slip past the project-boundary check and get written to; the manuscript chapter reader didn't have the same symlink check the writing editor already did; and applying or rolling back a Propose-changes suggestion now refuses if you've switched to a different project since the suggestion was generated, instead of silently writing into the new one. Also: an unrecognized Full-access mode value is now rejected instead of defaulting to full access.",
+      ru: "Продолжение работы над безопасностью по итогам независимого аудита прошлого релиза: «висячая» symlink-ссылка (указывающая на ещё не созданный путь) могла обойти проверку границ проекта и всё равно получить запись; чтение глав рукописи не имело той же проверки symlink, что уже была в текстовом редакторе; применение или откат предложения из «Предложить изменения» теперь отказывает, если вы переключились на другой проект с момента генерации предложения, вместо того чтобы молча писать в новый. Также: нераспознанное значение режима «Полный доступ» теперь отклоняется, а не по умолчанию превращается в полный доступ.",
+      uk: "Продовження роботи над безпекою за підсумками незалежного аудиту минулого релізу: «висяча» symlink-посилання (що вказує на ще не створений шлях) могло обійти перевірку меж проєкту і все одно отримати запис; читання глав рукопису не мало тієї самої перевірки symlink, яка вже була в текстовому редакторі; застосування чи відкат пропозиції з «Запропонувати зміни» тепер відмовляє, якщо ви перемкнулися на інший проєкт з моменту генерації пропозиції, замість того щоб мовчки писати в новий. Також: нерозпізнане значення режиму «Повний доступ» тепер відхиляється, а не за замовчуванням перетворюється на повний доступ.",
+      cs: "Pokračování bezpečnostní práce podle nezávislého auditu minulého vydání: „visutý“ symlink (ukazující na ještě nevytvořenou cestu) mohl stále obejít kontrolu hranic projektu a přesto do něj zapsat; čtení kapitol rukopisu nemělo stejnou kontrolu symlinku, jakou už měl textový editor; aplikace nebo vrácení návrhu z „Navrhnout změny“ nyní odmítne, pokud jste od vygenerování návrhu přepnuli na jiný projekt, místo aby tiše zapisovalo do nového. Také: nerozpoznaná hodnota režimu „Plný přístup“ je nyní odmítnuta místo výchozího nastavení na plný přístup.",
+    },
+  },
+  {
     version: "0.4.7",
     date: "2026-08-12",
     notes: {

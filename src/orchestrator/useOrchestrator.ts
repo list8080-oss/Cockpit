@@ -693,7 +693,12 @@ export function useOrchestrator({
         }
         appendOrchestratorMessage(
           id,
-          createAgentProposalMessage(reply.summary, reply.changes, orchestratorContext),
+          createAgentProposalMessage(
+            reply.summary,
+            reply.changes,
+            orchestratorContext,
+            orchestratorContext === "project" ? (activeProfile?.id ?? null) : null,
+          ),
         );
       })
       .catch((e) => {
@@ -944,6 +949,7 @@ export function useOrchestrator({
         path: change.path,
         oldContent: change.oldContent,
         newContent: change.newContent,
+        profileId: context === "project" ? (message.proposalProfileId ?? null) : null,
       },
     })
       .then((res) => {
