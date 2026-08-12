@@ -8,26 +8,31 @@ import type {
 } from "../conversations";
 import { delegatedAgentLabel, formatOrchestratorMessage } from "./messages";
 import type { OrchestratorContext } from "./runFanout";
+import type { AttachedFile } from "./contextPackage";
+import { AttachFileMenu } from "./AttachFileMenu";
 
-/** `0:07`, `1:23` — ticks up once a second while `active` is true, resets to
- * 0 as soon as it goes false. The CLIs give no real progress signal for a
+/** `0:07`, `1:23` — ticks up once a second while a send/synthesize call is
+ * active, 0 once it's done. The CLIs give no real progress signal for a
  * single request/response call, so a live elapsed counter is the one honest
  * "still alive, not frozen" cue available during a long Propose-changes
- * generation. */
-function useElapsedSeconds(active: boolean): number {
-  const [seconds, setSeconds] = useState(0);
+ * generation. Takes the start timestamp from `useOrchestrator` (not a
+ * component-local `Date.now()`) so it keeps counting correctly even if this
+ * component unmounts and remounts — which happens whenever the user opens
+ * an individual agent's own panel and comes back while a call is still
+ * running. */
+function useElapsedSeconds(since: number | null): number {
+  const [seconds, setSeconds] = useState(() => (since ? Math.floor((Date.now() - since) / 1000) : 0));
   useEffect(() => {
-    if (!active) {
+    if (!since) {
       setSeconds(0);
       return;
     }
-    const start = Date.now();
-    setSeconds(0);
+    setSeconds(Math.floor((Date.now() - since) / 1000));
     const id = window.setInterval(() => {
-      setSeconds(Math.floor((Date.now() - start) / 1000));
+      setSeconds(Math.floor((Date.now() - since) / 1000));
     }, 1000);
     return () => window.clearInterval(id);
-  }, [active]);
+  }, [since]);
   return seconds;
 }
 
@@ -224,6 +229,10 @@ export function OrchestratorChat({
   onApplyProposalChange,
   onRejectProposalChange,
   onRollbackProposalChange,
+  attachedFiles,
+  onAttachFile,
+  onRemoveAttachedFile,
+  activeSince,
 }: {
   locale: Locale;
   messages: OrchestratorMessage[];
@@ -244,10 +253,16 @@ export function OrchestratorChat({
   onApplyProposalChange: (messageId: string, path: string) => void;
   onRejectProposalChange: (messageId: string, path: string) => void;
   onRollbackProposalChange: (messageId: string, path: string) => void;
+  attachedFiles: AttachedFile[];
+  onAttachFile: (file: AttachedFile) => void;
+  onRemoveAttachedFile: (label: string) => void;
+  /** When the current send/synthesize call actually started, from
+   * `useOrchestrator` — survives this component unmounting/remounting. */
+  activeSince: number | null;
 }) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const blocked = busy || synthesizing;
-  const elapsed = useElapsedSeconds(blocked);
+  const elapsed = useElapsedSeconds(activeSince);
   const noAgentsSelected = selectedAgents.length === 0;
   const projectBlocked = context === "project" && !projectConnected;
   const singleAgentMode = fullAccessMode || planMode || proposeMode;
@@ -371,6 +386,15 @@ export function OrchestratorChat({
                   {formatOrchestratorMessage(message, locale)}
                 </pre>
               )}
+              {message.attachedFiles && message.attachedFiles.length > 0 && (
+                <div className="orchestrator-attachments orchestrator-attachments-sent">
+                  {message.attachedFiles.map((file) => (
+                    <span className="orchestrator-attachment-chip" key={file.label}>
+                      {file.label}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -417,6 +441,25 @@ export function OrchestratorChat({
           </div>
         )}
 
+        {attachedFiles.length > 0 && (
+          <div className="orchestrator-attachments">
+            {attachedFiles.map((file) => (
+              <span className="orchestrator-attachment-chip" key={file.label}>
+                {file.label}
+                <button
+                  type="button"
+                  className="orchestrator-attachment-remove"
+                  onClick={() => onRemoveAttachedFile(file.label)}
+                  disabled={blocked}
+                  aria-label={t(locale, "orchestratorRemoveAttachment")}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
         <textarea
           className="orchestrator-input"
           value={draft}
@@ -439,6 +482,13 @@ export function OrchestratorChat({
         />
 
         <div className="orchestrator-composer-actions">
+          {context === "project" && (
+            <AttachFileMenu
+              locale={locale}
+              disabled={blocked || projectBlocked}
+              onAttach={onAttachFile}
+            />
+          )}
           {draft.length > 0 && (
             <button
               type="button"

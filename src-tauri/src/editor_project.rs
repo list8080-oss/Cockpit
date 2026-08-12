@@ -108,7 +108,7 @@ fn list_documents() -> Result<Vec<(String, String, String)>, String> {
     }
 
     let dir = crate::manuscript::chapters_dir(&root);
-    let mut files: Vec<String> = std::fs::read_dir(&dir)
+    let mut files: Vec<String> = crate::manuscript::read_dir_retrying(&dir)
         .map_err(|e| format!("failed to read {}: {e}", dir.display()))?
         .filter_map(|e| e.ok())
         .map(|e| e.file_name().to_string_lossy().to_string())
@@ -128,6 +128,15 @@ fn list_documents() -> Result<Vec<(String, String, String)>, String> {
 /// its path on disk. Rejects anything with a separator or `..` outright, and
 /// anything that isn't actually one of the project's documents — so this can
 /// never become a read/write path outside the connected project.
+/// `node_id` being a bare filename (checked below) blocks textual `../`
+/// traversal, but not a symlink already sitting inside the chapters folder
+/// under an innocent name — `std::fs::read_to_string`/`write` follow
+/// symlinks by default, so one pointing outside the project would silently
+/// read/overwrite whatever it targets. Canonicalizing and checking the
+/// result stays under the project root closes that, same pattern as
+/// `editor_assets.rs::read_image_base64`. No new-file case to handle here
+/// (unlike `engines.rs::resolve_orchestrator_relative_path`) — `path.is_file()`
+/// below already requires the target to exist.
 fn resolve_document_path(node_id: &str) -> Result<PathBuf, String> {
     if node_id.is_empty() || node_id.contains('/') || node_id.contains('\\') || node_id.contains("..") {
         return Err("invalid document id".into());
@@ -140,8 +149,15 @@ fn resolve_document_path(node_id: &str) -> Result<PathBuf, String> {
         }
         return Ok(root);
     }
+    let canonical_root =
+        root.canonicalize().map_err(|e| format!("cannot resolve project root: {e}"))?;
     let path = crate::manuscript::chapters_dir(&root).join(node_id);
     if !path.is_file() {
+        return Err(format!("unknown document: {node_id}"));
+    }
+    let canonical_path =
+        path.canonicalize().map_err(|e| format!("cannot resolve document path: {e}"))?;
+    if !canonical_path.starts_with(&canonical_root) {
         return Err(format!("unknown document: {node_id}"));
     }
     Ok(path)
@@ -338,6 +354,36 @@ mod tests {
         let err = save_document(dir.to_string_lossy().into_owned(), "../../etc/passwd".into(), "x".into())
             .unwrap_err();
         assert!(err.contains("invalid document id"), "{err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn load_and_save_reject_a_symlink_escaping_the_project() {
+        // "01_intro.txt" passes the bare-filename check (no `/`, no `..`) but
+        // if that name is a symlink pointing outside the connected project,
+        // read_to_string/write would silently follow it — this is exactly
+        // the gap `resolve_document_path`'s canonicalize check closes.
+        let sandbox = ProjectSandbox::new("symlink-escape");
+        let project = sandbox.root.join("my-book");
+        let chapters = project.join("Главы");
+        std::fs::create_dir_all(&chapters).unwrap();
+
+        let outside = sandbox.root.join("outside-secret.txt");
+        std::fs::write(&outside, "not part of the manuscript").unwrap();
+        std::os::unix::fs::symlink(&outside, chapters.join("01_intro.txt")).unwrap();
+
+        crate::profiles::set_project_path("manuscript".into(), project.to_string_lossy().into())
+            .expect("connect project");
+        let dir = active_editor_project_dir().expect("resolve project dir");
+
+        let load_err = load_document(dir.to_string_lossy().into_owned(), "01_intro.txt".into())
+            .expect_err("reading through an escaping symlink must be rejected");
+        assert!(load_err.contains("unknown document"), "{load_err}");
+
+        let save_err =
+            save_document(dir.to_string_lossy().into_owned(), "01_intro.txt".into(), "x".into())
+                .expect_err("writing through an escaping symlink must be rejected");
+        assert!(save_err.contains("unknown document"), "{save_err}");
     }
 
     #[test]

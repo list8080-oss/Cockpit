@@ -59,6 +59,20 @@ pub fn agent_workdir(context: &str) -> Result<PathBuf, String> {
 /// listing documents the writing editor can open — one source of truth for
 /// "where do this profile's chapters live" shared between the read-only
 /// Orchestrator view and the editor's real read/write view.
+/// `std::fs::read_dir` can fail with `ErrorKind::Interrupted` (EINTR) when a
+/// signal arrives mid-syscall — observed in practice against a folder under
+/// heavy concurrent disk activity. It's not a real failure, just needs
+/// reissuing; shared with `editor_project::list_documents`, which reads the
+/// same `chapters_dir` for the same profile.
+pub(crate) fn read_dir_retrying(dir: &std::path::Path) -> std::io::Result<std::fs::ReadDir> {
+    loop {
+        match std::fs::read_dir(dir) {
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            other => return other,
+        }
+    }
+}
+
 pub(crate) fn chapters_dir(root: &std::path::Path) -> PathBuf {
     if let Some(sub) = crate::profiles::chapters_subfolder(&crate::profiles::active_profile_id()) {
         let nested = root.join(sub);
@@ -82,7 +96,7 @@ pub fn list_chapters() -> Result<Vec<ChapterInfo>, String> {
     }
 
     let dir = chapters_dir(&root);
-    let mut files: Vec<String> = std::fs::read_dir(&dir)
+    let mut files: Vec<String> = read_dir_retrying(&dir)
         .map_err(|e| format!("failed to read {}: {e}", dir.display()))?
         .filter_map(|e| e.ok())
         .map(|e| e.file_name().to_string_lossy().to_string())

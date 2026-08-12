@@ -462,6 +462,16 @@ pub struct OrchestratorProposal {
 /// Join `relative` onto `cwd` only if it cannot escape `cwd`: reject empty,
 /// absolute, and any path containing `..` components. Nested relatives like
 /// `src/foo.rs` are allowed. The target file need not exist (new-file proposals).
+///
+/// Textual `..`-rejection alone isn't enough — a symlink living inside `cwd`
+/// under an innocent-looking name (e.g. `notes.txt -> /etc/passwd`) resolves
+/// straight through it, since `std::fs::read_to_string`/`write` follow
+/// symlinks by default. So this also canonicalizes and checks the result
+/// actually stays under `cwd`, same as the already-correct pattern in
+/// `editor_assets.rs::read_image_base64`. The file may not exist yet (a
+/// brand-new file the Orchestrator is proposing) — `canonicalize()` requires
+/// an existing path, so this walks up to the nearest existing ancestor,
+/// canonicalizes *that*, and re-attaches the non-existent tail unresolved.
 fn resolve_orchestrator_relative_path(cwd: &Path, relative: &str) -> Result<PathBuf, String> {
     if relative.is_empty() {
         return Err("orchestrator propose: empty path".into());
@@ -479,7 +489,29 @@ fn resolve_orchestrator_relative_path(cwd: &Path, relative: &str) -> Result<Path
             ));
         }
     }
-    Ok(cwd.join(path))
+    let candidate = cwd.join(path);
+    let canonical_cwd = cwd
+        .canonicalize()
+        .map_err(|e| format!("orchestrator propose: cannot resolve working directory: {e}"))?;
+
+    // Walk up to the nearest existing ancestor — `canonicalize()` requires
+    // the path to exist, and a new-file proposal's target won't yet.
+    let mut base = candidate.clone();
+    while !base.exists() {
+        base = base
+            .parent()
+            .ok_or_else(|| format!("orchestrator propose: invalid path: {relative}"))?
+            .to_path_buf();
+    }
+    let canonical_base = base
+        .canonicalize()
+        .map_err(|e| format!("orchestrator propose: cannot resolve path: {e}"))?;
+    if !canonical_base.starts_with(&canonical_cwd) {
+        return Err(format!(
+            "orchestrator propose: path escapes working directory via symlink: {relative}"
+        ));
+    }
+    Ok(candidate)
 }
 
 fn unified_diff_for(path: &str, old: &str, new: &str) -> String {
@@ -1099,6 +1131,24 @@ pub async fn list_opencode_models() -> Result<Vec<ModelOption>, String> {
 /// create a file, and it refused outright ("I can't write the file while in
 /// plan mode (read-only)"), no file appeared. Same safety posture as the
 /// other three engines here.
+///
+/// `opencode run` can hang for a very long time (observed: 30+ minutes) after
+/// it has already produced its answer — confirmed by direct reproduction
+/// against its own log (`~/.local/share/opencode/log/opencode.log`: the
+/// internal agent loop finishes in single-digit seconds, but the OS process
+/// itself was still alive half an hour later, presumably kept open by
+/// background services it starts for its desktop-app integration — an
+/// fs-events file watcher, an event listener). Reading stdout incrementally
+/// to sidestep this doesn't work either — also confirmed by direct
+/// reproduction: `opencode run`'s stdout is fully block-buffered when piped
+/// (not a TTY) and never reaches the read end of the pipe until the process
+/// actually exits, no matter how long before that the answer was ready. So
+/// there is no way to get the answer before the process exits; the only
+/// thing this can do is bound how long it's willing to wait for that exit,
+/// instead of hanging forever like the other three engines' plain
+/// `.output()` would. `kill_on_drop` + wrapping the wait in a timeout means
+/// a timed-out call gets its child process killed automatically (dropping
+/// the `wait_with_output()` future drops the `Child` inside it).
 #[tauri::command]
 pub async fn run_opencode(
     prompt: String,
@@ -1111,7 +1161,8 @@ pub async fn run_opencode(
     let cwd = resolve_cwd(&ctx)?;
     let model = if model.is_empty() { OPENCODE_DEFAULT_FREE_MODEL.to_string() } else { model };
     let mut cmd = Command::new(opencode_bin());
-    cmd.current_dir(&cwd).stdin(Stdio::null()).arg("run").arg("--agent").arg("plan");
+    cmd.current_dir(&cwd).stdin(Stdio::null()).kill_on_drop(true);
+    cmd.arg("run").arg("--agent").arg("plan");
     if let Some(sid) = &session_id {
         cmd.arg("-s").arg(sid);
     }
@@ -1119,13 +1170,24 @@ pub async fn run_opencode(
     if !effort.is_empty() {
         cmd.arg("--variant").arg(&effort);
     }
-    let output = cmd
+    let child = cmd
         .arg("--format")
         .arg("json")
         .arg(&prompt)
-        .output()
-        .await
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .map_err(|e| format!("failed to run opencode: {e}"))?;
+
+    let output = match tokio::time::timeout(std::time::Duration::from_secs(180), child.wait_with_output()).await
+    {
+        Ok(res) => res.map_err(|e| format!("failed to run opencode: {e}"))?,
+        Err(_) => {
+            return Err(
+                "OpenCode didn't respond within 3 minutes — its CLI process got stuck after finishing (a known OpenCode reliability issue, not specific to this request). The stuck process was killed; try again.".into(),
+            );
+        }
+    };
 
     // Like the other engines, parse stdout first — a failed turn (e.g. an
     // API/billing error) still exits non-zero, but the real explanation is a
@@ -1228,7 +1290,7 @@ mod propose_path_tests {
 
     #[test]
     fn rejects_empty_absolute_and_parent_dir() {
-        let cwd = PathBuf::from("/tmp/propose-cwd");
+        let cwd = temp_dir("resolve-reject");
         assert!(resolve_orchestrator_relative_path(&cwd, "").is_err());
         assert!(resolve_orchestrator_relative_path(&cwd, "/etc/passwd").is_err());
         assert!(resolve_orchestrator_relative_path(&cwd, "../escape.txt").is_err());
@@ -1237,11 +1299,68 @@ mod propose_path_tests {
 
     #[test]
     fn accepts_nested_relative_paths() {
-        let cwd = PathBuf::from("/tmp/propose-cwd");
+        let cwd = temp_dir("resolve-accept");
+        std::fs::create_dir_all(cwd.join("src")).unwrap();
         let got = resolve_orchestrator_relative_path(&cwd, "src/foo.rs").expect("nested ok");
         assert_eq!(got, cwd.join("src/foo.rs"));
         let got = resolve_orchestrator_relative_path(&cwd, "scene.txt").expect("flat ok");
         assert_eq!(got, cwd.join("scene.txt"));
+    }
+
+    #[test]
+    fn accepts_a_new_file_in_a_not_yet_existing_nested_directory() {
+        // Orchestrator proposals can introduce brand-new files, including in
+        // brand-new subdirectories — canonicalize() requires the path to
+        // exist, so the walk-up-to-nearest-ancestor logic must handle a
+        // target several levels deeper than anything on disk yet.
+        let cwd = temp_dir("resolve-new-nested");
+        let got = resolve_orchestrator_relative_path(&cwd, "brand/new/dir/file.txt")
+            .expect("new nested path ok");
+        assert_eq!(got, cwd.join("brand/new/dir/file.txt"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_a_symlink_that_escapes_cwd() {
+        // Textual `..`-rejection alone doesn't stop a symlink already living
+        // inside cwd under an innocent name from resolving straight through
+        // to somewhere else — std::fs::read_to_string/write follow symlinks.
+        let cwd = temp_dir("resolve-symlink-escape");
+        let outside = temp_dir("resolve-symlink-target");
+        let secret = outside.join("secret.txt");
+        std::fs::write(&secret, "not yours").unwrap();
+        std::os::unix::fs::symlink(&secret, cwd.join("notes.txt")).unwrap();
+
+        let err = resolve_orchestrator_relative_path(&cwd, "notes.txt")
+            .expect_err("symlink escaping cwd must be rejected");
+        assert!(err.contains("symlink"), "unexpected error message: {err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_a_symlinked_directory_that_escapes_cwd() {
+        // Same idea one level up: the symlink is an intermediate directory
+        // component, not the final path segment.
+        let cwd = temp_dir("resolve-symlink-dir-escape");
+        let outside = temp_dir("resolve-symlink-dir-target");
+        std::os::unix::fs::symlink(&outside, cwd.join("chapters")).unwrap();
+
+        let err = resolve_orchestrator_relative_path(&cwd, "chapters/file.txt")
+            .expect_err("path through a symlinked directory escaping cwd must be rejected");
+        assert!(err.contains("symlink"), "unexpected error message: {err}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn accepts_a_symlink_that_stays_inside_cwd() {
+        // A symlink is not inherently suspicious — only escaping cwd is.
+        let cwd = temp_dir("resolve-symlink-inside");
+        std::fs::write(cwd.join("real.txt"), "hello").unwrap();
+        std::os::unix::fs::symlink(cwd.join("real.txt"), cwd.join("alias.txt")).unwrap();
+
+        let got = resolve_orchestrator_relative_path(&cwd, "alias.txt")
+            .expect("symlink staying inside cwd must be accepted");
+        assert_eq!(got, cwd.join("alias.txt"));
     }
 
     #[test]

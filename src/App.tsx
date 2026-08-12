@@ -256,6 +256,10 @@ export default function App() {
     applyProposalChange,
     rejectProposalChange,
     rollbackProposalChange,
+    attachedFiles,
+    addAttachedFile,
+    removeAttachedFile,
+    activeSince,
   } = useOrchestrator({
     locale,
     claudeModel,
@@ -1117,6 +1121,10 @@ export default function App() {
                     onApplyProposalChange={applyProposalChange}
                     onRejectProposalChange={rejectProposalChange}
                     onRollbackProposalChange={rollbackProposalChange}
+                    attachedFiles={attachedFiles}
+                    onAttachFile={addAttachedFile}
+                    onRemoveAttachedFile={removeAttachedFile}
+                    activeSince={activeSince}
                   />
                 }
                 panels={[

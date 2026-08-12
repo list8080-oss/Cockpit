@@ -7,12 +7,30 @@ import {
   createDelegationMessage,
   createDispatchedMessage,
   createSynthesisErrorMessage,
+  createUserMessage,
   delegatedAgentLabel,
   formatOrchestratorMessage,
   legacyMessagesFromConversation,
 } from "./messages";
 
 const locale = "en" as const;
+
+describe("createUserMessage", () => {
+  it("omits attachedFiles when none are given", () => {
+    const message = createUserMessage("Hi");
+    expect(message.attachedFiles).toBeUndefined();
+  });
+
+  it("omits attachedFiles when given an empty array", () => {
+    const message = createUserMessage("Hi", []);
+    expect(message.attachedFiles).toBeUndefined();
+  });
+
+  it("carries attachedFiles labels when given files", () => {
+    const message = createUserMessage("Hi", [{ label: "Chapter 3" }]);
+    expect(message.attachedFiles).toEqual([{ label: "Chapter 3" }]);
+  });
+});
 
 describe("formatOrchestratorMessage", () => {
   it("includes agent names for dispatched", () => {

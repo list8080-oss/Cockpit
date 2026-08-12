@@ -87,7 +87,11 @@ export function serializeOrchestratorTranscript(
   const messages = conversation.orchestrator?.messages ?? [];
   for (const message of messages) {
     const who = message.role === "user" ? "You" : "Orchestrator";
-    lines.push(heading("##", who, message.createdAt), "", formatOrchestratorMessage(message, locale), "");
+    lines.push(heading("##", who, message.createdAt), "", formatOrchestratorMessage(message, locale));
+    if (message.attachedFiles && message.attachedFiles.length > 0) {
+      lines.push(`📎 Attached: ${message.attachedFiles.map((f) => f.label).join(", ")}`);
+    }
+    lines.push("");
   }
   for (const agentId of ORCHESTRATOR_AGENT_IDS) {
     const thread = conversation[agentId];

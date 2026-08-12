@@ -1,38 +1,9 @@
 import { describe, expect, it } from "vitest";
-import {
-  appendStructuredResultInstruction,
-  composePromptWithRole,
-  summarizeFanoutResults,
-  type FanoutAgentResult,
-} from "./runFanout";
-import { STRUCTURED_RESULT_MARKER } from "./structuredResult";
+import { summarizeFanoutResults, type FanoutAgentResult } from "./runFanout";
 
-describe("composePromptWithRole", () => {
-  it("returns the prompt unchanged when there is no role instruction", () => {
-    expect(composePromptWithRole("hello", null)).toBe("hello");
-    expect(composePromptWithRole("hello", undefined)).toBe("hello");
-    expect(composePromptWithRole("hello", "")).toBe("hello");
-  });
-
-  it("prepends the instruction, a blank line, then the prompt", () => {
-    expect(composePromptWithRole("User request", "You are Style Editor.")).toBe(
-      "You are Style Editor.\n\nUser request",
-    );
-  });
-});
-
-describe("appendStructuredResultInstruction", () => {
-  it("returns the prompt unchanged when disabled or unset", () => {
-    expect(appendStructuredResultInstruction("hello", false)).toBe("hello");
-    expect(appendStructuredResultInstruction("hello", undefined)).toBe("hello");
-  });
-
-  it("appends the structured-result instruction containing the marker", () => {
-    const out = appendStructuredResultInstruction("hello", true);
-    expect(out.startsWith("hello\n\n")).toBe(true);
-    expect(out).toContain(STRUCTURED_RESULT_MARKER);
-  });
-});
+// Prompt-composition coverage (role instruction, structured-result suffix,
+// working files, history) lives in contextPackage.test.ts now — runOne()
+// delegates entirely to composeContextPackage().
 
 describe("summarizeFanoutResults", () => {
   it("buckets answered / failed / unavailable", () => {

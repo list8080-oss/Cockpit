@@ -91,6 +91,8 @@ export interface OrchestratorMessage {
   proposalContext?: "project" | "free";
   /** Per-path apply/reject/rollback status for proposal files. */
   proposalChangeStatus?: Record<string, ProposalChangeStatus>;
+  /** Labels of project files attached to this turn (user messages only). */
+  attachedFiles?: { label: string }[];
 }
 
 export interface OrchestratorThread {

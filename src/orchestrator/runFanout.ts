@@ -6,32 +6,13 @@ import type {
   AgentFanoutSessions,
   EngineReply,
 } from "./types";
-import { STRUCTURED_RESULT_INSTRUCTION } from "./structuredResult";
+import { composeContextPackage, type AttachedFile } from "./contextPackage";
 
 export type FanoutAgentResult =
   | { id: OrchestratorAgentId; ok: true; reply: EngineReply }
   | { id: OrchestratorAgentId; ok: false; error: string };
 
 export type OrchestratorContext = "project" | "free";
-
-/** Prepends a role instruction to the shared prompt for one engine. Pure —
- * unit-testable without mocking Tauri. */
-export function composePromptWithRole(
-  prompt: string,
-  roleInstruction: string | null | undefined,
-): string {
-  if (!roleInstruction) return prompt;
-  return `${roleInstruction}\n\n${prompt}`;
-}
-
-/** Appends the structured-result self-assessment instruction when enabled. */
-export function appendStructuredResultInstruction(
-  prompt: string,
-  enabled: boolean | undefined,
-): string {
-  if (!enabled) return prompt;
-  return `${prompt}\n\n${STRUCTURED_RESULT_INSTRUCTION}`;
-}
 
 export interface RunFanoutOptions {
   prompt: string;
@@ -46,6 +27,8 @@ export interface RunFanoutOptions {
   roleInstructions?: Partial<Record<OrchestratorAgentId, string>>;
   /** When true, append structured-result instruction to every engine prompt. */
   structuredResultEnabled?: boolean;
+  /** Real project files attached to this turn — same set sent to every engine. */
+  attachedFiles?: AttachedFile[];
   onAgentStart?: (id: OrchestratorAgentId) => void;
   onAgentResult?: (result: FanoutAgentResult) => void;
   /** Return false to skip applying late results after the user switched chats. */
@@ -66,6 +49,7 @@ export async function runOrchestratorFanout(
     context = "project",
     roleInstructions,
     structuredResultEnabled,
+    attachedFiles,
     onAgentStart,
     onAgentResult,
     isStillActive,
@@ -78,11 +62,12 @@ export async function runOrchestratorFanout(
 
   const runOne = async (id: OrchestratorAgentId): Promise<FanoutAgentResult> => {
     onAgentStart?.(id);
-    const withRole = composePromptWithRole(prompt, roleInstructions?.[id]);
-    const finalPrompt = appendStructuredResultInstruction(
-      withRole,
-      structuredResultEnabled,
-    );
+    const finalPrompt = composeContextPackage({
+      task: prompt,
+      roleInstruction: roleInstructions?.[id],
+      attachedFiles,
+      structuredResultRequested: structuredResultEnabled,
+    });
     try {
       let reply: EngineReply;
       switch (id) {

@@ -194,6 +194,10 @@ type Dict = {
   orchestratorProposalRolledBack: string;
   orchestratorProposalApplyError: string;
   orchestratorProposalRollbackError: string;
+  orchestratorAttachFile: string;
+  orchestratorAttachFilePicker: string;
+  orchestratorAttachFileEmpty: string;
+  orchestratorRemoveAttachment: string;
   orchestratorRoleLabel: string;
   orchestratorRoleNone: string;
   roleSceneAuthor: string;
@@ -418,6 +422,10 @@ const en: Dict = {
   orchestratorProposalRolledBack: "Rolled back",
   orchestratorProposalApplyError: "Could not apply: {error}",
   orchestratorProposalRollbackError: "Could not roll back: {error}",
+  orchestratorAttachFile: "Attach file",
+  orchestratorAttachFilePicker: "Attach a project file",
+  orchestratorAttachFileEmpty: "No documents in this project",
+  orchestratorRemoveAttachment: "Remove attachment",
   orchestratorRoleLabel: "Role",
   orchestratorRoleNone: "No role",
   roleSceneAuthor: "Scene author",
@@ -644,6 +652,10 @@ const ru: Dict = {
   orchestratorProposalRolledBack: "Откачено",
   orchestratorProposalApplyError: "Не удалось применить: {error}",
   orchestratorProposalRollbackError: "Не удалось откатить: {error}",
+  orchestratorAttachFile: "Прикрепить файл",
+  orchestratorAttachFilePicker: "Прикрепить файл проекта",
+  orchestratorAttachFileEmpty: "В этом проекте нет документов",
+  orchestratorRemoveAttachment: "Убрать вложение",
   orchestratorRoleLabel: "Роль",
   orchestratorRoleNone: "Без роли",
   roleSceneAuthor: "Автор сцены",
@@ -870,6 +882,10 @@ const uk: Dict = {
   orchestratorProposalRolledBack: "Відкочено",
   orchestratorProposalApplyError: "Не вдалося застосувати: {error}",
   orchestratorProposalRollbackError: "Не вдалося відкотити: {error}",
+  orchestratorAttachFile: "Прикріпити файл",
+  orchestratorAttachFilePicker: "Прикріпити файл проєкту",
+  orchestratorAttachFileEmpty: "У цьому проєкті немає документів",
+  orchestratorRemoveAttachment: "Прибрати вкладення",
   orchestratorRoleLabel: "Роль",
   orchestratorRoleNone: "Без ролі",
   roleSceneAuthor: "Автор сцени",
@@ -1096,6 +1112,10 @@ const cs: Dict = {
   orchestratorProposalRolledBack: "Vráceno",
   orchestratorProposalApplyError: "Nepodařilo se použít: {error}",
   orchestratorProposalRollbackError: "Nepodařilo se vrátit: {error}",
+  orchestratorAttachFile: "Připojit soubor",
+  orchestratorAttachFilePicker: "Připojit soubor projektu",
+  orchestratorAttachFileEmpty: "V tomto projektu nejsou žádné dokumenty",
+  orchestratorRemoveAttachment: "Odebrat přílohu",
   orchestratorRoleLabel: "Role",
   orchestratorRoleNone: "Bez role",
   roleSceneAuthor: "Autor scény",

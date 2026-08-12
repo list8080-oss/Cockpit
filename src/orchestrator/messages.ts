@@ -12,13 +12,17 @@ function newId(): string {
   return crypto.randomUUID();
 }
 
-export function createUserMessage(text: string): OrchestratorMessage {
+export function createUserMessage(
+  text: string,
+  attachedFiles?: { label: string }[],
+): OrchestratorMessage {
   return {
     id: newId(),
     role: "user",
     kind: "user",
     createdAt: Date.now(),
     text,
+    ...(attachedFiles && attachedFiles.length > 0 ? { attachedFiles } : {}),
   };
 }
 

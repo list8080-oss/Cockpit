@@ -157,6 +157,18 @@ describe("serializeOrchestratorTranscript", () => {
     expect(markdown).toContain("## You (2026-01-01 09:00)");
     expect(markdown).toContain("### Claude (2026-01-01 09:01)");
   });
+
+  it("lists attached file labels under a user message that has them", () => {
+    const c = conversation();
+    c.orchestrator!.messages[0].attachedFiles = [{ label: "Chapter 3" }, { label: "Style guide" }];
+    const markdown = serializeOrchestratorTranscript(c, "en", null);
+    expect(markdown).toContain("📎 Attached: Chapter 3, Style guide");
+  });
+
+  it("omits the attached-files line when a message has none", () => {
+    const markdown = serializeOrchestratorTranscript(conversation(), "en", null);
+    expect(markdown).not.toContain("📎 Attached:");
+  });
 });
 
 describe("saveTranscript", () => {

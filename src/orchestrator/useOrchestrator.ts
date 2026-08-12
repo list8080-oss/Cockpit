@@ -46,6 +46,7 @@ import {
   type AgentReplySnapshot,
 } from "./buildSynthesisPrompt";
 import { buildFullAccessContext } from "./fullAccessContext";
+import { composeContextPackage, type AttachedFile } from "./contextPackage";
 import { saveTranscript, serializeOrchestratorTranscript, transcriptFileId } from "../transcripts";
 import type { VariantState } from "../agents/Variant";
 import type { ProjectProfile } from "../profiles";
@@ -113,6 +114,18 @@ export function useOrchestrator({
 
   // Composer draft for the Orchestrator chat (not the persisted conversation.prompt).
   const [prompt, setPrompt] = useState("");
+  /** Real project files attached to the message currently being composed —
+   * cleared after every send, like an email attachment, not sticky
+   * conversation state. */
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const addAttachedFile = (file: AttachedFile) => {
+    setAttachedFiles((prev) =>
+      prev.some((f) => f.label === file.label) ? prev : [...prev, file],
+    );
+  };
+  const removeAttachedFile = (label: string) => {
+    setAttachedFiles((prev) => prev.filter((f) => f.label !== label));
+  };
   const [claude, setClaude] = useState<VariantState>(() =>
     (restoredConversation?.claude.history.length ?? 0) > 0 ? { status: "done" } : { status: "idle" },
   );
@@ -525,19 +538,21 @@ export function useOrchestrator({
     if (orchestratorContext === "project" && !activeProfileProjectPath) return;
     sendBusyRef.current = true;
     const userText = prompt;
-    const userMessage = createUserMessage(userText);
+    const userMessage = createUserMessage(userText, attachedFiles);
     const seedMessages = [...orchestratorMessages, userMessage];
     const resumeSessionId = orchestratorAgentSessionId;
-    const contextPrelude = resumeSessionId
-      ? ""
+    const historyText = resumeSessionId
+      ? null
       : buildFullAccessContext({
           orchestratorMessages,
           locale,
           agents: synthesisAgentSnapshots(),
         });
+    const filesForSend = attachedFiles;
     const id = ensureConversationForSend(userText, seedMessages);
 
     setPrompt("");
+    setAttachedFiles([]);
     setOrchestratorAgentBusy(true);
 
     invoke<{
@@ -545,7 +560,7 @@ export function useOrchestrator({
       sessionId: string | null;
       delegatedCalls: DelegatedCall[];
     }>("run_orchestrator_agent", {
-      prompt: contextPrelude ? `${contextPrelude}\n${userText}` : userText,
+      prompt: composeContextPackage({ task: userText, history: historyText, attachedFiles: filesForSend }),
       sessionId: resumeSessionId,
       model: claudeModel,
       effort: claudeEffort,
@@ -588,19 +603,21 @@ export function useOrchestrator({
     if (orchestratorContext === "project" && !activeProfileProjectPath) return;
     sendBusyRef.current = true;
     const userText = prompt;
-    const userMessage = createUserMessage(userText);
+    const userMessage = createUserMessage(userText, attachedFiles);
     const seedMessages = [...orchestratorMessages, userMessage];
     const resumeSessionId = orchestratorPlanSessionId;
-    const contextPrelude = resumeSessionId
-      ? ""
+    const historyText = resumeSessionId
+      ? null
       : buildFullAccessContext({
           orchestratorMessages,
           locale,
           agents: synthesisAgentSnapshots(),
         });
+    const filesForSend = attachedFiles;
     const id = ensureConversationForSend(userText, seedMessages);
 
     setPrompt("");
+    setAttachedFiles([]);
     setOrchestratorAgentBusy(true);
 
     invoke<{
@@ -608,7 +625,7 @@ export function useOrchestrator({
       sessionId: string | null;
       delegatedCalls: DelegatedCall[];
     }>("run_orchestrator_agent", {
-      prompt: contextPrelude ? `${contextPrelude}\n${userText}` : userText,
+      prompt: composeContextPackage({ task: userText, history: historyText, attachedFiles: filesForSend }),
       sessionId: resumeSessionId,
       model: claudeModel,
       effort: claudeEffort,
@@ -638,19 +655,21 @@ export function useOrchestrator({
     if (orchestratorContext === "project" && !activeProfileProjectPath) return;
     sendBusyRef.current = true;
     const userText = prompt;
-    const userMessage = createUserMessage(userText);
+    const userMessage = createUserMessage(userText, attachedFiles);
     const seedMessages = [...orchestratorMessages, userMessage];
     const resumeSessionId = orchestratorProposeSessionId;
-    const contextPrelude = resumeSessionId
-      ? ""
+    const historyText = resumeSessionId
+      ? null
       : buildFullAccessContext({
           orchestratorMessages,
           locale,
           agents: synthesisAgentSnapshots(),
         });
+    const filesForSend = attachedFiles;
     const id = ensureConversationForSend(userText, seedMessages);
 
     setPrompt("");
+    setAttachedFiles([]);
     setOrchestratorAgentBusy(true);
 
     invoke<{
@@ -659,7 +678,7 @@ export function useOrchestrator({
       sessionId: string | null;
       delegatedCalls: DelegatedCall[];
     }>("run_orchestrator_propose", {
-      prompt: contextPrelude ? `${contextPrelude}\n${userText}` : userText,
+      prompt: composeContextPackage({ task: userText, history: historyText, attachedFiles: filesForSend }),
       sessionId: resumeSessionId,
       model: claudeModel,
       effort: claudeEffort,
@@ -710,14 +729,16 @@ export function useOrchestrator({
     sendBusyRef.current = true;
     const userText = prompt;
     const followUp = !!activeConversationId;
-    const userMessage = createUserMessage(userText);
+    const userMessage = createUserMessage(userText, attachedFiles);
     const dispatchedMessage = createDispatchedMessage(agentsToRun);
     const seedMessages = followUp
       ? [...orchestratorMessages, userMessage, dispatchedMessage]
       : [userMessage, dispatchedMessage];
+    const filesForSend = attachedFiles;
     const id = ensureConversationForSend(userText, seedMessages);
 
     setPrompt("");
+    setAttachedFiles([]);
     setClaudeReply("");
     setCodexReply("");
     setCursorReply("");
@@ -755,6 +776,7 @@ export function useOrchestrator({
       context: orchestratorContext,
       roleInstructions,
       structuredResultEnabled: structuredResultMode,
+      attachedFiles: filesForSend,
       models: {
         claudeModel,
         claudeEffort,
@@ -1250,6 +1272,7 @@ export function useOrchestrator({
     setActiveConversationId(conversation.id);
     persistActiveConversationId(conversation.id);
     setPrompt("");
+    setAttachedFiles([]);
     setClaudeHistory(conversation.claude.history);
     setClaudeSessionId(conversation.claude.sessionId);
     setClaude({ status: conversation.claude.history.length > 0 ? "done" : "idle" });
@@ -1303,6 +1326,7 @@ export function useOrchestrator({
   const resetActiveConversation = () => {
     setActiveConversationId(null);
     persistActiveConversationId(null);
+    setAttachedFiles([]);
     setClaudeHistory([]);
     setCodexHistory([]);
     setCursorHistory([]);
@@ -1356,6 +1380,20 @@ export function useOrchestrator({
     cursor.status === "running" ||
     opencode.status === "running";
 
+  // Timestamp the send/synthesize call actually started, not when the
+  // composer last mounted — OrchestratorChat unmounts while an agent's own
+  // panel is expanded, so a component-local timer would reset to 0 on every
+  // trip back even though the call kept running the whole time.
+  const [activeSince, setActiveSince] = useState<number | null>(null);
+  const isActive = busy || synthesizing;
+  useEffect(() => {
+    if (isActive) {
+      setActiveSince((prev) => prev ?? Date.now());
+    } else {
+      setActiveSince(null);
+    }
+  }, [isActive]);
+
   const canSynthesize =
     !fullAccessMode &&
     !planMode &&
@@ -1371,6 +1409,10 @@ export function useOrchestrator({
     activeConversationId,
     prompt,
     setPrompt,
+    attachedFiles,
+    addAttachedFile,
+    removeAttachedFile,
+    activeSince,
     claude,
     codex,
     cursor,
