@@ -98,6 +98,58 @@
   color: var(--text-dim);
 }
 
+.writing-editor-project-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+}
+
+.writing-editor-project-mode {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.writing-editor-project-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.writing-editor-project-bar > button {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  color: var(--text);
+}
+
+.writing-editor-project-actions button {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.writing-editor-project-actions button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.writing-editor-project-actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .writing-editor-doc-select {
   margin-left: auto;
   max-width: 260px;

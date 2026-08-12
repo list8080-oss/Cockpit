@@ -2,17 +2,21 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { t, type Locale } from "../i18n";
 import type { AttachedFile } from "./contextPackage";
+import { DocTypeIcon } from "../writing-editor/components/DocTypeIcon";
 import type { DocumentContent, ProjectManifest } from "../writing-editor/types";
+import { buildForest, type TreeNodeView } from "../writing-editor/utils/manifestTree";
 
 /** Same open/close-on-outside-click-or-Escape popup pattern as
  * `AgentModelMenu` (`src/agents/Variant.tsx`) — a file picker fits it
  * directly, title-only items instead of model options. */
 export function AttachFileMenu({
   locale,
+  profileId,
   disabled,
   onAttach,
 }: {
   locale: Locale;
+  profileId: string | null;
   disabled?: boolean;
   onAttach: (file: AttachedFile) => void;
 }) {
@@ -41,9 +45,6 @@ export function AttachFileMenu({
     };
   }, [open]);
 
-  // Re-fetch every time the menu opens rather than caching — cheap local
-  // reads, and avoids showing a stale list after the user reconnects the
-  // project to a different folder.
   useEffect(() => {
     if (!open) return;
     setLoading(true);
@@ -56,7 +57,7 @@ export function AttachFileMenu({
       .then((m) => setManifest(m))
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
-  }, [open]);
+  }, [open, profileId]);
 
   const pick = (nodeId: string) => {
     const projectPath = projectPathRef.current;
@@ -69,9 +70,21 @@ export function AttachFileMenu({
       .catch((e) => setError(String(e)));
   };
 
-  const documents = manifest
-    ? Object.entries(manifest.nodes).filter(([, node]) => !!node.file)
+  const structured = manifest?.mode === "structured";
+  const manuscriptForest = structured
+    ? buildForest(manifest, manifest.manuscript_roots)
     : [];
+  const planningForest = structured ? buildForest(manifest, manifest.planning_roots) : [];
+
+  const legacyDocuments = manifest
+    ? Object.entries(manifest.nodes)
+        .filter(([, node]) => !!node.file)
+        .sort(([, a], [, b]) => (a.title ?? "").localeCompare(b.title ?? ""))
+    : [];
+
+  const hasStructuredDocuments =
+    countAttachableNodes(manifest, manuscriptForest) + countAttachableNodes(manifest, planningForest) >
+    0;
 
   return (
     <div className="model-menu-wrap" ref={rootRef}>
@@ -87,28 +100,119 @@ export function AttachFileMenu({
         {t(locale, "orchestratorAttachFile")}
       </button>
       {open && (
-        <div className="account-dropdown model-menu-dropdown model-menu-dropdown-up" role="menu">
+        <div
+          className="account-dropdown model-menu-dropdown model-menu-dropdown-up attach-file-menu-dropdown"
+          role="menu"
+        >
           <div className="account-dropdown-note">{t(locale, "orchestratorAttachFilePicker")}</div>
           {loading && <div className="account-dropdown-note muted">…</div>}
           {error && <div className="account-dropdown-note error-text">{error}</div>}
-          {!loading && !error && documents.length === 0 && (
+          {!loading && !error && structured && !hasStructuredDocuments && (
             <div className="account-dropdown-note muted">{t(locale, "orchestratorAttachFileEmpty")}</div>
+          )}
+          {!loading && !error && !structured && legacyDocuments.length === 0 && (
+            <div className="account-dropdown-note muted">{t(locale, "orchestratorAttachFileEmpty")}</div>
+          )}
+          {!loading && !error && structured && manuscriptForest.length > 0 && (
+            <>
+              <div className="attach-file-section-label">{t(locale, "orchestratorAttachFileManuscript")}</div>
+              <AttachFileTree
+                manifest={manifest}
+                nodes={manuscriptForest}
+                depth={0}
+                onPick={pick}
+              />
+            </>
+          )}
+          {!loading && !error && structured && planningForest.length > 0 && (
+            <>
+              <div className="attach-file-section-label">{t(locale, "orchestratorAttachFilePlanning")}</div>
+              <AttachFileTree
+                manifest={manifest}
+                nodes={planningForest}
+                depth={0}
+                onPick={pick}
+              />
+            </>
           )}
           {!loading &&
             !error &&
-            documents.map(([id, node]) => (
+            !structured &&
+            legacyDocuments.map(([id, node]) => (
               <button
                 key={id}
                 type="button"
                 role="menuitem"
-                className="account-dropdown-item"
+                className="account-dropdown-item attach-file-tree-item"
                 onClick={() => pick(id)}
               >
-                {node.title || id}
+                <DocTypeIcon docType={node.doc_type ?? "note"} size={14} />
+                <span>{node.title || id}</span>
               </button>
             ))}
         </div>
       )}
     </div>
   );
+}
+
+function AttachFileTree({
+  manifest,
+  nodes,
+  depth,
+  onPick,
+}: {
+  manifest: ProjectManifest;
+  nodes: TreeNodeView[];
+  depth: number;
+  onPick: (nodeId: string) => void;
+}) {
+  return (
+    <>
+      {nodes.map((node) => {
+        const manifestNode = manifest.nodes[node.id];
+        const hasFile = !!manifestNode?.file;
+        return (
+          <div key={node.id}>
+            {hasFile && (
+              <button
+                type="button"
+                role="menuitem"
+                className="account-dropdown-item attach-file-tree-item"
+                style={{ paddingLeft: `${10 + depth * 14}px` }}
+                onClick={() => onPick(node.id)}
+              >
+                <DocTypeIcon docType={node.docType} size={14} />
+                <span>{node.title}</span>
+              </button>
+            )}
+            {node.children.length > 0 && (
+              <AttachFileTree
+                manifest={manifest}
+                nodes={node.children}
+                depth={depth + 1}
+                onPick={onPick}
+              />
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function countAttachableNodes(
+  manifest: ProjectManifest | null,
+  forest: TreeNodeView[],
+): number {
+  if (!manifest) return 0;
+  let count = 0;
+  const walk = (nodes: TreeNodeView[]) => {
+    for (const node of nodes) {
+      if (manifest.nodes[node.id]?.file) count += 1;
+      walk(node.children);
+    }
+  };
+  walk(forest);
+  return count;
 }

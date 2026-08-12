@@ -1,0 +1,215 @@
+.we-corkboard {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.we-corkboard-empty {
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.we-corkboard-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.we-corkboard-toolbar button {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  cursor: pointer;
+}
+
+.we-corkboard-columns {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: stretch;
+}
+
+.we-corkboard-column {
+  flex: 0 0 240px;
+  min-width: 220px;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 0;
+}
+
+.we-corkboard-column-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.we-corkboard-column-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.we-corkboard-cards {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.we-corkboard-card-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.we-corkboard-drop-slot {
+  height: 6px;
+  border-radius: 3px;
+  transition: background 0.15s, height 0.15s;
+}
+
+.we-corkboard-drop-slot-active {
+  height: 28px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border: 1px dashed var(--accent);
+}
+
+.we-corkboard-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: 10px;
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.we-corkboard-card-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.we-corkboard-card-dragging {
+  opacity: 0.45;
+}
+
+.we-corkboard-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.we-corkboard-card-status {
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.we-corkboard-card-status-draft { background: #8a8a8a; }
+.we-corkboard-card-status-in-revision { background: #d4a017; }
+.we-corkboard-card-status-revised { background: #3b82f6; }
+.we-corkboard-card-status-final { background: #16a34a; }
+.we-corkboard-card-status-stuck { background: #dc2626; }
+.we-corkboard-card-status-cut { background: #6b7280; }
+
+.we-corkboard-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.we-corkboard-card-synopsis {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.we-corkboard-card-synopsis-empty {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.we-corkboard-card-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.we-corkboard-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.we-corkboard-card-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-2));
+  color: var(--text-dim);
+}
+
+.writing-editor-view-toggle {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.writing-editor-view-toggle button {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  cursor: pointer;
+  color: var(--text);
+}
+
+.writing-editor-view-toggle button.we-view-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-2));
+}

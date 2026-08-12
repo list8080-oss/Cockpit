@@ -118,7 +118,7 @@ export function Toolbar({
   };
 
   return (
-    <div className="editor-toolbar">
+    <div className="editor-toolbar" data-tour="writing-modes">
       <div className="toolbar-group">
         <button
           type="button"

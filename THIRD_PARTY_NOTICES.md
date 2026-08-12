@@ -8,8 +8,9 @@ dictionaries `dictionaries/en.aff` / `en.dic` are derived from
 [Loomdraft](https://github.com/H3kk3/Loomdraft) by Hekke, licensed under the MIT
 License. See `src/writing-editor/LICENSE.loomdraft.txt`.
 
-InPrincipio does not ship Loomdraft’s project shell (corkboard, wiki tree, export
-pipeline); local draft text, version history, and images use InPrincipio storage.
+InPrincipio reimplemented the project shell (structured manifest, sidebar tree,
+corkboard, export, search) on top of the editor core; local draft text, version
+history, and images use InPrincipio storage under `.inprincipio/`.
 
 ## Hunspell dictionaries (LibreOffice)
 

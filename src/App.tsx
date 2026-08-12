@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import {
@@ -13,7 +13,9 @@ import {
   detectTheme,
   type Theme,
 } from "./theme";
-import { WritingEditor } from "./writing-editor";
+const WritingEditor = lazy(() =>
+  import("./writing-editor").then((module) => ({ default: module.WritingEditor })),
+);
 import {
   AgentPanels,
   OrchestratorChat,
@@ -398,6 +400,13 @@ export default function App() {
     }
   }, [theme]);
 
+  // "manuscript" is only a fallback for the brief window before
+  // activeProfile first resolves (matches the backend default in
+  // `profiles::active_profile_id()`) — the sidebar "Project" panel and
+  // chapters list must follow whichever profile is actually active, not
+  // always "Рукопись".
+  const activeProfileId = activeProfile?.id ?? "manuscript";
+
   const loadChapters = () => {
     invoke<ChapterInfo[]>("list_chapters")
       .then((list) => {
@@ -414,11 +423,17 @@ export default function App() {
   };
 
   useEffect(() => {
-    loadChapters();
     void refreshAuth();
     void refreshCodexLimits();
     loadDictionaries();
   }, []);
+
+  // Chapters belong to whichever profile is active, not always "manuscript"
+  // — re-fetch on mount (once activeProfile first resolves) and again on
+  // every profile switch, instead of once and never again.
+  useEffect(() => {
+    loadChapters();
+  }, [activeProfile?.id]);
 
   useEffect(() => {
     if (availableProfiles.length === 0) return;
@@ -465,7 +480,7 @@ export default function App() {
       await invoke("set_project_path", { profileId, path: selected });
       setProjectPaths((p) => ({ ...p, [profileId]: selected }));
       refreshActiveProfileProjectPath();
-      if (profileId === "manuscript") loadChapters();
+      if (profileId === activeProfileId) loadChapters();
     } catch (e) {
       setProjectMessages((m) => ({ ...m, [profileId]: String(e) }));
     }
@@ -478,7 +493,7 @@ export default function App() {
       await invoke("clear_project_path", { profileId });
       setProjectPaths((p) => ({ ...p, [profileId]: null }));
       refreshActiveProfileProjectPath();
-      if (profileId === "manuscript") {
+      if (profileId === activeProfileId) {
         setChapters([]);
         setChaptersError(null);
       }
@@ -804,17 +819,17 @@ export default function App() {
             </button>
             {openPanel === "notes" && (
               <div className="sidebar-panel-body">
-                {!projectPaths["manuscript"] ? (
+                {!projectPaths[activeProfileId] ? (
                   <>
                     <p className="panel-hint">{t(locale, "projectConnectHint")}</p>
-                    {projectMessages["manuscript"] && (
-                      <p className="error-text">{projectMessages["manuscript"]}</p>
+                    {projectMessages[activeProfileId] && (
+                      <p className="error-text">{projectMessages[activeProfileId]}</p>
                     )}
                     <button
                       type="button"
                       className="apple-notes-connect-btn"
                       onClick={() => {
-                        void chooseProjectPath("manuscript", true);
+                        void chooseProjectPath(activeProfileId, true);
                       }}
                     >
                       {t(locale, "chooseFolder")}
@@ -823,7 +838,7 @@ export default function App() {
                       type="button"
                       className="apple-notes-connect-btn"
                       onClick={() => {
-                        void chooseProjectPath("manuscript", false);
+                        void chooseProjectPath(activeProfileId, false);
                       }}
                     >
                       {t(locale, "chooseFile")}
@@ -834,15 +849,15 @@ export default function App() {
                     <div className="apple-notes-toolbar">
                       <span
                         className="apple-notes-toolbar-label"
-                        title={projectPaths["manuscript"] ?? undefined}
+                        title={projectPaths[activeProfileId] ?? undefined}
                       >
-                        {projectPaths["manuscript"]}
+                        {projectPaths[activeProfileId]}
                       </span>
                       <button
                         type="button"
                         className="apple-notes-link-btn"
                         onClick={() => {
-                          void disconnectProjectPath("manuscript");
+                          void disconnectProjectPath(activeProfileId);
                         }}
                       >
                         {t(locale, "projectDisconnect")}
@@ -1071,13 +1086,21 @@ export default function App() {
       <main className="main">
         <div className="main-body">
           {workspaceMode === "editor" ? (
-            <WritingEditor
-              onBack={openAgentsMode}
-              backLabel={t(locale, "backToAgents")}
-              title={t(locale, "editor")}
-              themeId={theme}
-              locale={locale}
-            />
+            <Suspense
+              fallback={
+                <div className="editor-loading-shell">{t(locale, "editorLoading")}</div>
+              }
+            >
+              <WritingEditor
+                key={`${activeProfile?.id ?? "none"}:${activeProfileProjectPath ?? ""}`}
+                onBack={openAgentsMode}
+                backLabel={t(locale, "backToAgents")}
+                title={t(locale, "editor")}
+                themeId={theme}
+                locale={locale}
+                profileId={activeProfile?.id ?? null}
+              />
+            </Suspense>
           ) : workspaceMode === "simpleChat" ? (
             <SimpleChat
               locale={locale}
@@ -1118,6 +1141,7 @@ export default function App() {
                     context={orchestratorContext}
                     selectedAgents={selectedAgents}
                     projectConnected={!!activeProfileProjectPath}
+                    activeProfileId={activeProfile?.id ?? null}
                     onApplyProposalChange={applyProposalChange}
                     onRejectProposalChange={rejectProposalChange}
                     onRollbackProposalChange={rollbackProposalChange}

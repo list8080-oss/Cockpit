@@ -12,8 +12,16 @@ pub struct ChapterInfo {
     title: String,
 }
 
+/// Was hardcoded to the `"manuscript"` profile specifically — meaning the
+/// Chat sidebar's chapters list silently kept reading from whatever was
+/// connected to "Рукопись" even while a different profile (e.g.
+/// "Разработка") was active, out of step with `chapters_dir()` below (which
+/// already correctly resolves its subfolder via the active profile) and
+/// with `editor_project.rs`'s equivalent (`active_editor_project_dir`,
+/// profile-aware from the start). Found by independent review (`VERA.md`),
+/// confirmed by reading the code directly.
 fn configured_path() -> Result<PathBuf, String> {
-    let path = crate::profiles::project_path_for("manuscript")
+    let path = crate::profiles::project_path_for(&crate::profiles::active_profile_id())
         .ok_or("No project connected — choose a folder or file.")?;
     let root = PathBuf::from(path);
     if !root.is_dir() && !root.is_file() {
@@ -158,6 +166,14 @@ mod tests {
 
     #[test]
     fn project_context_routes_through_active_profile() {
+        // Reads process-global config (active profile / project_paths) that
+        // other tests mutate via YAR_COCKPIT_CONFIG_DIR and
+        // set_active_profile_id/set_project_path — without this guard the
+        // two reads below can straddle a concurrent mutation from another
+        // test and disagree with each other. Flaky under the default
+        // parallel `cargo test`, always green under --test-threads=1;
+        // confirmed independently twice today before this fix.
+        let _guard = crate::test_env_lock::ENV_LOCK.lock().unwrap();
         let via_context = agent_workdir("project");
         let via_profile =
             crate::profiles::resolve_profile_workdir(&crate::profiles::active_profile_id());
@@ -213,6 +229,56 @@ mod tests {
         let err = read_chapter("01_intro.txt".into())
             .expect_err("reading through an escaping symlink must be rejected");
         assert!(err.contains("escapes chapters directory"), "{err}");
+
+        std::env::remove_var("YAR_COCKPIT_CONFIG_DIR");
+        let _ = std::fs::remove_dir_all(&config_dir);
+        drop(guard);
+    }
+
+    #[test]
+    fn list_chapters_follows_the_active_profile_not_always_manuscript() {
+        // Regression: configured_path() used to hardcode the "manuscript"
+        // profile regardless of which one was actually active — found by
+        // independent review (VERA.md). Connect two profiles to two
+        // different folders, make "development" active, and confirm
+        // list_chapters() reads development's folder, not manuscript's.
+        let guard = crate::test_env_lock::ENV_LOCK.lock().unwrap();
+        let config_dir = std::env::temp_dir().join(format!(
+            "inprincipio-manuscript-test-active-profile-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&config_dir);
+        std::fs::create_dir_all(&config_dir).unwrap();
+        std::env::set_var("YAR_COCKPIT_CONFIG_DIR", &config_dir);
+
+        let manuscript_dir = config_dir.join("the-book");
+        std::fs::create_dir_all(manuscript_dir.join("Главы")).unwrap();
+        std::fs::write(manuscript_dir.join("Главы").join("01_intro.txt"), "chapter one").unwrap();
+
+        let dev_dir = config_dir.join("the-code");
+        std::fs::create_dir_all(&dev_dir).unwrap();
+        std::fs::write(dev_dir.join("notes.txt"), "dev notes").unwrap();
+
+        crate::profiles::set_project_path("manuscript".into(), manuscript_dir.to_string_lossy().into())
+            .expect("connect manuscript");
+        crate::profiles::set_project_path("development".into(), dev_dir.to_string_lossy().into())
+            .expect("connect development");
+        crate::profiles::set_active_profile_id("development".into()).expect("activate development");
+
+        let chapters = list_chapters().expect("list chapters for active profile");
+        assert!(
+            chapters.iter().any(|c| c.file == "notes.txt"),
+            "expected development's notes.txt, got {:?}",
+            chapters.iter().map(|c| &c.file).collect::<Vec<_>>()
+        );
+        assert!(
+            !chapters.iter().any(|c| c.file == "01_intro.txt"),
+            "must not read manuscript's chapter while development is active"
+        );
 
         std::env::remove_var("YAR_COCKPIT_CONFIG_DIR");
         let _ = std::fs::remove_dir_all(&config_dir);

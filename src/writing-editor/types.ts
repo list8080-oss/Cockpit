@@ -1,4 +1,4 @@
-// Mirror of Rust structs in src-tauri/src/project.rs, frontmatter.rs, and db.rs
+/** Writing editor types — synced with `src-tauri/src/editor/`. */
 
 export const STATUS_VALUES = [
   "draft",
@@ -32,11 +32,15 @@ export interface ProjectManifest {
   root: string;
   nodes: Record<string, ProjectNode>;
   doc_types: DocTypeDefinition[];
-  // Omitted when empty (serde skip_serializing_if = "HashMap::is_empty")
+  manuscript_roots?: string[];
+  planning_roots?: string[];
   tag_colors?: Record<string, string>;
-  // Omitted when None (serde skip_serializing_if = "Option::is_none"); never null
   status_colors?: Record<string, string>;
+  /** `"legacy"` flat files, `"structured"` `.inprincipio/project.json` */
+  mode?: EditorProjectMode;
 }
+
+export type EditorProjectMode = "legacy" | "structured";
 
 export interface DocumentContent {
   id: string;
@@ -44,6 +48,9 @@ export interface DocumentContent {
   doc_type: string;
   content: string;
   file: string;
+  synopsis?: string | null;
+  tags?: string[];
+  status?: string;
 }
 
 export interface NodeMetadata {
@@ -62,6 +69,13 @@ export interface SearchResult {
   snippet?: string;
 }
 
+export interface BacklinkResult {
+  id: string;
+  title: string;
+  doc_type: string;
+  snippet?: string;
+}
+
 export interface WordCountResult {
   total_words: number;
   total_chars: number;
@@ -74,6 +88,23 @@ export interface ExportResult {
   section_count: number;
 }
 
+export interface ReadThroughSection {
+  id: string;
+  title: string;
+  doc_type: string;
+  body: string;
+  body_html: string;
+  heading_level: number;
+  word_count: number;
+}
+
+export interface ReadThroughData {
+  sections: ReadThroughSection[];
+  total_words: number;
+}
+
+export type ExportFormat = "html" | "pdf";
+
 export interface BackupEntry {
   node_id: string;
   timestamp: string;
@@ -83,7 +114,7 @@ export interface BackupEntry {
 
 export type DocType = string;
 
-// v0.3 Plan B — Corkboard
+// Corkboard (phase 4+)
 
 export interface CorkboardCard {
   id: string;
@@ -95,29 +126,38 @@ export interface CorkboardCard {
   tags: string[];
 }
 
+export interface CorkboardColumn {
+  id: string;
+  title: string;
+  doc_type: string;
+  cards: string[];
+}
+
+export interface CorkboardView {
+  columns: CorkboardColumn[];
+  cards: Record<string, CorkboardCard>;
+}
+
+/** Virtual column for scenes attached directly to manuscript roots. */
+export const LOOSE_COLUMN_ID = "__manuscript_root__";
+
 export interface CorkboardData {
   cards: Record<string, CorkboardCard>;
 }
 
-// v0.3 Plan C — Project templates
+// Project templates (phase 6+)
 
 export type TemplateId = "blank" | "novel" | "short-story" | "game-narrative" | "screenplay";
 
-export interface TemplateInfo {
-  id: TemplateId;
-  label: string;
-  description: string;
-}
-
-export const TEMPLATES: TemplateInfo[] = [
-  { id: "blank", label: "Blank", description: "Empty project — start from scratch." },
-  { id: "novel", label: "Novel", description: "3 Parts, 3 Chapters each, 2 Scenes per chapter." },
-  { id: "short-story", label: "Short Story", description: "5 Scenes and a couple of characters." },
-  { id: "game-narrative", label: "Game Narrative", description: "Quests, NPCs, lore, items — for videogame writers." },
-  { id: "screenplay", label: "Screenplay", description: "3 Acts, 3 Scenes per act, a lead and a location." },
+export const TEMPLATE_IDS: TemplateId[] = [
+  "blank",
+  "novel",
+  "short-story",
+  "game-narrative",
+  "screenplay",
 ];
 
-// v0.3 Plan C — Named snapshots
+// Named snapshots — see VersionHistory panel
 
 export interface SnapshotEntry {
   node_id: string;

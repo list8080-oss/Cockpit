@@ -189,7 +189,7 @@ export function Editor({
             .catch(() => {});
         }
       } else if (!ok) {
-        onToast?.("Failed to save — retrying on next autosave", "error");
+        onToast?.(t("autosaveFailedRetrying"), "error");
       }
     } finally {
       saveInFlightRef.current = false;
@@ -296,7 +296,7 @@ export function Editor({
         if (wasOpen !== isOpen) setFindOpenRef.current(isOpen);
       }),
       markdown(),
-      placeholder("Start writing\u2026 Use [[Node Title]] to link to any document."),
+      placeholder(t("editorPlaceholder")),
       editorKeymap({
         onSave: () => keymapCallbacksRef.current.onSave(),
         onToggleDistractionFree: () => keymapCallbacksRef.current.onToggleDistractionFree(),
@@ -332,7 +332,7 @@ export function Editor({
       exts.push(imageExtension(imageCacheRef.current));
     }
     return exts;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [locale, t, manuscriptMode, spellCheck, activeTheme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Mount CodeMirror ──────────────────────────────────────────────────────
   const { viewRef } = useCodeMirror({

@@ -12,7 +12,13 @@ interface ShortcutGroup {
   shortcuts: Shortcut[];
 }
 
-export function KeyboardShortcuts({ onClose }: { onClose: () => void }) {
+export function KeyboardShortcuts({
+  onClose,
+  onStartTour,
+}: {
+  onClose: () => void;
+  onStartTour?: () => void;
+}) {
   const t = useWeT();
   const backdropRef = useRef<HTMLDivElement>(null);
 
@@ -82,6 +88,13 @@ export function KeyboardShortcuts({ onClose }: { onClose: () => void }) {
             </div>
           ))}
         </div>
+        {onStartTour && (
+          <div className="shortcuts-footer">
+            <button type="button" onClick={() => { onClose(); onStartTour(); }}>
+              {t("onboardingReplayFromShortcuts")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

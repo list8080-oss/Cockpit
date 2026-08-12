@@ -128,7 +128,7 @@ export function LinkPickerButton({ viewRef, manifest }: LinkPickerButtonProps) {
   };
 
   return (
-    <div className="toolbar-link-picker" ref={linkPickerRef}>
+    <div className="toolbar-link-picker" ref={linkPickerRef} data-tour="wiki-links">
       <button
         type="button"
         className="toolbar-btn"

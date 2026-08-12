@@ -12,11 +12,6 @@ export const TOAST_DURATION_MS = 4_000;
 /** CodeMirror undo-group delay — keypresses within this window merge into one undo step (ms). */
 export const UNDO_GROUP_DELAY_MS = 800;
 
-// ── Drag & drop ──────────────────────────────────────────────────────────────
-
-/** Minimum pointer movement (px) before a tree drag activates. */
-export const DRAG_THRESHOLD_PX = 5;
-
 // ── Sidebar tree ─────────────────────────────────────────────────────────────
 
 /** Per-depth left indentation for tree nodes (px). */
@@ -29,6 +24,3 @@ export const IMAGE_CACHE_MAX_ENTRIES = 100;
 
 /** Max characters shown in a link-preview snippet. */
 export const LINK_PREVIEW_SNIPPET_MAX_CHARS = 300;
-
-/** Maximum recent projects shown on the Welcome screen. */
-export const MAX_RECENT_PROJECTS = 5;

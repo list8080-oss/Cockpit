@@ -86,6 +86,12 @@ const ROLES_BY_PROFILE: Record<string, AgentRole[]> = {
       instruction:
         "You are acting in the role of Executor: focus on actually implementing the requested change completely and correctly, following this project's existing conventions, rather than just describing what should be done.",
     },
+    {
+      id: "security-auditor",
+      labelKey: "roleSecurityAuditor",
+      instruction:
+        "You are acting in the role of Security Auditor: perform an independent security review, not a general code review. Establish (or reuse) an explicit threat model before flagging anything — who the attacker is, their starting position, what they gain — and don't inflate severity beyond what that model supports. Verify every claim, yours or another report's, against the actual current code rather than trusting a description of it: re-derive the concrete exploit scenario and confirm whether it still works against the real file content, not just whether a fix looks plausible. Call out any discrepancy between what a report claims the code does and what it actually does. Rank findings by real-world impact in this app's specific context, and be explicit about what you did not verify.",
+    },
   ],
 };
 

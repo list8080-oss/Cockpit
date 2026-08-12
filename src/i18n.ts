@@ -29,6 +29,7 @@ type Dict = {
   appleNotesOnlyMac: string;
   loadAppleNoteFailed: string;
   editor: string;
+  editorLoading: string;
   backToAgents: string;
   simpleChatSidebarLabel: string;
   limitFiveHour: string;
@@ -197,6 +198,8 @@ type Dict = {
   orchestratorAttachFile: string;
   orchestratorAttachFilePicker: string;
   orchestratorAttachFileEmpty: string;
+  orchestratorAttachFileManuscript: string;
+  orchestratorAttachFilePlanning: string;
   orchestratorRemoveAttachment: string;
   orchestratorRoleLabel: string;
   orchestratorRoleNone: string;
@@ -212,6 +215,7 @@ type Dict = {
   roleTester: string;
   roleReviewer: string;
   roleExecutor: string;
+  roleSecurityAuditor: string;
   orchestratorStructuredResultLabel: string;
   orchestratorProfileLabel: string;
   orchestratorProfileSwitchError: string;
@@ -243,6 +247,7 @@ const en: Dict = {
   appleNotesOnlyMac: "Apple Notes works only on Mac.",
   loadAppleNoteFailed: "[failed to load note: {error}]",
   editor: "Editor",
+  editorLoading: "Loading editor…",
   backToAgents: "Agents",
   simpleChatSidebarLabel: "Chat",
   limitFiveHour: "5h",
@@ -425,6 +430,8 @@ const en: Dict = {
   orchestratorAttachFile: "Attach file",
   orchestratorAttachFilePicker: "Attach a project file",
   orchestratorAttachFileEmpty: "No documents in this project",
+  orchestratorAttachFileManuscript: "Manuscript",
+  orchestratorAttachFilePlanning: "Planning",
   orchestratorRemoveAttachment: "Remove attachment",
   orchestratorRoleLabel: "Role",
   orchestratorRoleNone: "No role",
@@ -440,6 +447,7 @@ const en: Dict = {
   roleTester: "Tester",
   roleReviewer: "Reviewer",
   roleExecutor: "Executor",
+  roleSecurityAuditor: "Security auditor",
   orchestratorStructuredResultLabel: "Ask for structured findings",
   orchestratorProfileLabel: "Profile",
   orchestratorProfileSwitchError: "Could not switch profile: {error}",
@@ -471,6 +479,7 @@ const ru: Dict = {
   appleNotesOnlyMac: "Заметки Apple работают только на Mac.",
   loadAppleNoteFailed: "[не удалось загрузить заметку: {error}]",
   editor: "Редактор",
+  editorLoading: "Загрузка редактора…",
   backToAgents: "Агенты",
   simpleChatSidebarLabel: "Чат",
   limitFiveHour: "5ч",
@@ -655,6 +664,8 @@ const ru: Dict = {
   orchestratorAttachFile: "Прикрепить файл",
   orchestratorAttachFilePicker: "Прикрепить файл проекта",
   orchestratorAttachFileEmpty: "В этом проекте нет документов",
+  orchestratorAttachFileManuscript: "Рукопись",
+  orchestratorAttachFilePlanning: "Планирование",
   orchestratorRemoveAttachment: "Убрать вложение",
   orchestratorRoleLabel: "Роль",
   orchestratorRoleNone: "Без роли",
@@ -670,6 +681,7 @@ const ru: Dict = {
   roleTester: "Тестировщик",
   roleReviewer: "Ревьюер",
   roleExecutor: "Исполнитель",
+  roleSecurityAuditor: "Аудитор безопасности",
   orchestratorStructuredResultLabel: "Запросить структурированный итог",
   orchestratorProfileLabel: "Профиль",
   orchestratorProfileSwitchError: "Не удалось переключить профиль: {error}",
@@ -701,6 +713,7 @@ const uk: Dict = {
   appleNotesOnlyMac: "Нотатки Apple працюють лише на Mac.",
   loadAppleNoteFailed: "[не вдалося завантажити нотатку: {error}]",
   editor: "Редактор",
+  editorLoading: "Завантаження редактора…",
   backToAgents: "Агенти",
   simpleChatSidebarLabel: "Чат",
   limitFiveHour: "5 год",
@@ -885,6 +898,8 @@ const uk: Dict = {
   orchestratorAttachFile: "Прикріпити файл",
   orchestratorAttachFilePicker: "Прикріпити файл проєкту",
   orchestratorAttachFileEmpty: "У цьому проєкті немає документів",
+  orchestratorAttachFileManuscript: "Рукопис",
+  orchestratorAttachFilePlanning: "Планування",
   orchestratorRemoveAttachment: "Прибрати вкладення",
   orchestratorRoleLabel: "Роль",
   orchestratorRoleNone: "Без ролі",
@@ -900,6 +915,7 @@ const uk: Dict = {
   roleTester: "Тестувальник",
   roleReviewer: "Рев'юер",
   roleExecutor: "Виконавець",
+  roleSecurityAuditor: "Аудитор безпеки",
   orchestratorStructuredResultLabel: "Запросити структурований підсумок",
   orchestratorProfileLabel: "Профіль",
   orchestratorProfileSwitchError: "Не вдалося перемкнути профіль: {error}",
@@ -931,6 +947,7 @@ const cs: Dict = {
   appleNotesOnlyMac: "Poznámky Apple fungují jen na Macu.",
   loadAppleNoteFailed: "[poznámku se nepodařilo načíst: {error}]",
   editor: "Editor",
+  editorLoading: "Načítání editoru…",
   backToAgents: "Agenti",
   simpleChatSidebarLabel: "Chat",
   limitFiveHour: "5 h",
@@ -1115,6 +1132,8 @@ const cs: Dict = {
   orchestratorAttachFile: "Připojit soubor",
   orchestratorAttachFilePicker: "Připojit soubor projektu",
   orchestratorAttachFileEmpty: "V tomto projektu nejsou žádné dokumenty",
+  orchestratorAttachFileManuscript: "Rukopis",
+  orchestratorAttachFilePlanning: "Plánování",
   orchestratorRemoveAttachment: "Odebrat přílohu",
   orchestratorRoleLabel: "Role",
   orchestratorRoleNone: "Bez role",
@@ -1130,6 +1149,7 @@ const cs: Dict = {
   roleTester: "Tester",
   roleReviewer: "Recenzent",
   roleExecutor: "Vykonavatel",
+  roleSecurityAuditor: "Bezpečnostní auditor",
   orchestratorStructuredResultLabel: "Požádat o strukturované shrnutí",
   orchestratorProfileLabel: "Profil",
   orchestratorProfileSwitchError: "Nepodařilo se přepnout profil: {error}",

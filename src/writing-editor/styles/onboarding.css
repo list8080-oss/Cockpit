@@ -1,0 +1,172 @@
+/* Onboarding tour overlay */
+
+.onboarding-root {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  pointer-events: none;
+}
+
+.onboarding-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.onboarding-spotlight {
+  position: fixed;
+  border-radius: calc(var(--radius) + 2px);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  z-index: 901;
+}
+
+.onboarding-card {
+  position: fixed;
+  z-index: 902;
+  width: min(320px, calc(100vw - 24px));
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+.onboarding-step-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.onboarding-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.onboarding-body {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+
+.onboarding-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.onboarding-skip {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 0;
+  font-size: 12px;
+}
+
+.onboarding-skip:hover {
+  color: var(--text);
+  border: none;
+  background: transparent;
+}
+
+.onboarding-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.onboarding-nav button {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+/* Theme picker in project bar */
+
+.we-theme-picker-wrap {
+  position: relative;
+}
+
+.we-theme-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.we-theme-picker-wrap .theme-picker {
+  top: calc(100% + 4px);
+  left: 0;
+  right: auto;
+  min-width: 240px;
+}
+
+/* Template picker dialog */
+
+.template-dialog {
+  max-width: 440px;
+}
+
+.template-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.template-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.template-option:hover {
+  border-color: var(--accent);
+  background: var(--bg-3);
+}
+
+.template-option.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.template-option input[type="radio"] {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+.template-option-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.template-option-desc {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.writing-editor-project-actions-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

@@ -226,6 +226,7 @@ export function OrchestratorChat({
   context,
   selectedAgents,
   projectConnected,
+  activeProfileId,
   onApplyProposalChange,
   onRejectProposalChange,
   onRollbackProposalChange,
@@ -250,6 +251,7 @@ export function OrchestratorChat({
   context: OrchestratorContext;
   selectedAgents: OrchestratorAgentId[];
   projectConnected: boolean;
+  activeProfileId: string | null;
   onApplyProposalChange: (messageId: string, path: string) => void;
   onRejectProposalChange: (messageId: string, path: string) => void;
   onRollbackProposalChange: (messageId: string, path: string) => void;
@@ -485,6 +487,7 @@ export function OrchestratorChat({
           {context === "project" && (
             <AttachFileMenu
               locale={locale}
+              profileId={activeProfileId}
               disabled={blocked || projectBlocked}
               onAttach={onAttachFile}
             />

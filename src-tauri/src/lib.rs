@@ -4,6 +4,7 @@ mod bin_paths;
 mod codex_limits;
 mod config;
 mod dictionaries;
+mod editor;
 mod editor_assets;
 mod editor_project;
 mod engines;
@@ -53,6 +54,23 @@ pub fn run() {
             editor_assets::import_image_bytes,
             editor_assets::read_image_base64,
             editor_project::get_editor_project_dir,
+            editor_project::detect_editor_project_mode,
+            editor_project::init_writing_project_command,
+            editor_project::migrate_legacy_writing_project_command,
+            editor_project::list_writing_doc_types,
+            editor_project::create_writing_node_command,
+            editor_project::rename_writing_node_command,
+            editor_project::delete_writing_node_command,
+            editor_project::move_writing_node_command,
+            editor_project::list_writing_project_metadata_command,
+            editor_project::update_writing_node_metadata_command,
+            editor_project::ensure_writing_search_index_command,
+            editor_project::rebuild_writing_search_index_command,
+            editor_project::search_writing_project_command,
+            editor_project::get_writing_backlinks_command,
+            editor_project::get_writing_corkboard_command,
+            editor_project::get_writing_readthrough_command,
+            editor_project::export_writing_project_command,
             editor_project::list_editor_documents,
             editor_project::load_document,
             editor_project::save_document,
