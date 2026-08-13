@@ -39,6 +39,7 @@ import { AgentModelMenu, Variant } from "./agents/Variant";
 import { SettingsView, type DictionaryStatus } from "./settings/SettingsView";
 import type { WorkspaceMode } from "./workspaceMode";
 import { SimpleChat, useSimpleChat } from "./simple-chat";
+import { EntitiesPanel, useEntitiesChat } from "./entities";
 import "./App.css";
 
 type View = "workspace" | "settings";
@@ -227,6 +228,8 @@ export default function App() {
     planMode,
     proposeMode,
     orchestratorContext,
+    contextTip,
+    dismissContextTip,
     selectedAgents,
     activeProfile,
     availableProfiles,
@@ -286,6 +289,25 @@ export default function App() {
     newChat: newSimpleChat,
     send: sendSimpleChat,
   } = useSimpleChat({
+    claudeModel,
+    claudeEffort,
+    codexModel,
+    codexEffort,
+    cursorModel,
+    opencodeModel,
+    opencodeEffort,
+  });
+
+  const {
+    entities,
+    history: entitiesHistory,
+    draft: entitiesDraft,
+    setDraft: setEntitiesDraft,
+    busyEntityId,
+    newChat: newEntitiesChat,
+    sendUser: sendEntitiesUser,
+    respondAs: respondAsEntity,
+  } = useEntitiesChat({
     claudeModel,
     claudeEffort,
     codexModel,
@@ -480,7 +502,10 @@ export default function App() {
       await invoke("set_project_path", { profileId, path: selected });
       setProjectPaths((p) => ({ ...p, [profileId]: selected }));
       refreshActiveProfileProjectPath();
-      if (profileId === activeProfileId) loadChapters();
+      if (profileId === activeProfileId) {
+        loadChapters();
+        if (orchestratorContext === "free") setOrchestratorContextSafe("project");
+      }
     } catch (e) {
       setProjectMessages((m) => ({ ...m, [profileId]: String(e) }));
     }
@@ -496,6 +521,10 @@ export default function App() {
       if (profileId === activeProfileId) {
         setChapters([]);
         setChaptersError(null);
+        // Staying in "project" with nothing connected would just be a
+        // blocked composer — same reasoning as the auto-switch on connect,
+        // mirrored.
+        if (orchestratorContext === "project") setOrchestratorContextSafe("free");
       }
     } catch (e) {
       setProjectMessages((m) => ({ ...m, [profileId]: String(e) }));
@@ -614,6 +643,11 @@ export default function App() {
 
   const openSimpleChatMode = () => {
     setWorkspaceMode("simpleChat");
+    setOpenPanel(null);
+  };
+
+  const openEntitiesMode = () => {
+    setWorkspaceMode("entities");
     setOpenPanel(null);
   };
 
@@ -796,6 +830,26 @@ export default function App() {
                 {workspaceMode === "agents" ? "●" : "○"}
               </span>
               <span>{t(locale, "orchestratorSidebarPanel")}</span>
+            </button>
+          </section>
+
+          <section
+            className={
+              workspaceMode === "entities"
+                ? "sidebar-panel sidebar-panel-mode-active"
+                : "sidebar-panel"
+            }
+          >
+            <button
+              type="button"
+              className="sidebar-panel-toggle"
+              aria-pressed={workspaceMode === "entities"}
+              onClick={openEntitiesMode}
+            >
+              <span className="sidebar-panel-chevron" aria-hidden="true">
+                {workspaceMode === "entities" ? "●" : "○"}
+              </span>
+              <span>{t(locale, "entitiesSidebarLabel")}</span>
             </button>
           </section>
 
@@ -1114,6 +1168,18 @@ export default function App() {
               onSend={sendSimpleChat}
               modelMenu={simpleChatModelMenu}
             />
+          ) : workspaceMode === "entities" ? (
+            <EntitiesPanel
+              locale={locale}
+              entities={entities}
+              history={entitiesHistory}
+              draft={entitiesDraft}
+              onDraftChange={setEntitiesDraft}
+              busyEntityId={busyEntityId}
+              onSend={sendEntitiesUser}
+              onRespondAs={respondAsEntity}
+              onNewChat={newEntitiesChat}
+            />
           ) : (
             <div className="orchestrator-workspace">
               <AgentPanels
@@ -1139,6 +1205,10 @@ export default function App() {
                     planMode={planMode}
                     proposeMode={proposeMode}
                     context={orchestratorContext}
+                    onSwitchToFreeChat={() => setOrchestratorContextSafe("free")}
+                    onSwitchToProject={() => setOrchestratorContextSafe("project")}
+                    contextTip={contextTip}
+                    onDismissContextTip={dismissContextTip}
                     selectedAgents={selectedAgents}
                     projectConnected={!!activeProfileProjectPath}
                     activeProfileId={activeProfile?.id ?? null}

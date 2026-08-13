@@ -9,7 +9,8 @@ use super::io::atomic_write;
 use super::manifest::{WritingProjectManifest, WritingProjectNode};
 use super::mode::{detect_project_mode, ProjectMode};
 use super::paths::{
-    configured_project_path, resolve_editor_project, MANUSCRIPT_DIR, PLANNING_DIR,
+    configured_project_path, resolve_editor_project, resolve_project_relative_file,
+    MANUSCRIPT_DIR, PLANNING_DIR,
 };
 use super::search_index::{index_writing_node, remove_writing_node_from_index};
 
@@ -205,7 +206,7 @@ pub fn rename_writing_node(
         .ok_or_else(|| format!("node has no file: {node_id}"))?
         .clone();
 
-    let path = project_root.join(&relative);
+    let path = resolve_project_relative_file(&project_root, &relative)?;
     let raw = std::fs::read_to_string(&path)
         .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
     let mut parsed = split_document(&raw)?;
@@ -245,8 +246,9 @@ pub fn delete_writing_node(
     }
 
     if delete_children {
+        let mut visited = std::collections::HashSet::new();
         for child in child_ids {
-            delete_subtree(&mut manifest, &project_root, &child)?;
+            delete_subtree(&mut manifest, &project_root, &child, &mut visited)?;
         }
     } else if !child_ids.is_empty() {
         return Err("node has children — pass delete_children to remove the subtree".into());
@@ -261,14 +263,24 @@ fn delete_subtree(
     manifest: &mut WritingProjectManifest,
     project_root: &Path,
     node_id: &str,
+    visited: &mut std::collections::HashSet<String>,
 ) -> Result<(), String> {
+    // F-1 (editor audit 2026-08-12): move_writing_node now rejects the move
+    // that would create a cycle, but a hand-edited/corrupted project.json
+    // could still have one — this guard is what stops the recursion below
+    // from stack-overflowing on that input instead of erroring cleanly.
+    if !visited.insert(node_id.to_string()) {
+        return Err(format!(
+            "node tree contains a cycle at {node_id} — project.json is corrupted"
+        ));
+    }
     let children = manifest
         .nodes
         .get(node_id)
         .map(|n| n.children.clone())
         .ok_or_else(|| format!("unknown node: {node_id}"))?;
     for child in children {
-        delete_subtree(manifest, project_root, &child)?;
+        delete_subtree(manifest, project_root, &child, visited)?;
     }
     delete_one_node(manifest, project_root, node_id)
 }
@@ -284,13 +296,52 @@ fn delete_one_node(
         .ok_or_else(|| format!("unknown node: {node_id}"))?;
     remove_from_parent(manifest, node_id);
     if let Some(relative) = node.file {
-        let path = project_root.join(relative);
-        if path.is_file() {
-            let _ = std::fs::remove_file(path);
+        // F-2 (editor audit 2026-08-12): every sibling function that turns a
+        // manifest `file` field into a filesystem path routes through this
+        // canonicalize+starts_with guard (metadata.rs, search_index.rs,
+        // project.rs) — this one didn't, so a `file` value containing `..`
+        // deleted whatever it pointed at outside the project root. Deletion
+        // is best-effort already (missing file is fine); an unsafe path is
+        // now just another reason to skip it, not a hard error.
+        if let Ok(safe_path) = resolve_project_relative_file(project_root, &relative) {
+            let _ = std::fs::remove_file(safe_path);
         }
     }
     let _ = remove_writing_node_from_index(project_root, node_id);
     Ok(())
+}
+
+/// True if `candidate` is `ancestor` itself or appears anywhere in its
+/// subtree. Used to reject a move that would make a node its own descendant
+/// (F-1, editor audit 2026-08-12) — `move_writing_node` previously only
+/// checked the immediate `parent == node_id` case, not the general "moving
+/// A under one of A's own descendants" case, which produces a real cycle in
+/// `children` that `delete_subtree`'s unguarded recursion then stack-
+/// overflows on. The `visited` guard here is defense in depth for a
+/// manifest that's already corrupted/cyclic from some other cause — without
+/// it this walk itself could loop forever on bad input it's specifically
+/// trying to protect against.
+fn is_ancestor_or_self(manifest: &WritingProjectManifest, ancestor: &str, candidate: &str) -> bool {
+    if ancestor == candidate {
+        return true;
+    }
+    let mut stack = vec![ancestor.to_string()];
+    let mut visited = std::collections::HashSet::new();
+    while let Some(current) = stack.pop() {
+        if !visited.insert(current.clone()) {
+            continue;
+        }
+        let Some(node) = manifest.nodes.get(&current) else {
+            continue;
+        };
+        for child in &node.children {
+            if child == candidate {
+                return true;
+            }
+            stack.push(child.clone());
+        }
+    }
+    false
 }
 
 pub fn move_writing_node(
@@ -305,11 +356,11 @@ pub fn move_writing_node(
         return Err(format!("unknown node: {node_id}"));
     }
     if let Some(ref parent) = new_parent_id {
-        if parent == &node_id {
-            return Err("node cannot be its own parent".into());
-        }
         if !manifest.nodes.contains_key(parent) {
             return Err(format!("unknown parent: {parent}"));
+        }
+        if is_ancestor_or_self(&manifest, &node_id, parent) {
+            return Err("cannot move a node under itself or one of its own descendants".into());
         }
     }
 
@@ -392,5 +443,92 @@ mod tests {
         let deleted = delete_writing_node(&dir, node_id, false).expect("delete");
         assert!(deleted.nodes.is_empty());
         assert_eq!(detect_project_mode(&project), ProjectMode::Structured);
+    }
+
+    #[test]
+    fn move_writing_node_rejects_cycle() {
+        let sandbox = Sandbox::new("cycle");
+        let project = sandbox.root.join("book");
+        std::fs::create_dir_all(&project).unwrap();
+        crate::profiles::set_project_path("manuscript".into(), project.to_string_lossy().into())
+            .unwrap();
+        init_writing_project(Some("blank".into())).expect("init");
+        let dir = project.to_string_lossy().into_owned();
+
+        let manifest = create_writing_node(
+            &dir,
+            None,
+            "manuscript".into(),
+            "chapter".into(),
+            "Parent".into(),
+        )
+        .expect("create parent");
+        let parent_id = manifest.manuscript_roots[0].clone();
+
+        let manifest = create_writing_node(
+            &dir,
+            Some(parent_id.clone()),
+            "manuscript".into(),
+            "scene".into(),
+            "Child".into(),
+        )
+        .expect("create child");
+        let child_id = manifest
+            .nodes
+            .get(&parent_id)
+            .unwrap()
+            .children
+            .first()
+            .cloned()
+            .unwrap();
+
+        let err = move_writing_node(&dir, parent_id.clone(), Some(child_id), "manuscript".into(), 0)
+            .expect_err("moving a node under its own child must be rejected");
+        assert!(err.contains("cannot move a node under itself"));
+    }
+
+    #[test]
+    fn delete_and_rename_reject_path_escape() {
+        let sandbox = Sandbox::new("escape");
+        let project = sandbox.root.join("book");
+        std::fs::create_dir_all(&project).unwrap();
+        crate::profiles::set_project_path("manuscript".into(), project.to_string_lossy().into())
+            .unwrap();
+        init_writing_project(Some("blank".into())).expect("init");
+        let dir = project.to_string_lossy().into_owned();
+
+        let manifest = create_writing_node(
+            &dir,
+            None,
+            "manuscript".into(),
+            "chapter".into(),
+            "Opening".into(),
+        )
+        .expect("create");
+        let node_id = manifest.manuscript_roots[0].clone();
+
+        // Simulate a hand-edited/corrupted manifest whose `file` field
+        // escapes the project root — the shape the F-2 fix
+        // (resolve_project_relative_file) guards against.
+        let outside = sandbox.root.join("evil.txt");
+        std::fs::write(&outside, "should never be touched").unwrap();
+        let mut manifest = WritingProjectManifest::load(&project).unwrap();
+        manifest.nodes.get_mut(&node_id).unwrap().file = Some("../evil.txt".into());
+        manifest.save(&project).unwrap();
+
+        let err = rename_writing_node(&dir, node_id.clone(), "New Title".into())
+            .expect_err("rename must reject a path escaping the project root");
+        assert!(err.contains("invalid document path") || err.contains("escapes project"));
+        assert_eq!(
+            std::fs::read_to_string(&outside).unwrap(),
+            "should never be touched"
+        );
+
+        delete_writing_node(&dir, node_id, false)
+            .expect("delete should still succeed, skipping the escaping file");
+        assert_eq!(
+            std::fs::read_to_string(&outside).unwrap(),
+            "should never be touched"
+        );
     }
 }

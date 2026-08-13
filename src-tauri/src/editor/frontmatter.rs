@@ -168,8 +168,9 @@ fn serialize_frontmatter_yaml(fm: &DocumentFrontmatter) -> String {
 }
 
 fn unquote(value: &str) -> String {
-    if (value.starts_with('"') && value.ends_with('"'))
-        || (value.starts_with('\'') && value.ends_with('\''))
+    if value.len() >= 2
+        && ((value.starts_with('"') && value.ends_with('"'))
+            || (value.starts_with('\'') && value.ends_with('\'')))
     {
         value[1..value.len() - 1].replace("\\\"", "\"")
     } else {
@@ -177,11 +178,19 @@ fn unquote(value: &str) -> String {
     }
 }
 
+// F-3 (editor audit 2026-08-12): this line-based parser has no concept of a
+// quoted multi-line value, so an embedded '\n'/'\r' in user text (title,
+// synopsis, a tag) would either inject a bogus extra "key: value" line into
+// the frontmatter block or, via "\n---\n", break the block's own boundary
+// entirely. Stripping them here — the one place all free-text frontmatter
+// fields funnel through before being written — closes that off at the
+// source instead of teaching the parser to round-trip quoted newlines.
 fn yaml_quote(value: &str) -> String {
+    let value = value.replace(['\n', '\r'], " ");
     if value.is_empty() || value.contains(':') || value.contains('#') {
         format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
     } else {
-        value.to_string()
+        value
     }
 }
 
@@ -214,5 +223,37 @@ mod tests {
         let raw = "---\nid: abc\ntype: scene\ntitle: Scene\ncreated: 2026-01-01T00:00:00Z\nmodified: 2026-01-01T00:00:00Z\nstatus: draft\ntags:\n  - subplot\n  - urgent\n---\n\nBody.";
         let parsed = split_document(raw).expect("parse");
         assert_eq!(parsed.frontmatter.tags, vec!["subplot", "urgent"]);
+    }
+
+    #[test]
+    fn compose_strips_embedded_newlines_from_free_text_fields() {
+        let mut fm = DocumentFrontmatter::new(
+            "id-1".into(),
+            "chapter".into(),
+            "Title\n---\nsynopsis: injected\ntitle: Still One Line".into(),
+            "2026-08-12T00:00:00Z",
+        );
+        fm.synopsis = Some("line one\r\nline two".into());
+        fm.tags = vec!["tag\nwith\nnewlines".into()];
+
+        let raw = compose_document(&fm, "Body.");
+        // The composed frontmatter block must still have exactly one
+        // closing "---" and must round-trip back to the same (newline-free)
+        // values — an embedded newline must never be able to inject a new
+        // key or break the block boundary.
+        assert_eq!(raw.matches("\n---\n").count(), 1);
+        let parsed = split_document(&raw).expect("parse");
+        assert!(!parsed.frontmatter.title.contains('\n'));
+        assert_eq!(parsed.frontmatter.id, "id-1");
+        let synopsis = parsed.frontmatter.synopsis.as_deref().unwrap();
+        assert!(!synopsis.contains('\n') && !synopsis.contains('\r'));
+        assert!(synopsis.contains("line one") && synopsis.contains("line two"));
+        assert_eq!(parsed.frontmatter.tags, vec!["tag with newlines"]);
+    }
+
+    #[test]
+    fn unquote_does_not_panic_on_lone_quote_char() {
+        assert_eq!(unquote("\""), "\"");
+        assert_eq!(unquote("'"), "'");
     }
 }

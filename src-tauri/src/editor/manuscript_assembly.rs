@@ -42,6 +42,21 @@ pub fn preprocess_wiki_links(body: &str) -> String {
     out
 }
 
+/// True for a relative URL (no scheme — the common case: `../images/x.png`,
+/// `#section`, a bare filename) or one of the schemes a link/image target
+/// can legitimately need. Everything else (`javascript:`, `data:`, `vbscript:`,
+/// `file:`, ...) is rejected — this is the same allowlist-by-scheme approach
+/// established HTML sanitizers use, not a denylist of known-bad schemes,
+/// since a denylist only ever covers the schemes someone thought to name.
+fn has_safe_url_scheme(url: &str) -> bool {
+    match url.find(|c: char| !(c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')) {
+        Some(idx) if url.as_bytes().get(idx) == Some(&b':') => {
+            matches!(url[..idx].to_ascii_lowercase().as_str(), "http" | "https" | "mailto")
+        }
+        _ => true,
+    }
+}
+
 /// Raw HTML embedded in the source markdown (`Event::Html`/`Event::InlineHtml`)
 /// is remapped to `Event::Text` rather than passed through — `push_html`
 /// escapes `Text` events itself, so a stray `<script>` in a chapter body
@@ -49,13 +64,30 @@ pub fn preprocess_wiki_links(body: &str) -> String {
 /// injected agent) ends up as inert visible text instead of executing when
 /// the exported HTML is opened in a browser. `export.rs::build_html_document`
 /// inserts this output unescaped, so the guarantee has to hold here.
+///
+/// A `[text](javascript:...)` link or `![alt](javascript:...)` image survives
+/// that remap untouched — it's legitimate markdown link/image syntax, not
+/// embedded HTML, so it never becomes an `Event::Html`. pulldown_cmark has no
+/// opinion on URL schemes; without this second pass, clicking such a link
+/// runs arbitrary JS — inside the Tauri webview itself for the in-app
+/// Read-Through view (`ReadThroughView.tsx`'s `dangerouslySetInnerHTML`), not
+/// just in a browser after export. Dangerous-scheme targets are blanked to
+/// an empty `dest_url` rather than dropping the link/image entirely, so the
+/// visible text/alt still renders — same "make it inert, don't lose the
+/// author's content" approach as the `Event::Html` remap above.
 pub fn markdown_to_html(input: &str) -> String {
-    use pulldown_cmark::{html, Event, Options, Parser};
+    use pulldown_cmark::{html, Event, Options, Parser, Tag};
     let mut options = Options::empty();
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TABLES);
     let parser = Parser::new(input).map(|event| match event {
         Event::Html(s) | Event::InlineHtml(s) => Event::Text(s),
+        Event::Start(Tag::Link { link_type, dest_url, title, id }) if !has_safe_url_scheme(&dest_url) => {
+            Event::Start(Tag::Link { link_type, dest_url: "".into(), title, id })
+        }
+        Event::Start(Tag::Image { link_type, dest_url, title, id }) if !has_safe_url_scheme(&dest_url) => {
+            Event::Start(Tag::Image { link_type, dest_url: "".into(), title, id })
+        }
         other => other,
     });
     let mut html_output = String::new();
@@ -306,6 +338,37 @@ mod tests {
         assert!(!html.contains("<img"), "raw inline HTML leaked into output: {html}");
         assert!(html.contains("&lt;img"));
         assert!(html.contains("<strong>bold</strong>"));
+    }
+
+    #[test]
+    fn markdown_to_html_strips_javascript_scheme_link() {
+        // H-02 (frontend/editor audit, 2026-08-12): the E-01 fix above only
+        // catches raw embedded HTML, not legitimate markdown link syntax
+        // whose URL uses a dangerous scheme — `[text](javascript:...)` never
+        // becomes an Event::Html, so it survived that fix untouched. Renders
+        // live inside the app's own webview via ReadThroughView's
+        // dangerouslySetInnerHTML, not just in an exported file.
+        let html = markdown_to_html("[click me](javascript:alert(document.cookie))");
+        assert!(!html.contains("javascript:"), "dangerous scheme leaked into href: {html}");
+        assert!(html.contains("click me"), "link text should still render");
+    }
+
+    #[test]
+    fn markdown_to_html_strips_javascript_scheme_image() {
+        let html = markdown_to_html("![alt text](javascript:alert(1))");
+        assert!(!html.contains("javascript:"), "dangerous scheme leaked into src: {html}");
+        assert!(html.contains("alt text"), "alt text should still render");
+    }
+
+    #[test]
+    fn markdown_to_html_keeps_safe_link_schemes() {
+        let html = markdown_to_html(
+            "[web](https://example.com) [mail](mailto:a@b.com) [rel](../other.md) [img](./pic.png)",
+        );
+        assert!(html.contains(r#"href="https://example.com""#));
+        assert!(html.contains(r#"href="mailto:a@b.com""#));
+        assert!(html.contains(r#"href="../other.md""#));
+        assert!(html.contains(r#"href="./pic.png""#));
     }
 
     #[test]

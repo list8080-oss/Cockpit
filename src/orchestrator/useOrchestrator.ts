@@ -36,6 +36,7 @@ import {
   summarizeFanoutResults,
   type OrchestratorContext,
 } from "./runFanout";
+import { isContextTipSeen, markContextTipSeen } from "./contextTip";
 import { roleInstruction } from "../roles";
 import { parseStructuredTail, type StructuredResult } from "./structuredResult";
 import {
@@ -204,6 +205,12 @@ export function useOrchestrator({
     }
     return loadOrchestratorContext();
   });
+  /** Direction of the most recent Project ↔ Free switch that hasn't been
+   * explained yet (one-time spotlight tip, per direction) — set from
+   * `setOrchestratorContextSafe` regardless of which UI triggered the
+   * switch (composer button or Settings), consumed by `OrchestratorChat`
+   * whenever it's next mounted. */
+  const [contextTip, setContextTip] = useState<OrchestratorContext | null>(null);
   const [selectedAgents, setSelectedAgents] = useState<OrchestratorAgentId[]>(() => {
     const stored = restoredConversation?.orchestrator?.selectedAgents;
     if (stored && stored.length > 0) {
@@ -363,6 +370,9 @@ export function useOrchestrator({
   };
 
   const setOrchestratorContextSafe = (next: OrchestratorContext) => {
+    if (next !== orchestratorContext && !isContextTipSeen(next)) {
+      setContextTip(next);
+    }
     setOrchestratorContext(next);
     persistOrchestratorContext(next);
     // Different cwd → start a fresh full-access / plan / propose session next time.
@@ -381,6 +391,11 @@ export function useOrchestrator({
         },
       }));
     }
+  };
+
+  const dismissContextTip = () => {
+    if (contextTip) markContextTipSeen(contextTip);
+    setContextTip(null);
   };
 
   const toggleSelectedAgent = (id: OrchestratorAgentId) => {
@@ -1450,6 +1465,8 @@ export function useOrchestrator({
     orchestratorProposeSessionId,
     orchestratorAgentBusy,
     orchestratorContext,
+    contextTip,
+    dismissContextTip,
     selectedAgents,
     selectedRoles,
     structuredResultMode,

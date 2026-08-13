@@ -32,6 +32,13 @@ type Dict = {
   editorLoading: string;
   backToAgents: string;
   simpleChatSidebarLabel: string;
+  entitiesSidebarLabel: string;
+  entitiesEmpty: string;
+  entitiesComposerPlaceholder: string;
+  entitiesSend: string;
+  entitiesPickResponder: string;
+  entitiesNewChat: string;
+  entitiesWaiting: string;
   limitFiveHour: string;
   limitWeekly: string;
   limitUsed: string;
@@ -178,6 +185,11 @@ type Dict = {
   orchestratorSendPlan: string;
   orchestratorSendPropose: string;
   orchestratorSendFree: string;
+  orchestratorContextTipProjectTitle: string;
+  orchestratorContextTipProjectBody: string;
+  orchestratorContextTipFreeTitle: string;
+  orchestratorContextTipFreeBody: string;
+  orchestratorContextTipDismiss: string;
   orchestratorFullAccessWaiting: string;
   orchestratorFullAccessError: string;
   orchestratorPlanWaiting: string;
@@ -250,6 +262,13 @@ const en: Dict = {
   editorLoading: "Loading editor…",
   backToAgents: "Agents",
   simpleChatSidebarLabel: "Chat",
+  entitiesSidebarLabel: "Entities",
+  entitiesEmpty: "Write something, then tap an avatar to pick who answers.",
+  entitiesComposerPlaceholder: "Message",
+  entitiesSend: "Send",
+  entitiesPickResponder: "Who answers next?",
+  entitiesNewChat: "New chat",
+  entitiesWaiting: "Thinking…",
   limitFiveHour: "5h",
   limitWeekly: "week",
   limitUsed: "{label} {percent}% used",
@@ -410,6 +429,13 @@ const en: Dict = {
   orchestratorSendPlan: "Send for plan",
   orchestratorSendPropose: "Send proposal",
   orchestratorSendFree: "Send (free chat)",
+  orchestratorContextTipProjectTitle: "Now working with your project",
+  orchestratorContextTipProjectBody:
+    "Agents can read files in your connected project and propose changes to them.",
+  orchestratorContextTipFreeTitle: "Now in Free chat",
+  orchestratorContextTipFreeBody:
+    "A sandbox, separate from your project — agents don't see or touch its files here.",
+  orchestratorContextTipDismiss: "Got it",
   orchestratorFullAccessWaiting: "Full-access agent is working…",
   orchestratorFullAccessError: "Full-access agent failed: {error}",
   orchestratorPlanWaiting: "Planning…",
@@ -482,6 +508,13 @@ const ru: Dict = {
   editorLoading: "Загрузка редактора…",
   backToAgents: "Агенты",
   simpleChatSidebarLabel: "Чат",
+  entitiesSidebarLabel: "Сущности",
+  entitiesEmpty: "Напиши что-нибудь, затем нажми на аватар, чтобы выбрать, кто ответит.",
+  entitiesComposerPlaceholder: "Сообщение",
+  entitiesSend: "Отправить",
+  entitiesPickResponder: "Кто отвечает дальше?",
+  entitiesNewChat: "Новый чат",
+  entitiesWaiting: "Думает…",
   limitFiveHour: "5ч",
   limitWeekly: "нед.",
   limitUsed: "{label} {percent}%",
@@ -644,6 +677,13 @@ const ru: Dict = {
   orchestratorSendPlan: "Отправить за планом",
   orchestratorSendPropose: "Отправить предложение",
   orchestratorSendFree: "Отправить (свободное)",
+  orchestratorContextTipProjectTitle: "Теперь работаем с проектом",
+  orchestratorContextTipProjectBody:
+    "Агенты читают файлы подключённого проекта и могут предлагать в них изменения.",
+  orchestratorContextTipFreeTitle: "Теперь в «Свободном общении»",
+  orchestratorContextTipFreeBody:
+    "Песочница отдельно от проекта — здесь агенты не видят и не трогают его файлы.",
+  orchestratorContextTipDismiss: "Понятно",
   orchestratorFullAccessWaiting: "Агент с полным доступом работает…",
   orchestratorFullAccessError: "Агент с полным доступом завершился ошибкой: {error}",
   orchestratorPlanWaiting: "Планирую…",
@@ -716,6 +756,13 @@ const uk: Dict = {
   editorLoading: "Завантаження редактора…",
   backToAgents: "Агенти",
   simpleChatSidebarLabel: "Чат",
+  entitiesSidebarLabel: "Сутності",
+  entitiesEmpty: "Напиши щось, потім натисни на аватар, щоб обрати, хто відповість.",
+  entitiesComposerPlaceholder: "Повідомлення",
+  entitiesSend: "Надіслати",
+  entitiesPickResponder: "Хто відповідає далі?",
+  entitiesNewChat: "Новий чат",
+  entitiesWaiting: "Думає…",
   limitFiveHour: "5 год",
   limitWeekly: "тижд.",
   limitUsed: "{label} {percent}%",
@@ -878,6 +925,13 @@ const uk: Dict = {
   orchestratorSendPlan: "Надіслати за планом",
   orchestratorSendPropose: "Надіслати пропозицію",
   orchestratorSendFree: "Надіслати (вільне)",
+  orchestratorContextTipProjectTitle: "Тепер працюємо з проєктом",
+  orchestratorContextTipProjectBody:
+    "Агенти читають файли підключеного проєкту і можуть пропонувати в них зміни.",
+  orchestratorContextTipFreeTitle: "Тепер у «Вільному спілкуванні»",
+  orchestratorContextTipFreeBody:
+    "Пісочниця окремо від проєкту — тут агенти не бачать і не чіпають його файли.",
+  orchestratorContextTipDismiss: "Зрозуміло",
   orchestratorFullAccessWaiting: "Агент із повним доступом працює…",
   orchestratorFullAccessError: "Агент із повним доступом завершився помилкою: {error}",
   orchestratorPlanWaiting: "Планую…",
@@ -950,6 +1004,13 @@ const cs: Dict = {
   editorLoading: "Načítání editoru…",
   backToAgents: "Agenti",
   simpleChatSidebarLabel: "Chat",
+  entitiesSidebarLabel: "Entity",
+  entitiesEmpty: "Napiš něco, pak klepni na avatar a vyber, kdo odpoví.",
+  entitiesComposerPlaceholder: "Zpráva",
+  entitiesSend: "Odeslat",
+  entitiesPickResponder: "Kdo odpoví další?",
+  entitiesNewChat: "Nový chat",
+  entitiesWaiting: "Přemýšlí…",
   limitFiveHour: "5 h",
   limitWeekly: "týden",
   limitUsed: "{label} {percent} %",
@@ -1112,6 +1173,13 @@ const cs: Dict = {
   orchestratorSendPlan: "Odeslat pro plán",
   orchestratorSendPropose: "Odeslat návrh",
   orchestratorSendFree: "Odeslat (volný chat)",
+  orchestratorContextTipProjectTitle: "Nyní pracujeme s projektem",
+  orchestratorContextTipProjectBody:
+    "Agenti čtou soubory připojeného projektu a mohou v nich navrhovat změny.",
+  orchestratorContextTipFreeTitle: "Nyní ve „Volném chatu“",
+  orchestratorContextTipFreeBody:
+    "Sandbox oddělený od projektu — agenti zde nevidí ani se nedotýkají jeho souborů.",
+  orchestratorContextTipDismiss: "Rozumím",
   orchestratorFullAccessWaiting: "Agent s plným přístupem pracuje…",
   orchestratorFullAccessError: "Agent s plným přístupem selhal: {error}",
   orchestratorPlanWaiting: "Plánuji…",

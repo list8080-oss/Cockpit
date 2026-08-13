@@ -2,6 +2,7 @@ import { DocTypeIcon } from "../components/DocTypeIcon";
 import type { ProjectMetadata } from "../types";
 import type { TreeNodeView } from "../utils/manifestTree";
 import { useWeT } from "../LocaleContext";
+import { statusLabelKey } from "../utils/statusLabels";
 
 export function TreeNode({
   node,
@@ -43,7 +44,13 @@ export function TreeNode({
         style={{ paddingLeft: 8 + depth * 16 }}
       >
         <button type="button" className="we-tree-select" onClick={() => onSelect(node.id)}>
-          {status && <span className={`we-tree-status we-tree-status-${status}`} aria-hidden />}
+          {status && (
+            <span
+              className={`we-tree-status we-tree-status-${status}`}
+              role="img"
+              aria-label={t(statusLabelKey(status))}
+            />
+          )}
           <DocTypeIcon docType={node.docType} size={16} />
           <span className="we-tree-title">{node.title}</span>
         </button>

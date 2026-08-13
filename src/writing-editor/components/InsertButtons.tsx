@@ -222,9 +222,10 @@ export function LinkPickerButton({ viewRef, manifest }: LinkPickerButtonProps) {
 export interface ImageInsertButtonProps {
   viewRef: React.MutableRefObject<EditorView | null>;
   projectPath: string;
+  onToast?: (message: string, type: "success" | "error") => void;
 }
 
-export function ImageInsertButton({ viewRef, projectPath }: ImageInsertButtonProps) {
+export function ImageInsertButton({ viewRef, projectPath, onToast }: ImageInsertButtonProps) {
   const t = useWeT();
   const view: ViewGetter = () => viewRef.current;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -262,6 +263,7 @@ export function ImageInsertButton({ viewRef, projectPath }: ImageInsertButtonPro
       insertAtCursor(relativePath);
     } catch (err) {
       console.warn("Image insert failed", err);
+      onToast?.(t("imageInsertFailed"), "error");
     }
   };
 

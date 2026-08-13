@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.5.0",
+    date: "2026-08-13",
+    notes: {
+      en: "New \"Entities\" screen — three permanent, named participants (Оркестратор, Аргус, Вера) with their own persistent memory across separate conversations, all running on Claude Code. Unlike the regular fan-out, nothing answers on its own: you tap an avatar to pick who responds next, and each one sees the whole conversation so far plus what it has chosen to remember from earlier sessions — not the full text of every past reply, only what it judged worth keeping, so old exchanges don't drown out the current one.",
+      ru: "Новый экран «Сущности» — три постоянных, названных участника (Оркестратор, Аргус, Вера) с собственной памятью, сохраняющейся между разными разговорами, все работают через Claude Code. В отличие от обычного фан-аута, здесь никто не отвечает сам по себе: вы выбираете, кто отвечает следующим, нажатием на аватар, и каждый видит весь разговор целиком плюс то, что сам счёл нужным запомнить из прошлых сессий — не полный текст всех прошлых ответов, а только то, что признано стоящим — чтобы старые реплики не забивали текущий разговор.",
+      uk: "Новий екран «Сутності» — три постійні, названі учасники (Оркестратор, Аргус, Вера) із власною пам'яттю, що зберігається між різними розмовами, усі працюють через Claude Code. На відміну від звичайного фан-ауту, тут ніхто не відповідає сам по собі: ви обираєте, хто відповідає наступним, натисканням на аватар, і кожен бачить всю розмову цілком плюс те, що сам визнав за потрібне запам'ятати з минулих сесій — не повний текст усіх минулих відповідей, а лише те, що визнано вартим — щоб старі репліки не забивали поточну розмову.",
+      cs: "Nová obrazovka „Entity“ — tři trvalí, pojmenovaní účastníci (Оркестратор, Аргус, Вера) s vlastní pamětí přetrvávající napříč různými konverzacemi, všichni běží přes Claude Code. Na rozdíl od běžného fan-outu tu nikdo neodpovídá sám od sebe: vyberete, kdo odpoví další, klepnutím na avatar, a každý vidí celou dosavadní konverzaci plus to, co si sám usoudil zapamatovat z předchozích sezení — ne plný text všech minulých odpovědí, jen to, co uznal za hodné uchování — aby staré repliky nepřehlušily tu aktuální.",
+    },
+  },
+  {
     version: "0.4.9",
     date: "2026-08-12",
     notes: {

@@ -1608,11 +1608,43 @@ body,
 }
 
 .orchestrator-bubble {
+  position: relative;
   max-width: min(880px, 92%);
   border-radius: var(--radius-card);
   padding: 12px 14px;
   border: 1px solid var(--color-border);
   background: var(--color-panel-2);
+}
+
+.orchestrator-bubble-copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+  color: var(--color-muted);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+
+.orchestrator-bubble:hover .orchestrator-bubble-copy-btn,
+.orchestrator-bubble:focus-within .orchestrator-bubble-copy-btn,
+.orchestrator-bubble-copy-btn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.orchestrator-bubble-copy-btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
 }
 
 .orchestrator-bubble-user {
@@ -1678,6 +1710,64 @@ body,
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.entity-avatar {
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+
+.entity-avatar-active {
+  color: var(--color-accent, var(--color-focus-border));
+}
+
+.entity-bubble-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.entity-picker-row {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-panel);
+}
+
+.entity-picker-hint {
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.entity-picker-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: inherit;
+  border-radius: var(--radius-composer);
+}
+
+.entity-picker-btn:hover:not(:disabled) {
+  background: var(--color-panel-2);
+}
+
+.entity-picker-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.orchestrator-context-switch-btn {
+  position: static;
+  margin-right: auto;
 }
 
 .orchestrator-clear {
@@ -2465,4 +2555,55 @@ body,
 [data-theme="book"] .orchestrator-banner {
   background: #e7dfcc;
   border-color: rgba(70, 55, 30, 0.18);
+}
+
+/* Orchestrator context-switch spotlight tip — same visual technique as the
+   writing editor's onboarding tour (backdrop + box-shadow spotlight cutout
+   + positioned card), independent implementation/tokens, see
+   ContextSpotlightTip.tsx for why. */
+
+.orchestrator-context-tip-root {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  pointer-events: none;
+}
+
+.orchestrator-context-tip-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.orchestrator-context-tip-spotlight {
+  position: fixed;
+  border-radius: calc(var(--radius-card) + 2px);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.orchestrator-context-tip-card {
+  position: fixed;
+  width: min(320px, calc(100vw - 24px));
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-pop);
+  pointer-events: auto;
+}
+
+.orchestrator-context-tip-card h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.orchestrator-context-tip-card p {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-2);
 }

@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
     name: Frontend (typecheck, tests, audit)
@@ -34,9 +38,22 @@ jobs:
 
   backend:
     name: Backend (cargo check, tests)
-    runs-on: macos-latest
+    needs: frontend
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Tauri Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libxdo-dev \
+            build-essential \
+            file
 
       - uses: pnpm/action-setup@v4
         with:

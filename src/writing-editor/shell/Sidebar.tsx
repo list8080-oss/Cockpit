@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { defaultDocTypeForSection, docTypesForSection, type DocTypeCategory } from "../docTypes";
 import { useWeT } from "../LocaleContext";
@@ -120,6 +120,17 @@ export function Sidebar({
     setDialog({ kind: "rename", nodeId, title });
     setTitleInput(title);
   };
+
+  // M-05 (editor audit 2026-08-12): this dialog had no Escape-to-close,
+  // unlike ExportDialog/TemplatePickerDialog which both support it.
+  useEffect(() => {
+    if (!dialog) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDialog(null);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [dialog]);
 
   const submitDialog = async () => {
     if (!dialog || !titleInput.trim()) return;
@@ -261,8 +272,16 @@ export function Sidebar({
 
       {dialog && (
         <div className="we-sidebar-dialog-backdrop" onClick={() => setDialog(null)}>
-          <div className="we-sidebar-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>{dialog.kind === "create" ? t("addDocument") : t("renameDocument")}</h3>
+          <div
+            className="we-sidebar-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="we-sidebar-dialog-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="we-sidebar-dialog-title">
+              {dialog.kind === "create" ? t("addDocument") : t("renameDocument")}
+            </h3>
             {dialog.kind === "create" && (
               <label className="we-sidebar-field">
                 {t("documentType")}

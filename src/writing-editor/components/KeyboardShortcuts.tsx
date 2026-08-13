@@ -68,10 +68,22 @@ export function KeyboardShortcuts({
         if (e.target === backdropRef.current) onClose();
       }}
     >
-      <div className="shortcuts-panel">
+      <div
+        className="shortcuts-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shortcuts-dialog-title"
+      >
         <div className="shortcuts-header">
-          <span className="shortcuts-title">{t("shortcutsTitle")}</span>
-          <button type="button" className="shortcuts-close" onClick={onClose}>
+          <span className="shortcuts-title" id="shortcuts-dialog-title">
+            {t("shortcutsTitle")}
+          </span>
+          <button
+            type="button"
+            className="shortcuts-close"
+            aria-label={t("close")}
+            onClick={onClose}
+          >
             &times;
           </button>
         </div>

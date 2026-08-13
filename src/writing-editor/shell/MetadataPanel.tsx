@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useWeT } from "../LocaleContext";
 import { STATUS_VALUES, type NodeMetadata, type Status } from "../types";
@@ -26,6 +26,58 @@ export function MetadataPanel({
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
 
+  // Mirror content, kept current on every keystroke without re-triggering
+  // effects — read by the flush-on-switch effect below so it always sends
+  // the latest edit, not whatever was in scope when nodeId last changed.
+  const synopsisRef = useRef(synopsis);
+  const tagsTextRef = useRef(tagsText);
+  const statusRef = useRef(status);
+  const dirtyRef = useRef(dirty);
+  useEffect(() => {
+    synopsisRef.current = synopsis;
+  }, [synopsis]);
+  useEffect(() => {
+    tagsTextRef.current = tagsText;
+  }, [tagsText]);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+
+  const persist = useCallback(
+    async (
+      targetNodeId: string,
+      synopsisValue: string,
+      tagsTextValue: string,
+      statusValue: Status,
+      targetProjectPath: string,
+    ) => {
+      const tags = tagsTextValue
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+      const updated = await invoke<{
+        synopsis: string | null;
+        tags: string[];
+        status: string;
+      }>("update_writing_node_metadata_command", {
+        projectPath: targetProjectPath,
+        nodeId: targetNodeId,
+        synopsis: synopsisValue.trim() || null,
+        tags,
+        status: statusValue,
+      });
+      onMetadataUpdated(targetNodeId, {
+        synopsis: updated.synopsis,
+        tags: updated.tags,
+        status: updated.status as Status,
+      });
+    },
+    [onMetadataUpdated],
+  );
+
   useEffect(() => {
     if (!metadata) {
       setSynopsis("");
@@ -40,37 +92,37 @@ export function MetadataPanel({
     setDirty(false);
   }, [nodeId, metadata]);
 
+  // Flush unsaved edits before switching to a different document (or
+  // unmounting) instead of silently discarding them — same "save on doc
+  // switch" pattern Editor.tsx uses for content via its own dirty/content
+  // refs, applied here to this panel's synopsis/tags/status fields.
+  useEffect(() => {
+    const outgoingNodeId = nodeId;
+    const outgoingProjectPath = projectPath;
+    return () => {
+      if (!outgoingNodeId || !dirtyRef.current) return;
+      void persist(
+        outgoingNodeId,
+        synopsisRef.current,
+        tagsTextRef.current,
+        statusRef.current,
+        outgoingProjectPath,
+      ).catch((err) => onToast(String(err), "error"));
+    };
+  }, [nodeId, projectPath, persist, onToast]);
+
   const save = useCallback(async () => {
     if (!nodeId || busy) return;
     setBusy(true);
     try {
-      const tags = tagsText
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean);
-      const updated = await invoke<{
-        synopsis: string | null;
-        tags: string[];
-        status: string;
-      }>("update_writing_node_metadata_command", {
-        projectPath,
-        nodeId,
-        synopsis: synopsis.trim() || null,
-        tags,
-        status,
-      });
-      onMetadataUpdated(nodeId, {
-        synopsis: updated.synopsis,
-        tags: updated.tags,
-        status: updated.status as Status,
-      });
+      await persist(nodeId, synopsis, tagsText, status, projectPath);
       setDirty(false);
     } catch (err) {
       onToast(String(err), "error");
     } finally {
       setBusy(false);
     }
-  }, [busy, nodeId, onMetadataUpdated, onToast, projectPath, status, synopsis, tagsText]);
+  }, [busy, nodeId, onToast, persist, projectPath, status, synopsis, tagsText]);
 
   if (hidden) return null;
 

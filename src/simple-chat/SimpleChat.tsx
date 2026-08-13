@@ -4,6 +4,7 @@ import type { Locale } from "../i18n";
 import { t } from "../i18n";
 import { ORCHESTRATOR_AGENT_IDS, type ConversationTurn } from "../conversations";
 import { agentDisplayName } from "../orchestrator/messages";
+import { BubbleCopyButton } from "../orchestrator/BubbleCopyButton";
 import type { SimpleChatEngineId } from "./types";
 
 export function SimpleChat({
@@ -74,6 +75,7 @@ export function SimpleChat({
                 : "orchestrator-bubble orchestrator-bubble-bot"
             }
           >
+            <BubbleCopyButton text={turn.text} locale={locale} />
             <div className="orchestrator-bubble-label">
               {turn.role === "user" ? t(locale, "orchestratorYou") : agentDisplayName(engine)}
             </div>

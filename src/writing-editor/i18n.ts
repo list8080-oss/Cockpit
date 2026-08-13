@@ -4,6 +4,7 @@ type Dict = {
   // Header / save
   saving: string;
   autosaveFailedRetrying: string;
+  imageInsertFailed: string;
   unsavedChanges: string;
   savedAt: string;
   history: string;
@@ -138,6 +139,7 @@ type Dict = {
   documentType: string;
   documentTitle: string;
   cancel: string;
+  close: string;
   moveUp: string;
   moveDown: string;
 
@@ -252,6 +254,7 @@ type Dict = {
 const en: Dict = {
   saving: "Saving…",
   autosaveFailedRetrying: "Failed to save — retrying on next autosave",
+  imageInsertFailed: "Failed to insert image",
   unsavedChanges: "Unsaved changes",
   savedAt: "Saved at {time}",
   history: "History",
@@ -375,6 +378,7 @@ const en: Dict = {
   documentType: "Type",
   documentTitle: "Title",
   cancel: "Cancel",
+  close: "Close",
   moveUp: "Move up",
   moveDown: "Move down",
 
@@ -491,6 +495,7 @@ const en: Dict = {
 const ru: Dict = {
   saving: "Сохранение…",
   autosaveFailedRetrying: "Не удалось сохранить — повторим при следующем автосохранении",
+  imageInsertFailed: "Не удалось вставить изображение",
   unsavedChanges: "Есть несохранённые изменения",
   savedAt: "Сохранено в {time}",
   history: "История",
@@ -614,6 +619,7 @@ const ru: Dict = {
   documentType: "Тип",
   documentTitle: "Название",
   cancel: "Отмена",
+  close: "Закрыть",
   moveUp: "Выше",
   moveDown: "Ниже",
 
@@ -730,6 +736,7 @@ const ru: Dict = {
 const uk: Dict = {
   saving: "Збереження…",
   autosaveFailedRetrying: "Не вдалося зберегти — повторимо під час наступного автозбереження",
+  imageInsertFailed: "Не вдалося вставити зображення",
   unsavedChanges: "Є незбережені зміни",
   savedAt: "Збережено о {time}",
   history: "Історія",
@@ -853,6 +860,7 @@ const uk: Dict = {
   documentType: "Тип",
   documentTitle: "Назва",
   cancel: "Скасувати",
+  close: "Закрити",
   moveUp: "Вище",
   moveDown: "Нижче",
 
@@ -969,6 +977,7 @@ const uk: Dict = {
 const cs: Dict = {
   saving: "Ukládání…",
   autosaveFailedRetrying: "Uložení se nezdařilo — zkusíme to při dalším automatickém uložení",
+  imageInsertFailed: "Nepodařilo se vložit obrázek",
   unsavedChanges: "Neuložené změny",
   savedAt: "Uloženo v {time}",
   history: "Historie",
@@ -1092,6 +1101,7 @@ const cs: Dict = {
   documentType: "Typ",
   documentTitle: "Název",
   cancel: "Zrušit",
+  close: "Zavřít",
   moveUp: "Výše",
   moveDown: "Níže",
 

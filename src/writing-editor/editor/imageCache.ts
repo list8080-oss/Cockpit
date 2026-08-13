@@ -70,12 +70,6 @@ export class ImageCache {
     };
   }
 
-  /** Clear all cached data (used when switching projects) */
-  clear(): void {
-    this.cache.clear();
-    this.loading.clear();
-    this.failed.clear();
-  }
 
   private notify(): void {
     for (const fn of this.listeners) {

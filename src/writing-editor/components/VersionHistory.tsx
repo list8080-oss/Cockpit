@@ -8,6 +8,7 @@ interface VersionHistoryProps {
   projectPath: string;
   nodeId: string;
   docTitle?: string;
+  docType?: string;
   onRestore: (doc: DocumentContent) => void;
   onClose: () => void;
 }
@@ -37,11 +38,13 @@ export function VersionHistory({
   projectPath,
   nodeId,
   docTitle,
+  docType,
   onRestore,
   onClose,
 }: VersionHistoryProps) {
   const t = useWeT();
   const title = docTitle ?? t("draftTitle");
+  const resolvedDocType = docType ?? "chapter";
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [snapshots, setSnapshots] = useState<SnapshotEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,14 +80,14 @@ export function VersionHistory({
       setError(null);
       try {
         const content = await invoke<string>("restore_backup", { projectPath, nodeId, timestamp });
-        onRestore({ id: nodeId, title, doc_type: "chapter", content, file: nodeId });
+        onRestore({ id: nodeId, title, doc_type: resolvedDocType, content, file: nodeId });
       } catch (err) {
         setError(String(err));
       } finally {
         setRestoring(null);
       }
     },
-    [projectPath, nodeId, title, onRestore],
+    [projectPath, nodeId, title, resolvedDocType, onRestore],
   );
 
   const handlePin = useCallback(
@@ -122,14 +125,14 @@ export function VersionHistory({
           nodeId,
           timestamp: snapshot.timestamp,
         });
-        onRestore({ id: nodeId, title, doc_type: "chapter", content, file: nodeId });
+        onRestore({ id: nodeId, title, doc_type: resolvedDocType, content, file: nodeId });
       } catch (err) {
         setError(String(err));
       } finally {
         setRestoring(null);
       }
     },
-    [projectPath, nodeId, title, onRestore],
+    [projectPath, nodeId, title, resolvedDocType, onRestore],
   );
 
   return (
@@ -138,7 +141,7 @@ export function VersionHistory({
         <span className="vh-title">
           <History size={14} /> {t("versionHistory")}
         </span>
-        <button type="button" className="vh-close" onClick={onClose}>
+        <button type="button" className="vh-close" aria-label={t("close")} onClick={onClose}>
           ✕
         </button>
       </div>

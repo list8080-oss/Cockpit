@@ -42,6 +42,7 @@ export {
   type SynthesisPromptInput,
 } from "./buildSynthesisPrompt";
 export { agentPanelLamp, agentPanelStatusKey } from "./panelStatus";
+export { BubbleCopyButton } from "./BubbleCopyButton";
 export { OrchestratorChat } from "./OrchestratorChat";
 export { OrchestratorConfigPanel } from "./OrchestratorConfigPanel";
 export { JournalPanel } from "./JournalPanel";

@@ -10,6 +10,8 @@ import { delegatedAgentLabel, formatOrchestratorMessage } from "./messages";
 import type { OrchestratorContext } from "./runFanout";
 import type { AttachedFile } from "./contextPackage";
 import { AttachFileMenu } from "./AttachFileMenu";
+import { BubbleCopyButton } from "./BubbleCopyButton";
+import { ContextSpotlightTip } from "./ContextSpotlightTip";
 
 /** `0:07`, `1:23` — ticks up once a second while a send/synthesize call is
  * active, 0 once it's done. The CLIs give no real progress signal for a
@@ -224,6 +226,10 @@ export function OrchestratorChat({
   planMode,
   proposeMode,
   context,
+  onSwitchToFreeChat,
+  onSwitchToProject,
+  contextTip,
+  onDismissContextTip,
   selectedAgents,
   projectConnected,
   activeProfileId,
@@ -249,6 +255,13 @@ export function OrchestratorChat({
   planMode: boolean;
   proposeMode: boolean;
   context: OrchestratorContext;
+  onSwitchToFreeChat: () => void;
+  onSwitchToProject: () => void;
+  /** Direction of the one-time context-switch tip still owed to the user
+   * (`null` when none is pending) — set from `useOrchestrator` regardless
+   * of which UI triggered the switch. */
+  contextTip: OrchestratorContext | null;
+  onDismissContextTip: () => void;
   selectedAgents: OrchestratorAgentId[];
   projectConnected: boolean;
   activeProfileId: string | null;
@@ -263,6 +276,7 @@ export function OrchestratorChat({
   activeSince: number | null;
 }) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const blocked = busy || synthesizing;
   const elapsed = useElapsedSeconds(activeSince);
   const noAgentsSelected = selectedAgents.length === 0;
@@ -355,8 +369,12 @@ export function OrchestratorChat({
                         ? "orchestrator-bubble orchestrator-bubble-bot orchestrator-bubble-propose"
                         : "orchestrator-bubble orchestrator-bubble-bot";
 
+          const bubbleText =
+            message.kind === "agent_proposal" ? message.text : formatOrchestratorMessage(message, locale);
+
           return (
             <div key={message.id} className={bubbleClass}>
+              <BubbleCopyButton text={bubbleText} locale={locale} />
               <div className="orchestrator-bubble-label">
                 {message.role === "user"
                   ? t(locale, "orchestratorYou")
@@ -366,7 +384,7 @@ export function OrchestratorChat({
               </div>
               {message.kind === "agent_proposal" ? (
                 <div className="orchestrator-proposal">
-                  <pre className="orchestrator-bubble-text">{message.text}</pre>
+                  <pre className="orchestrator-bubble-text">{bubbleText}</pre>
                   {(message.proposalChanges ?? []).map((change) => (
                     <div key={`${message.id}:${change.path}`} className="orchestrator-proposal-file">
                       <div className="orchestrator-proposal-path">{change.path}</div>
@@ -384,9 +402,7 @@ export function OrchestratorChat({
                   ))}
                 </div>
               ) : (
-                <pre className="orchestrator-bubble-text">
-                  {formatOrchestratorMessage(message, locale)}
-                </pre>
+                <pre className="orchestrator-bubble-text">{bubbleText}</pre>
               )}
               {message.attachedFiles && message.attachedFiles.length > 0 && (
                 <div className="orchestrator-attachments orchestrator-attachments-sent">
@@ -463,6 +479,7 @@ export function OrchestratorChat({
         )}
 
         <textarea
+          ref={composerInputRef}
           className="orchestrator-input"
           value={draft}
           onChange={(e) => onDraftChange(e.target.value)}
@@ -484,6 +501,26 @@ export function OrchestratorChat({
         />
 
         <div className="orchestrator-composer-actions">
+          {projectBlocked && (
+            <button
+              type="button"
+              className="clear-prompt-btn orchestrator-context-switch-btn"
+              onClick={onSwitchToFreeChat}
+              disabled={blocked}
+            >
+              {t(locale, "orchestratorContextFree")}
+            </button>
+          )}
+          {context === "free" && projectConnected && (
+            <button
+              type="button"
+              className="clear-prompt-btn orchestrator-context-switch-btn"
+              onClick={onSwitchToProject}
+              disabled={blocked}
+            >
+              {t(locale, "orchestratorContextProject")}
+            </button>
+          )}
           {context === "project" && (
             <AttachFileMenu
               locale={locale}
@@ -532,6 +569,14 @@ export function OrchestratorChat({
           </button>
         </div>
       </div>
+      {contextTip && (
+        <ContextSpotlightTip
+          direction={contextTip}
+          targetRef={composerInputRef}
+          locale={locale}
+          onDismiss={onDismissContextTip}
+        />
+      )}
     </div>
   );
 }

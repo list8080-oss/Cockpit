@@ -8,6 +8,7 @@ mod editor;
 mod editor_assets;
 mod editor_project;
 mod engines;
+mod entities;
 mod manuscript;
 mod profiles;
 mod transcripts;
@@ -27,6 +28,19 @@ pub(crate) mod test_env_lock {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // rustls 0.23 requires a process-wide default CryptoProvider to be
+    // installed before any TLS connection is made — our own reqwest 0.12
+    // client (codex_limits.rs/dictionaries.rs) installs one as a side
+    // effect of its "rustls-tls" feature, but tauri-plugin-updater's own
+    // reqwest 0.13 client is built with "rustls-no-provider" and installs
+    // none itself. Whichever client made the first TLS connection used to
+    // decide silently whether a provider existed yet — if the user checked
+    // for updates before anything else in the app touched the network, the
+    // updater's client found none and every check failed with a generic
+    // "error sending request for url" (reqwest's wrapped connector-build
+    // error). Installing it explicitly here removes the ordering dependency.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -97,6 +111,8 @@ pub fn run() {
             profiles::clear_project_path,
             transcripts::save_conversation_transcript,
             transcripts::open_transcripts_dir,
+            entities::read_entity_memory,
+            entities::append_entity_memory,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

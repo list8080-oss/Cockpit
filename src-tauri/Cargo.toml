@@ -1,6 +1,6 @@
 [package]
 name = "yar-cockpit"
-version = "0.4.9"
+version = "0.5.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -29,6 +29,7 @@ similar = "2"
 tokio = { version = "1", features = ["process", "rt-multi-thread", "macros", "time", "io-util"] }
 dirs = "5"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 base64 = "0.22"
 uuid = { version = "1", features = ["v4"] }
 time = { version = "0.3", features = ["formatting", "parsing"] }

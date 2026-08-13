@@ -565,6 +565,7 @@ export function Editor({
               lines.push(`![](${relativePath})`);
             } catch (err) {
               console.warn("DnD image import failed:", err);
+              onToast?.(t("imageInsertFailed"), "error");
             }
           }
 
@@ -629,22 +630,34 @@ export function Editor({
   }, [viewRef]);
 
   // ── Version history restore handler ─────────────────────────────────────────
+  // M-01 (editor audit 2026-08-12): dirty/lastSavedAt used to be cleared
+  // before the save actually landed, so a failed write after a restore left
+  // the UI claiming "saved" with nothing on disk to back it up — and since
+  // dirty stayed false, the periodic-autosave retry never kicked in either.
   const handleHistoryRestore = useCallback(
     (restoredDoc: DocumentContent) => {
       setContent(restoredDoc.content);
       contentRef.current = restoredDoc.content;
-      setDirty(false);
       setShowHistory(false);
-      setLastSavedAt(new Date());
       const view = viewRef.current;
       if (view) {
         view.dispatch({
           changes: { from: 0, to: view.state.doc.length, insert: restoredDoc.content },
         });
       }
-      void onSave(doc.id, restoredDoc.content);
+      dirtyRef.current = true;
+      setDirty(true);
+      void saveSnapshot(doc.id, restoredDoc.content).then((ok) => {
+        if (ok && contentRef.current === restoredDoc.content) {
+          dirtyRef.current = false;
+          setDirty(false);
+          setLastSavedAt(new Date());
+        } else if (!ok) {
+          onToast?.(t("autosaveFailedRetrying"), "error");
+        }
+      });
     },
-    [viewRef, onSave, doc.id],
+    [viewRef, saveSnapshot, doc.id, onToast, t],
   );
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -689,6 +702,7 @@ export function Editor({
           canRedo={true}
           manifest={manifest}
           projectPath={projectPath}
+          onToast={onToast}
           onUndo={handleUndo}
           onRedo={handleRedo}
           showFind={findOpen}
@@ -792,6 +806,7 @@ export function Editor({
             projectPath={projectPath}
             nodeId={doc.id}
             docTitle={doc.title}
+            docType={doc.doc_type}
             onRestore={handleHistoryRestore}
             onClose={() => setShowHistory(false)}
           />

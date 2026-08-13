@@ -29,4 +29,21 @@ describe("buildForest", () => {
     const flat = flattenForest(buildForest(manifest, manifest.manuscript_roots));
     expect(flat.map((n) => n.title)).toEqual(["Part One", "Chapter 1", "Scene 1"]);
   });
+
+  it("H-03: a cycle in project.json (hand-edited or pre-fix) doesn't hang the tree build", () => {
+    const cyclic: ProjectManifest = {
+      ...manifest,
+      manuscript_roots: ["a"],
+      nodes: {
+        a: { title: "A", doc_type: "part", file: "a.md", children: ["b"] },
+        b: { title: "B", doc_type: "chapter", file: "b.md", children: ["a"] },
+      },
+    };
+    const forest = buildForest(cyclic, cyclic.manuscript_roots);
+    expect(forest).toHaveLength(1);
+    expect(forest[0].title).toBe("A");
+    expect(forest[0].children[0].title).toBe("B");
+    // "a" is skipped the second time around instead of recursing forever.
+    expect(forest[0].children[0].children).toHaveLength(0);
+  });
 });

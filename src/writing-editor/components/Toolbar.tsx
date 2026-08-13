@@ -14,6 +14,7 @@ export interface ToolbarProps {
   canRedo: boolean;
   manifest?: ProjectManifest;
   projectPath?: string;
+  onToast?: (message: string, type: "success" | "error") => void;
   onUndo: () => void;
   onRedo: () => void;
   showFind: boolean;
@@ -41,6 +42,7 @@ export function Toolbar({
   canRedo,
   manifest,
   projectPath,
+  onToast,
   onUndo,
   onRedo,
   showFind,
@@ -123,6 +125,7 @@ export function Toolbar({
         <button
           type="button"
           className="toolbar-btn"
+          aria-label={t("undo")}
           data-tooltip={`${t("undo")} (${mod}+Z)`}
           disabled={!canUndo}
           onMouseDown={keepFocus}
@@ -133,6 +136,7 @@ export function Toolbar({
         <button
           type="button"
           className="toolbar-btn"
+          aria-label={t("redo")}
           data-tooltip={`${t("redo")} (${mod}+Shift+Z)`}
           disabled={!canRedo}
           onMouseDown={keepFocus}
@@ -149,7 +153,7 @@ export function Toolbar({
         inlineExtra={<LinkPickerButton viewRef={viewRef} manifest={manifest} />}
         blockExtra={
           projectPath ? (
-            <ImageInsertButton viewRef={viewRef} projectPath={projectPath} />
+            <ImageInsertButton viewRef={viewRef} projectPath={projectPath} onToast={onToast} />
           ) : undefined
         }
       />
@@ -160,6 +164,7 @@ export function Toolbar({
         <button
           type="button"
           className="toolbar-btn"
+          aria-label={t("cut")}
           data-tooltip={`${t("cut")} (${mod}+X)`}
           onMouseDown={keepFocus}
           onClick={() => void handleCut()}
@@ -169,6 +174,7 @@ export function Toolbar({
         <button
           type="button"
           className="toolbar-btn"
+          aria-label={t("copy")}
           data-tooltip={`${t("copy")} (${mod}+C)`}
           onMouseDown={keepFocus}
           onClick={() => void handleCopy()}
@@ -178,6 +184,7 @@ export function Toolbar({
         <button
           type="button"
           className="toolbar-btn"
+          aria-label={t("paste")}
           data-tooltip={`${t("paste")} (${mod}+V)`}
           onMouseDown={keepFocus}
           onClick={() => void handlePaste()}
@@ -192,6 +199,7 @@ export function Toolbar({
         <button
           type="button"
           className="toolbar-btn"
+          aria-label={t("selectAll")}
           data-tooltip={`${t("selectAll")} (${mod}+A)`}
           onMouseDown={keepFocus}
           onClick={handleSelectAll}
