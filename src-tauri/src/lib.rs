@@ -14,18 +14,6 @@ mod profiles;
 mod transcripts;
 mod version_history;
 
-/// Shared across different modules' tests that set process-global env vars
-/// (`YAR_COCKPIT_ORCHESTRATOR_DATA_DIR`, `YAR_COCKPIT_CONFIG_DIR`) — a
-/// module-private lock only serializes tests within that same module, so a
-/// test in another module reading the real default location can still race
-/// against it under `cargo test`'s default parallel execution. All tests
-/// that set either of those vars take this same lock first.
-#[cfg(test)]
-pub(crate) mod test_env_lock {
-    use std::sync::Mutex;
-    pub static ENV_LOCK: Mutex<()> = Mutex::new(());
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // rustls 0.23 requires a process-wide default CryptoProvider to be
@@ -113,7 +101,26 @@ pub fn run() {
             transcripts::open_transcripts_dir,
             entities::read_entity_memory,
             entities::append_entity_memory,
+            entities::ensure_entity_avatar,
+            entities::entity_personality_status,
+            entities::download_entity_personality,
+            entities::load_entity_context,
+            entities::export_entity_chat,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Shared across different modules' tests that set process-global env vars
+/// (`YAR_COCKPIT_ORCHESTRATOR_DATA_DIR`, `YAR_COCKPIT_CONFIG_DIR`) — a
+/// module-private lock only serializes tests within that same module, so a
+/// test in another module reading the real default location can still race
+/// against it under `cargo test`'s default parallel execution. All tests
+/// that set either of those vars take this same lock first. Lives after
+/// `run()` so ordinary items never sit between a `#[cfg(test)]` module and
+/// the rest of the file (clippy: items_after_test_module).
+#[cfg(test)]
+pub(crate) mod test_env_lock {
+    use std::sync::Mutex;
+    pub static ENV_LOCK: Mutex<()> = Mutex::new(());
 }

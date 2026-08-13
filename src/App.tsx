@@ -300,6 +300,8 @@ export default function App() {
 
   const {
     entities,
+    availableEntityIds,
+    refreshAvailableEntities,
     history: entitiesHistory,
     draft: entitiesDraft,
     setDraft: setEntitiesDraft,
@@ -307,6 +309,7 @@ export default function App() {
     newChat: newEntitiesChat,
     sendUser: sendEntitiesUser,
     respondAs: respondAsEntity,
+    exportChat: exportEntitiesChat,
   } = useEntitiesChat({
     claudeModel,
     claudeEffort,
@@ -1172,11 +1175,14 @@ export default function App() {
             <EntitiesPanel
               locale={locale}
               entities={entities}
+              availableEntityIds={availableEntityIds}
+              onRefreshAvailability={refreshAvailableEntities}
               history={entitiesHistory}
               draft={entitiesDraft}
               onDraftChange={setEntitiesDraft}
               busyEntityId={busyEntityId}
               onSend={sendEntitiesUser}
+              onExportChat={exportEntitiesChat}
               onRespondAs={respondAsEntity}
               onNewChat={newEntitiesChat}
             />

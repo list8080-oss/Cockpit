@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::corkboard::{get_writing_corkboard, CorkboardViewDto};
 use super::doc_types::{self, DocTypeDefinition};
@@ -391,7 +391,7 @@ fn manifest_to_dto(manifest: WritingProjectManifest, mode: ProjectMode) -> Resul
     })
 }
 
-fn document_mode(connected: &PathBuf) -> Result<ProjectMode, String> {
+fn document_mode(connected: &Path) -> Result<ProjectMode, String> {
     if connected.is_file() {
         Ok(ProjectMode::Legacy)
     } else {
@@ -497,7 +497,7 @@ fn save_legacy_document(node_id: &str, content: &str) -> Result<(), String> {
     atomic_write(&path, content)
 }
 
-fn load_structured_document(project_root: &PathBuf, node_id: &str) -> Result<DocumentContentDto, String> {
+fn load_structured_document(project_root: &Path, node_id: &str) -> Result<DocumentContentDto, String> {
     if node_id.is_empty() || node_id.contains('/') || node_id.contains('\\') || node_id.contains("..") {
         return Err("invalid document id".into());
     }
@@ -527,7 +527,7 @@ fn load_structured_document(project_root: &PathBuf, node_id: &str) -> Result<Doc
 }
 
 fn save_structured_document(
-    project_root: &PathBuf,
+    project_root: &Path,
     node_id: &str,
     content: &str,
 ) -> Result<(), String> {

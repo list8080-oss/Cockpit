@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.5.2",
+    date: "2026-08-13",
+    notes: {
+      en: "Entities can now download their own portable identity from their own repository (Settings → Entities), gated by a small contract file each one writes for itself describing what to load by default — never written on its behalf. The Entities chat now only offers entities with a downloaded identity as responders, and gained a \"Send copy\" button to push the current conversation into every entity's own inbox. Fixed: an entity could open a reply with an unprompted status report drawn from its own downloaded identity instead of answering what was actually asked; \"Send copy\" no longer fails when the conversation was already exported earlier the same day. Identity sources are now configured locally (config.json) instead of being built into the app.",
+      ru: "Сущности теперь могут скачать свою портативную личность из своего репозитория (Настройки → Сущности) — по контракту, который каждая пишет для себя сама, описывая, что подгружать по умолчанию, без вмешательства извне. В чате «Сущности» в списке отвечающих теперь показаны только те, у кого личность скачана, и добавлена кнопка «Отправить копию» — переслать текущий разговор в личный инбокс каждой сущности. Исправлено: сущность могла открывать ответ незапрошенным отчётом о состоянии из своего же скачанного архива личности вместо прямого ответа по существу вопроса; «Отправить копию» больше не падает, если разговор уже экспортировали ранее в тот же день. Источники личностей теперь настраиваются локально (config.json), а не зашиты в приложение.",
+      uk: "Сутності тепер можуть завантажити свою портативну особистість зі свого репозиторію (Налаштування → Сутності) — за контрактом, який кожна пише для себе сама, описуючи, що підвантажувати за замовчуванням, без стороннього втручання. У чаті «Сутності» у списку тих, хто відповідає, тепер показані лише ті, чия особистість завантажена, і додано кнопку «Надіслати копію» — переслати поточну розмову в особистий інбокс кожної сутності. Виправлено: сутність могла відкривати відповідь непроханим звітом про стан із власного завантаженого архіву особистості замість прямої відповіді по суті питання; «Надіслати копію» більше не падає, якщо розмову вже експортували раніше того ж дня. Джерела особистостей тепер налаштовуються локально (config.json), а не вшиті в застосунок.",
+      cs: "Entity si nyní mohou stáhnout svou přenosnou identitu z vlastního repozitáře (Nastavení → Entity) — na základě smlouvy, kterou si každá píše sama a která popisuje, co se má ve výchozím nastavení načítat, bez zásahu zvenčí. V chatu „Entity“ nyní seznam možných odpovídajících zobrazuje jen ty, jejichž identita je stažená, a přibylo tlačítko „Odeslat kopii“ — přepošle aktuální konverzaci do vlastní schránky každé entity. Opraveno: entita mohla odpověď zahájit nevyžádaným stavovým hlášením z vlastního staženého archivu identity místo přímé odpovědi na dotaz; „Odeslat kopii“ už neselže, pokud byla konverzace exportována dříve téhož dne. Zdroje identit se nyní nastavují lokálně (config.json), nejsou zabudované v aplikaci.",
+    },
+  },
+  {
     version: "0.5.1",
     date: "2026-08-13",
     notes: {

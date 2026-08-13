@@ -26,6 +26,7 @@ import { profileLabel, type ProjectProfile } from "../profiles";
 import type { OrchestratorContext } from "../orchestrator/runFanout";
 import { OrchestratorConfigPanel, JournalPanel } from "../orchestrator";
 import type { OrchestratorAgentId } from "../orchestrator";
+import { EntitiesPersonalityPanel } from "../entities";
 
 export type SettingsSection =
   | "general"
@@ -34,7 +35,8 @@ export type SettingsSection =
   | "projects"
   | "dictionaries"
   | "updates"
-  | "agents";
+  | "agents"
+  | "entities";
 
 export interface DictionaryStatus {
   lang: string;
@@ -193,6 +195,7 @@ export function SettingsView({
     { id: "dictionaries", label: t(locale, "settingsDictionaries") },
     { id: "updates", label: t(locale, "settingsUpdates") },
     { id: "agents", label: t(locale, "settingsAgents") },
+    { id: "entities", label: t(locale, "settingsEntities") },
   ];
 
   return (
@@ -320,6 +323,14 @@ export function SettingsView({
             <h2>{t(locale, "settingsJournal")}</h2>
             <p className="settings-section-hint">{t(locale, "settingsJournalHint")}</p>
             <JournalPanel locale={locale} availableProfiles={availableProfiles} />
+          </section>
+        )}
+
+        {section === "entities" && (
+          <section className="settings-section">
+            <h2>{t(locale, "settingsEntities")}</h2>
+            <p className="settings-section-hint">{t(locale, "settingsEntitiesHint")}</p>
+            <EntitiesPersonalityPanel locale={locale} />
           </section>
         )}
 

@@ -39,6 +39,20 @@ type Dict = {
   entitiesPickResponder: string;
   entitiesNewChat: string;
   entitiesWaiting: string;
+  entitiesNoneAvailable: string;
+  entitiesExport: string;
+  entitiesExporting: string;
+  entitiesExported: string;
+  entitiesExportError: string;
+  entitiesExportHint: string;
+  entitiesExportConfirm: string;
+  entitiesPersonalityDownloaded: string;
+  entitiesPersonalityNotDownloaded: string;
+  entitiesPersonalityNotConfigured: string;
+  entitiesPersonalityNoBootstrap: string;
+  entitiesPersonalityDownloading: string;
+  entitiesPersonalityDownload: string;
+  entitiesPersonalityUpdate: string;
   limitFiveHour: string;
   limitWeekly: string;
   limitUsed: string;
@@ -70,6 +84,8 @@ type Dict = {
   currentVersion: string;
   versionHistory: string;
   settingsAgents: string;
+  settingsEntities: string;
+  settingsEntitiesHint: string;
   settingsAgentsHint: string;
   settingsAgentModels: string;
   settingsAgentModelsHint: string;
@@ -269,6 +285,20 @@ const en: Dict = {
   entitiesPickResponder: "Who answers next?",
   entitiesNewChat: "New chat",
   entitiesWaiting: "Thinking…",
+  entitiesNoneAvailable: "No entity personalities downloaded yet — go to Settings → Entities.",
+  entitiesExport: "Send a copy",
+  entitiesExporting: "Sending…",
+  entitiesExported: "Sent",
+  entitiesExportError: "Send failed",
+  entitiesExportHint: "Sends a copy of this conversation to each entity's own personal archive",
+  entitiesExportConfirm: "Send a copy of this conversation to {names}'s own GitHub inbox? This is a real push to their repository.",
+  entitiesPersonalityDownloaded: "Downloaded {date}, commit {sha}",
+  entitiesPersonalityNotDownloaded: "Not downloaded",
+  entitiesPersonalityNotConfigured: "Source not configured — add an entity_repos entry to config.json to enable downloads",
+  entitiesPersonalityNoBootstrap: "no bootstrap.json yet — starts with a blank slate",
+  entitiesPersonalityDownloading: "Downloading…",
+  entitiesPersonalityDownload: "Download",
+  entitiesPersonalityUpdate: "Update",
   limitFiveHour: "5h",
   limitWeekly: "week",
   limitUsed: "{label} {percent}% used",
@@ -304,6 +334,9 @@ const en: Dict = {
   currentVersion: "Current version",
   versionHistory: "Version history",
   settingsAgents: "Agents",
+  settingsEntities: "Entities",
+  settingsEntitiesHint:
+    "Each entity's own portable identity, downloaded from its own repository on demand — separate from the automatic local memory it keeps during a conversation.",
   settingsAgentsHint:
     "Sign in with your own Claude, Codex, and Cursor accounts. Green on a column means that agent is ready.",
   settingsAgentModels: "Models & effort",
@@ -515,6 +548,20 @@ const ru: Dict = {
   entitiesPickResponder: "Кто отвечает дальше?",
   entitiesNewChat: "Новый чат",
   entitiesWaiting: "Думает…",
+  entitiesNoneAvailable: "Личности сущностей ещё не скачаны — зайдите в Настройки → Сущности.",
+  entitiesExport: "Отправить копию",
+  entitiesExporting: "Отправка…",
+  entitiesExported: "Отправлено",
+  entitiesExportError: "Не удалось отправить",
+  entitiesExportHint: "Отправляет копию этого разговора в личный архив каждой сущности",
+  entitiesExportConfirm: "Отправить копию этого разговора в личный GitHub-инбокс: {names}? Это реальный пуш в их репозиторий.",
+  entitiesPersonalityDownloaded: "Скачано {date}, commit {sha}",
+  entitiesPersonalityNotDownloaded: "Не скачано",
+  entitiesPersonalityNotConfigured: "Источник не настроен — чтобы включить скачивание, добавьте запись entity_repos в config.json",
+  entitiesPersonalityNoBootstrap: "пока нет bootstrap.json — участвует с чистого листа",
+  entitiesPersonalityDownloading: "Скачивание…",
+  entitiesPersonalityDownload: "Скачать",
+  entitiesPersonalityUpdate: "Обновить",
   limitFiveHour: "5ч",
   limitWeekly: "нед.",
   limitUsed: "{label} {percent}%",
@@ -550,6 +597,9 @@ const ru: Dict = {
   currentVersion: "Текущая версия",
   versionHistory: "История версий",
   settingsAgents: "Агенты",
+  settingsEntities: "Сущности",
+  settingsEntitiesHint:
+    "Собственная портативная личность каждой сущности, скачивается по запросу из её собственного репозитория — отдельно от автоматической локальной памяти, которую она ведёт во время разговора.",
   settingsAgentsHint:
     "Вход через ваши аккаунты Claude, Codex и Cursor. Зелёная лампочка над колонкой значит, что агент готов.",
   settingsAgentModels: "Модели и уровни",
@@ -763,6 +813,20 @@ const uk: Dict = {
   entitiesPickResponder: "Хто відповідає далі?",
   entitiesNewChat: "Новий чат",
   entitiesWaiting: "Думає…",
+  entitiesNoneAvailable: "Особистості сутностей ще не завантажені — перейдіть у Налаштування → Сутності.",
+  entitiesExport: "Надіслати копію",
+  entitiesExporting: "Надсилання…",
+  entitiesExported: "Надіслано",
+  entitiesExportError: "Не вдалося надіслати",
+  entitiesExportHint: "Надсилає копію цієї розмови в особистий архів кожної сутності",
+  entitiesExportConfirm: "Надіслати копію цієї розмови в особистий GitHub-інбокс: {names}? Це реальний пуш у їхній репозиторій.",
+  entitiesPersonalityDownloaded: "Завантажено {date}, commit {sha}",
+  entitiesPersonalityNotDownloaded: "Не завантажено",
+  entitiesPersonalityNotConfigured: "Джерело не налаштовано — щоб увімкнути завантаження, додайте запис entity_repos у config.json",
+  entitiesPersonalityNoBootstrap: "ще немає bootstrap.json — бере участь з чистого аркуша",
+  entitiesPersonalityDownloading: "Завантаження…",
+  entitiesPersonalityDownload: "Завантажити",
+  entitiesPersonalityUpdate: "Оновити",
   limitFiveHour: "5 год",
   limitWeekly: "тижд.",
   limitUsed: "{label} {percent}%",
@@ -798,6 +862,9 @@ const uk: Dict = {
   currentVersion: "Поточна версія",
   versionHistory: "Історія версій",
   settingsAgents: "Агенти",
+  settingsEntities: "Сутності",
+  settingsEntitiesHint:
+    "Власна портативна особистість кожної сутності, завантажується за запитом з її власного репозиторію — окремо від автоматичної локальної пам'яті, яку вона веде під час розмови.",
   settingsAgentsHint:
     "Вхід через ваші акаунти Claude, Codex і Cursor. Зелена лампочка над колонкою означає, що агент готовий.",
   settingsAgentModels: "Моделі та рівні",
@@ -1011,6 +1078,20 @@ const cs: Dict = {
   entitiesPickResponder: "Kdo odpoví další?",
   entitiesNewChat: "Nový chat",
   entitiesWaiting: "Přemýšlí…",
+  entitiesNoneAvailable: "Osobnosti entit zatím nejsou stažené — přejděte do Nastavení → Entity.",
+  entitiesExport: "Odeslat kopii",
+  entitiesExporting: "Odesílání…",
+  entitiesExported: "Odesláno",
+  entitiesExportError: "Odeslání selhalo",
+  entitiesExportHint: "Odešle kopii této konverzace do osobního archivu každé entity",
+  entitiesExportConfirm: "Odeslat kopii této konverzace do osobní schránky na GitHubu: {names}? Toto je skutečný push do jejich repozitáře.",
+  entitiesPersonalityDownloaded: "Staženo {date}, commit {sha}",
+  entitiesPersonalityNotDownloaded: "Nestaženo",
+  entitiesPersonalityNotConfigured: "Zdroj není nastaven — stahování zapnete přidáním záznamu entity_repos do config.json",
+  entitiesPersonalityNoBootstrap: "zatím žádný bootstrap.json — začíná s čistým štítem",
+  entitiesPersonalityDownloading: "Stahování…",
+  entitiesPersonalityDownload: "Stáhnout",
+  entitiesPersonalityUpdate: "Aktualizovat",
   limitFiveHour: "5 h",
   limitWeekly: "týden",
   limitUsed: "{label} {percent} %",
@@ -1046,6 +1127,9 @@ const cs: Dict = {
   currentVersion: "Aktuální verze",
   versionHistory: "Historie verzí",
   settingsAgents: "Agenti",
+  settingsEntities: "Entity",
+  settingsEntitiesHint:
+    "Vlastní přenosná identita každé entity, stahovaná na vyžádání z jejího vlastního repozitáře — odděleně od automatické místní paměti, kterou si vede během konverzace.",
   settingsAgentsHint:
     "Přihlášení přes vaše účty Claude, Codex a Cursor. Zelená kontrolka nad sloupcem znamená, že je agent připraven.",
   settingsAgentModels: "Modely a úroveň",

@@ -45,6 +45,10 @@ pub fn gh_bin() -> String {
     resolve_bin(&["/opt/homebrew/bin/gh", "/usr/local/bin/gh"], "gh")
 }
 
+pub fn git_bin() -> String {
+    resolve_bin(&["/usr/bin/git", "/opt/homebrew/bin/git", "/usr/local/bin/git"], "git")
+}
+
 pub fn opencode_bin() -> String {
     resolve_bin(&["/opt/homebrew/bin/opencode", "/usr/local/bin/opencode"], "opencode")
 }

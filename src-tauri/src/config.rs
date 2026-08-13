@@ -7,6 +7,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+/// Where one entity's personality lives: a GitHub repo (`owner/name`) and,
+/// when the personality is a subfolder of a shared repo, that subfolder.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EntityRepoConfig {
+    pub repo: String,
+    #[serde(default)]
+    pub subpath: Option<String>,
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AppConfig {
     /// Legacy pre-profile field. `load()` migrates it into
@@ -23,6 +32,16 @@ pub struct AppConfig {
     /// "development"). Source of truth for `profiles::resolve_profile_workdir`.
     #[serde(default)]
     pub project_paths: BTreeMap<String, String>,
+    /// entity id ("orchestrator"/"argus"/"vera") -> its personality repo.
+    /// Deliberately a local-config value and NOT a constant in source: the
+    /// source code is published as-is to the public repo on every release,
+    /// and these are private personal repo names that must never appear
+    /// there (BACKLOG п.14, аудит 2026-08-13). An empty map just means the
+    /// Entities download feature is dormant until someone fills it in —
+    /// same trust model as `project_paths` (a file only the local user can
+    /// edit; never writable from the webview side).
+    #[serde(default)]
+    pub entity_repos: BTreeMap<String, EntityRepoConfig>,
 }
 
 fn config_path() -> Result<PathBuf, String> {

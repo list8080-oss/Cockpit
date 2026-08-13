@@ -77,8 +77,8 @@ fn collect_columns(
     let mut visited = std::collections::HashSet::new();
 
     for root_id in &manifest.manuscript_roots {
-        match manifest.nodes.get(root_id) {
-            Some(node) => match node.doc_type.as_deref() {
+        if let Some(node) = manifest.nodes.get(root_id) {
+            match node.doc_type.as_deref() {
                 Some("part") => {
                     for child_id in &node.children {
                         collect_node_columns(manifest, child_id, out, &mut visited)?;
@@ -86,8 +86,7 @@ fn collect_columns(
                 }
                 Some("chapter") => push_chapter_column(manifest, root_id, out),
                 _ => loose_roots.push(root_id.clone()),
-            },
-            None => {}
+            }
         }
     }
 

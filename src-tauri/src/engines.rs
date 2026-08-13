@@ -547,10 +547,7 @@ fn unified_diff_for(path: &str, old: &str, new: &str) -> String {
 
 fn file_diff_from_proposal(cwd: &Path, change: ProposedFileChange) -> Result<FileDiff, String> {
     let resolved = resolve_orchestrator_relative_path(cwd, &change.path)?;
-    let old_content = match std::fs::read_to_string(&resolved) {
-        Ok(s) => Some(s),
-        Err(_) => None,
-    };
+    let old_content = std::fs::read_to_string(&resolved).ok();
     let old = old_content.as_deref().unwrap_or("");
     let diff = unified_diff_for(&change.path, old, &change.new_content);
     Ok(FileDiff {

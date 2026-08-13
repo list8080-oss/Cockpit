@@ -1784,6 +1784,10 @@ body,
   position: static;
 }
 
+.orchestrator-export {
+  position: static;
+}
+
 .orchestrator-attach-btn {
   position: static;
 }
