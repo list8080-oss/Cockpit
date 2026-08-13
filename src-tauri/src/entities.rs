@@ -47,7 +47,7 @@ pub fn read_entity_memory(entity_id: String) -> Result<String, String> {
 }
 
 /// Appends one dated entry. Never truncates or rewrites prior entries — a
-/// growing log, same append-only spirit as `ARGUS.md`/`skrit-core`, just
+/// growing log, same append-only spirit as `ARGUS.md`, just
 /// local to this app instead of a git branch.
 #[tauri::command]
 pub fn append_entity_memory(entity_id: String, note: String) -> Result<(), String> {
