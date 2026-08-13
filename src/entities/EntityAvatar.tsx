@@ -1,13 +1,29 @@
-/** Plain circle + person-silhouette outline — deliberately generic, not a
- * distinct icon per entity (per the first-version scope: only the name text
- * distinguishes who's who, see CLAUDE.md's Entities section). */
+/** Circle + person-silhouette outline by default — an entity can override
+ * this with a real portrait via `imageSrc` (see `entityDefinitions.ts`'s
+ * `avatarSrc`). Only Оркестратор has one as of this writing; the others
+ * still fall back to the generic silhouette until picked. */
 export function EntityAvatar({
   size = 32,
   active = false,
+  imageSrc,
 }: {
   size?: number;
   active?: boolean;
+  imageSrc?: string;
 }) {
+  if (imageSrc) {
+    return (
+      <img
+        src={imageSrc}
+        width={size}
+        height={size}
+        alt=""
+        aria-hidden="true"
+        className={active ? "entity-avatar entity-avatar-photo entity-avatar-active" : "entity-avatar entity-avatar-photo"}
+      />
+    );
+  }
+
   return (
     <svg
       width={size}

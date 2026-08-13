@@ -9,6 +9,16 @@ export type ChangelogEntry = {
 /** Newest first. Keep in sync with public GitHub Releases notes. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.5.1",
+    date: "2026-08-13",
+    notes: {
+      en: "Оркестратор, Аргус, and Вера now have real portrait avatars in the Entities screen instead of a generic silhouette — Аргус and Вера picked their own, independently.",
+      ru: "У Оркестратора, Аргуса и Веры теперь настоящие аватары-портреты на экране «Сущности» вместо общего силуэта — Аргус и Вера выбрали свои сами, независимо друг от друга.",
+      uk: "У Оркестратора, Аргуса та Віри тепер справжні аватари-портрети на екрані «Сутності» замість загального силуету — Аргус і Віра обрали свої самі, незалежно одна від одної.",
+      cs: "Оркестратор, Аргус a Вера mají nyní na obrazovce „Entity“ skutečné portrétní avatary místo obecné siluety — Аргус a Вера si je vybraly samy, nezávisle na sobě.",
+    },
+  },
+  {
     version: "0.5.0",
     date: "2026-08-13",
     notes: {

@@ -55,7 +55,7 @@ export function EntitiesPanel({
             >
               <BubbleCopyButton text={turn.text} locale={locale} />
               <div className="orchestrator-bubble-label entity-bubble-label">
-                {turn.role === "entity" && <EntityAvatar size={20} />}
+                {turn.role === "entity" && <EntityAvatar size={20} imageSrc={entity?.avatarSrc} />}
                 <span>{turn.role === "user" ? t(locale, "orchestratorYou") : (entity?.name ?? "?")}</span>
               </div>
               <pre className="orchestrator-bubble-text">{turn.text}</pre>
@@ -65,7 +65,7 @@ export function EntitiesPanel({
         {busyEntityId && (
           <div className="orchestrator-bubble orchestrator-bubble-bot entity-bubble">
             <div className="orchestrator-bubble-label entity-bubble-label">
-              <EntityAvatar size={20} />
+              <EntityAvatar size={20} imageSrc={entities.find((e) => e.id === busyEntityId)?.avatarSrc} />
               <span>{entities.find((e) => e.id === busyEntityId)?.name}</span>
             </div>
             <div className="muted">{t(locale, "entitiesWaiting")}</div>
@@ -85,7 +85,7 @@ export function EntitiesPanel({
             title={entity.name}
             onClick={() => onRespondAs(entity.id)}
           >
-            <EntityAvatar size={32} active={busyEntityId === entity.id} />
+            <EntityAvatar size={32} active={busyEntityId === entity.id} imageSrc={entity.avatarSrc} />
             <span>{entity.name}</span>
           </button>
         ))}
