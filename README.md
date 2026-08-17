@@ -50,6 +50,14 @@ pnpm tauri build
 
 Tauri v2 (Rust) + React + TypeScript.
 
+## Licence
+
+Source is published so it can be read and checked; released builds are free to
+use, including for paid work. Redistribution, modified versions and resale are
+not granted yet — see [LICENSE](LICENSE), which says plainly what is and isn't
+allowed and how to ask for the rest. Third-party components keep their own,
+more permissive terms ([THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
+
 ---
 
 # InPrincipio (Русский)
@@ -103,3 +111,11 @@ pnpm tauri build
 ## Стек
 
 Tauri v2 (Rust) + React + TypeScript.
+
+## Лицензия
+
+Исходники опубликованы, чтобы их можно было прочитать и проверить; собранными
+релизами можно пользоваться свободно, в том числе в платной работе.
+Перепубликация, изменённые версии и перепродажа пока не разрешены — [LICENSE](LICENSE)
+говорит прямо, что можно и чего нельзя, и как спросить про остальное. Чужие
+части сохраняют свои, более свободные условия ([THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).

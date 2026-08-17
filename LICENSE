@@ -1,0 +1,62 @@
+InPrincipio — licence terms
+Copyright (c) 2026 KDV (github.com/list8080-oss). All rights reserved.
+
+WHAT THIS IS
+
+The source of this application is published so it can be read, inspected and
+audited by anyone. It is not, at present, open-source software: publishing the
+source and granting the right to reuse it are two different things, and only
+the first has been done so far.
+
+This notice exists because a public repository with no licence at all is
+ambiguous by omission — it reads as an oversight, while defaulting in law to
+"all rights reserved". The position below is deliberate, not an oversight.
+
+WHAT YOU MAY DO
+
+  1. Read, study and inspect this source code, in full, for any purpose.
+  2. Download a released build and use it, including for your own paid work.
+     No fee is charged and none is currently planned.
+  3. Build this source yourself and run the result on machines you control.
+  4. Quote excerpts with attribution — in a review, an article, a bug report,
+     a discussion of how it works.
+
+WHAT IS NOT GRANTED YET
+
+  1. Redistributing this software, in source or built form, to others.
+  2. Publishing modified versions or derivative works.
+  3. Selling it, bundling it into a paid product, or offering it as a service.
+  4. Sublicensing any of the above to anyone else.
+
+"Not granted yet" is meant literally. These terms may be relaxed later, and
+that is the likely direction. If they are, the change applies from the version
+it is published with — anything released under more permissive terms stays
+under them permanently, because that cannot be taken back.
+
+If you want to do something in the second list, ask:
+inprincipio.project@gmail.com. A plain question gets a plain answer.
+
+THIRD-PARTY COMPONENTS
+
+Parts of this application come from other people's work and keep their own
+licences, which are more permissive than this one and are not narrowed by it.
+The writing editor is based on Loomdraft (MIT). Every such component and its
+terms are listed in THIRD_PARTY_NOTICES.md; that file governs those parts.
+
+The AI command-line tools this application drives — Claude Code, Codex,
+Cursor, OpenCode — are not included, not redistributed, and not covered here.
+Each is installed and paid for by the person using it, under its own terms.
+
+NO WARRANTY
+
+This software is provided "as is", without warranty of any kind, express or
+implied, including but not limited to the warranties of merchantability,
+fitness for a particular purpose and non-infringement. In no event shall the
+author be liable for any claim, damages or other liability, whether in an
+action of contract, tort or otherwise, arising from, out of or in connection
+with the software or the use or other dealings in the software.
+
+Note: this is a plain-language licence written for a small personal project,
+not a standard OSI-approved one. GitHub will therefore show the licence of
+this repository as unrecognised, which is expected and correct — it is not
+an open-source licence, and labelling it as one would be the actual error.
